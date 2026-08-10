@@ -4,6 +4,7 @@ from datetime import date
 from flask import Blueprint, render_template, request
 
 from services.reportes import resumen_periodo
+from services.fechas import MESES_ES
 
 bp = Blueprint("reportes", __name__, url_prefix="/reportes")
 
@@ -29,5 +30,5 @@ def index():
         mes=mes,
         fecha_inicio=fecha_inicio,
         fecha_fin=fecha_fin,
-        meses=list(calendar.month_name)[1:],
+        meses=MESES_ES,
     )

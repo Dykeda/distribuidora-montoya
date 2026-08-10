@@ -1,3 +1,119 @@
+:root {
+  --montoya-rojo: #c8102e;
+  --montoya-rojo-oscuro: #970c22;
+  --montoya-azul: #0b3d5c;
+  --montoya-fondo: #f4f5f7;
+}
+
+body {
+  font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+  background-color: var(--montoya-fondo);
+  color: #212529;
+}
+
+h1, h2, h3, .navbar-brand {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* Navbar */
+.navbar.bg-primary {
+  background-color: var(--montoya-azul) !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.navbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.navbar-brand::before {
+  content: "🥤";
+  font-size: 1.2rem;
+}
+
+.navbar-nav .nav-link {
+  border-radius: 0.375rem;
+  padding: 0.4rem 0.75rem !important;
+  transition: background-color 0.15s ease;
+}
+
+.navbar-nav .nav-link:hover,
+.navbar-nav .nav-link.active {
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+/* Botones y enlaces con el color de marca */
+.btn-primary {
+  --bs-btn-bg: var(--montoya-rojo);
+  --bs-btn-border-color: var(--montoya-rojo);
+  --bs-btn-hover-bg: var(--montoya-rojo-oscuro);
+  --bs-btn-hover-border-color: var(--montoya-rojo-oscuro);
+  --bs-btn-active-bg: var(--montoya-rojo-oscuro);
+  --bs-btn-active-border-color: var(--montoya-rojo-oscuro);
+}
+
+.btn-outline-primary {
+  --bs-btn-color: var(--montoya-rojo);
+  --bs-btn-border-color: var(--montoya-rojo);
+  --bs-btn-hover-bg: var(--montoya-rojo);
+  --bs-btn-hover-border-color: var(--montoya-rojo);
+  --bs-btn-active-bg: var(--montoya-rojo);
+  --bs-btn-active-border-color: var(--montoya-rojo);
+}
+
+a {
+  color: var(--montoya-rojo-oscuro);
+}
+
+a:hover {
+  color: var(--montoya-rojo);
+}
+
+/* Tarjetas */
+.card {
+  border: none;
+  border-radius: 0.6rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
 .card-metric {
-  border-left: 4px solid var(--bs-primary);
+  border-left: 4px solid var(--montoya-rojo);
+}
+
+.card-metric.border-primary {
+  border-left-color: var(--montoya-azul) !important;
+  border-top: none;
+  border-right: none;
+  border-bottom: none;
+}
+
+.card-metric .fs-4, .card-metric .fs-3 {
+  color: var(--montoya-azul);
+}
+
+/* Tablas */
+.table thead {
+  background-color: #eef1f4;
+}
+
+.table thead th {
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #495057;
+  border-bottom-width: 1px;
+}
+
+.table-hover tbody tr:hover {
+  background-color: #fbeaec;
+}
+
+/* Alertas y estados */
+.badge.bg-success { background-color: #1f7a4c !important; }
+.badge.bg-warning { background-color: #e8a13a !important; }
+
+.table-warning {
+  --bs-table-bg: #fdf3e3;
 }

@@ -6,6 +6,7 @@ from flask import Blueprint, render_template
 from models import Producto
 from services.inventario import listar_stock_todos
 from services.reportes import resumen_periodo
+from services.fechas import nombre_mes
 
 bp = Blueprint("dashboard", __name__)
 
@@ -30,7 +31,7 @@ def index():
     return render_template(
         "dashboard.html",
         resumen=resumen,
-        mes_actual=hoy.strftime("%B %Y"),
+        mes_actual=f"{nombre_mes(hoy.month)} {hoy.year}",
         stock_bajo=stock_bajo,
         hay_productos=Producto.query.first() is not None,
     )
