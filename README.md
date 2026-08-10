@@ -16,6 +16,11 @@ camión de reparto y el crédito por descuento de Distribuidora Montoya.
 3. **No cierres la ventana negra** que se abre mientras estés usando el sistema — es la
    que mantiene el programa funcionando. Cuando termines, cierra esa ventana.
 
+### Respaldo de la información (recomendado hacerlo seguido)
+Doble clic en **`respaldar.bat`**. Guarda una copia de toda la información del negocio con
+la fecha y hora en el nombre. Si el computador tiene OneDrive, el respaldo queda ahí y se
+sube solo a la nube — así no se pierde nada aunque el computador falle.
+
 ### Qué hace cada pantalla
 - **Inicio**: resumen del mes — cuánto se compró, cuánto se vendió, cuánto crédito de
   descuento se ganó, y cuánto saldo tienes disponible para canjear por producto.
