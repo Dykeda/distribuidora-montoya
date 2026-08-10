@@ -14,7 +14,9 @@ HOY = date.today().isoformat()
 
 @pytest.fixture
 def client(app):
-    return app.test_client()
+    c = app.test_client()
+    c.post("/login", data={"password": app.config["APP_PASSWORD"]})
+    return c
 
 
 def test_flujo_completo(client):

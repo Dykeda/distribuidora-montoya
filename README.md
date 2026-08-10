@@ -1,9 +1,15 @@
 # Distribuidora Montoya — Sistema de control interno
 
-Aplicación web local para controlar el inventario, las compras a Postobón, las rutas del
-camión de reparto y el crédito por descuento de Distribuidora Montoya.
+Aplicación web para controlar el inventario, las compras a Postobón, las rutas del
+camión de reparto y el crédito por descuento de Distribuidora Montoya. Puede correr
+localmente en un computador (ver abajo) o publicarse en línea para acceder desde
+cualquier lugar (ver `DEPLOY.md`).
 
-## Para el dueño (uso diario)
+Desde que se puede usar en línea, **todo el sistema pide contraseña** antes de mostrar
+cualquier pantalla (antes no la pedía, porque solo corría en un computador de confianza).
+Si la estás usando en línea, avísale al dueño cuál es esa contraseña.
+
+## Para el dueño (uso diario, si corre localmente en un computador)
 
 ### Primera vez (una sola vez)
 1. Doble clic en **`instalar.bat`**.
@@ -12,7 +18,8 @@ camión de reparto y el crédito por descuento de Distribuidora Montoya.
 
 ### Cada vez que quieras usar el sistema
 1. Doble clic en **`iniciar.bat`**.
-2. Se abrirá automáticamente en tu navegador (Chrome, Edge, etc.).
+2. Se abrirá automáticamente en tu navegador (Chrome, Edge, etc.) y pedirá la contraseña
+   (por defecto `montoya2026` si nadie la cambió — ver nota de seguridad abajo).
 3. **No cierres la ventana negra** que se abre mientras estés usando el sistema — es la
    que mantiene el programa funcionando. Cuando termines, cierra esa ventana.
 
@@ -64,6 +71,15 @@ pytest tests\          # corre todas las pruebas
 python app.py           # levanta el servidor manualmente
 flask --app app init-db # recrea las tablas si hace falta
 ```
+
+### Contraseña y despliegue en línea
+- La app exige login en todas partes (`app.py`, función `exigir_login`). La contraseña
+  vive en `Config.APP_PASSWORD`, leída de la variable de entorno `APP_PASSWORD` (con
+  `montoya2026` como valor por defecto SOLO para uso local). Lo mismo con `SECRET_KEY`
+  (firma las cookies de sesión).
+- **Si se despliega en línea, hay que fijar `APP_PASSWORD` y `SECRET_KEY` propios como
+  variables de entorno — nunca dejar los valores por defecto expuestos a internet.**
+  Guía completa de despliegue (PythonAnywhere + GitHub) en `DEPLOY.md`.
 
 ### Fórmulas de reportes
 ```

@@ -1,7 +1,8 @@
 import webbrowser
+from datetime import timedelta
 from threading import Timer
 
-from flask import Flask
+from flask import Flask, session, redirect, url_for, request
 
 from config import Config
 from extensions import db
@@ -10,8 +11,10 @@ from extensions import db
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
+    app.permanent_session_lifetime = timedelta(days=30)
     db.init_app(app)
 
+    from routes.auth import bp as auth_bp
     from routes.dashboard import bp as dashboard_bp
     from routes.productos import bp as productos_bp
     from routes.compras import bp as compras_bp
@@ -19,12 +22,20 @@ def create_app():
     from routes.descuentos import bp as descuentos_bp
     from routes.reportes import bp as reportes_bp
 
+    app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(productos_bp)
     app.register_blueprint(compras_bp)
     app.register_blueprint(camion_bp)
     app.register_blueprint(descuentos_bp)
     app.register_blueprint(reportes_bp)
+
+    @app.before_request
+    def exigir_login():
+        if request.endpoint in (None, "auth.login") or request.path.startswith("/static/"):
+            return None
+        if not session.get("autenticado"):
+            return redirect(url_for("auth.login", next=request.path))
 
     @app.cli.command("init-db")
     def init_db():
