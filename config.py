@@ -1,12 +1,23 @@
 import os
+import sys
 
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-os.makedirs(os.path.join(BASE_DIR, "instance"), exist_ok=True)
+# Cuando corre empaquetado con PyInstaller (--onefile), los recursos incluidos
+# (templates/, static/) quedan en una carpeta temporal (sys._MEIPASS), pero los datos
+# que se deben conservar entre usos (la base de datos) tienen que vivir junto al .exe
+# real, no en esa carpeta temporal que se borra al cerrar el programa.
+if getattr(sys, "frozen", False):
+    BASE_DIR = sys._MEIPASS
+    DATA_DIR = os.path.dirname(sys.executable)
+else:
+    BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+    DATA_DIR = BASE_DIR
+
+os.makedirs(os.path.join(DATA_DIR, "instance"), exist_ok=True)
 
 
 class Config:
     SQLALCHEMY_DATABASE_URI = "sqlite:///" + os.path.join(
-        BASE_DIR, "instance", "distribuidora.db"
+        DATA_DIR, "instance", "distribuidora.db"
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     # En el hosting en línea, SIEMPRE se debe fijar APP_PASSWORD y SECRET_KEY propios

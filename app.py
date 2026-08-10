@@ -1,15 +1,28 @@
+import os
+import sys
 import webbrowser
 from datetime import timedelta
 from threading import Timer
 
 from flask import Flask, session, redirect, url_for, request
 
-from config import Config
+from config import Config, BASE_DIR
 from extensions import db
+
+CONGELADO = getattr(sys, "frozen", False)
 
 
 def create_app():
-    app = Flask(__name__)
+    if CONGELADO:
+        # PyInstaller extrae templates/ y static/ a la carpeta temporal BASE_DIR;
+        # sin esto, Flask buscaría esas carpetas junto al .exe y no las encontraría.
+        app = Flask(
+            __name__,
+            template_folder=os.path.join(BASE_DIR, "templates"),
+            static_folder=os.path.join(BASE_DIR, "static"),
+        )
+    else:
+        app = Flask(__name__)
     app.config.from_object(Config)
     app.permanent_session_lifetime = timedelta(days=30)
     db.init_app(app)
@@ -57,4 +70,4 @@ if __name__ == "__main__":
         webbrowser.open("http://127.0.0.1:5000")
 
     Timer(1.0, abrir_navegador).start()
-    app.run(debug=True, use_reloader=False)
+    app.run(debug=not CONGELADO, use_reloader=False)

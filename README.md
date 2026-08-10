@@ -1,15 +1,30 @@
 # Distribuidora Montoya — Sistema de control interno
 
 Aplicación web para controlar el inventario, las compras a Postobón, las rutas del
-camión de reparto y el crédito por descuento de Distribuidora Montoya. Puede correr
-localmente en un computador (ver abajo) o publicarse en línea para acceder desde
-cualquier lugar (ver `DEPLOY.md`).
+camión de reparto y el crédito por descuento de Distribuidora Montoya. Se puede entregar
+de tres formas: como un único `.exe` que no necesita tener Python instalado (la más
+simple para enviarle al dueño), corriendo localmente con Python instalado (`instalar.bat`
+/ `iniciar.bat`), o publicada en línea para acceder desde cualquier lugar (ver
+`DEPLOY.md`).
 
 Desde que se puede usar en línea, **todo el sistema pide contraseña** antes de mostrar
 cualquier pantalla (antes no la pedía, porque solo corría en un computador de confianza).
 Si la estás usando en línea, avísale al dueño cuál es esa contraseña.
 
-## Para el dueño (uso diario, si corre localmente en un computador)
+## Para el dueño — opción más simple: el .exe
+
+Si recibiste un archivo `DistribuidoraMontoya.exe`, no necesitas instalar nada:
+1. Ponlo en cualquier carpeta de tu computador (por ejemplo, el Escritorio).
+2. Doble clic. La primera vez, Windows puede mostrar una advertencia azul ("Windows
+   protegió su PC") porque el programa no tiene firma digital — es normal, dale clic en
+   **"Más información"** y luego **"Ejecutar de todas formas"**.
+3. Se abre solo en tu navegador y pide la contraseña: `montoya2026` (a menos que te hayan
+   dado una distinta).
+4. **No cierres la ventana negra** mientras lo uses. Ciérrala cuando termines.
+5. Todos tus datos quedan guardados en una carpeta `instance` que aparece junto al .exe —
+   no la borres ni la muevas por separado del programa.
+
+## Para el dueño (uso diario, si corre localmente con Python instalado)
 
 ### Primera vez (una sola vez)
 1. Doble clic en **`instalar.bat`**.
@@ -71,6 +86,18 @@ pytest tests\          # corre todas las pruebas
 python app.py           # levanta el servidor manualmente
 flask --app app init-db # recrea las tablas si hace falta
 ```
+
+### Reconstruir el .exe
+`config.py` y `app.py` detectan si corren "congelados" (`sys.frozen`, lo pone
+PyInstaller) para separar los recursos empaquetados (templates/static, de solo lectura)
+de los datos que deben persistir junto al .exe real (`instance/distribuidora.db`). Para
+generar un .exe nuevo después de cambios en el código:
+```
+venv\Scripts\pip install pyinstaller
+venv\Scripts\python -m PyInstaller --onefile --console --name DistribuidoraMontoya --add-data "templates;templates" --add-data "static;static" app.py
+```
+El resultado queda en `dist\DistribuidoraMontoya.exe`. `build/`, `dist/` y `*.spec` están
+en `.gitignore` — no se versionan, se regeneran cuando hagan falta.
 
 ### Contraseña y despliegue en línea
 - La app exige login en todas partes (`app.py`, función `exigir_login`). La contraseña
