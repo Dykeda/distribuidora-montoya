@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Descuentos{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Descuentos de Postobón</h1>
+  <a href="{{ url_for('descuentos.canje_nuevo') }}" class="btn btn-primary">+ Canjear descuento</a>
+</div>
+
+<div class="card card-metric mb-4" style="max-width: 320px;">
+  <div class="card-body">
+    <div class="text-muted small">Saldo de crédito acumulado (hoy)</div>
+    <div class="fs-3 fw-bold">${{ "{:,}".format(saldo) }}</div>
+  </div>
+</div>
+
+<h2 class="h5">Historial de canjes</h2>
+<table class="table table-striped align-middle">
+  <thead><tr><th>Fecha</th><th>Notas</th><th class="text-end">Valor canjeado</th></tr></thead>
+  <tbody>
+    {% for f in filas %}
+    <tr>
+      <td>{{ f.canje.fecha.strftime("%Y-%m-%d") }}</td>
+      <td>{{ f.canje.notas or "-" }}</td>
+      <td class="text-end">${{ "{:,}".format(f.valor_total) }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="3" class="text-center text-muted">No hay canjes registrados todavía.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

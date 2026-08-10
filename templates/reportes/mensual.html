@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Reportes{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">Reportes</h1>
+
+<form method="get" class="row col-lg-6 mb-4">
+  <div class="col-6">
+    <label class="form-label">Mes</label>
+    <select name="mes" class="form-select" onchange="this.form.submit()">
+      {% for nombre in meses %}
+      <option value="{{ loop.index }}" {% if loop.index == mes %}selected{% endif %}>{{ nombre }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-6">
+    <label class="form-label">Año</label>
+    <input type="number" name="anio" class="form-control" value="{{ anio }}" onchange="this.form.submit()">
+  </div>
+</form>
+
+<p class="text-muted">Período: {{ fecha_inicio.strftime("%Y-%m-%d") }} a {{ fecha_fin.strftime("%Y-%m-%d") }}</p>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card card-metric h-100"><div class="card-body">
+      <div class="text-muted small">Compra total del mes</div>
+      <div class="fs-4 fw-bold">${{ "{:,}".format(resumen.compra_total_dinero) }}</div>
+      <div class="text-muted small">{{ resumen.compra_total_unidades }} unidades</div>
+    </div></div>
+  </div>
+  <div class="col-md-4">
+    <div class="card card-metric h-100"><div class="card-body">
+      <div class="text-muted small">Venta total del mes</div>
+      <div class="fs-4 fw-bold">${{ "{:,}".format(resumen.venta_total_dinero) }}</div>
+    </div></div>
+  </div>
+  <div class="col-md-4">
+    <div class="card card-metric h-100"><div class="card-body">
+      <div class="text-muted small">Crédito generado este mes</div>
+      <div class="fs-4 fw-bold">${{ "{:,}".format(resumen.credito_generado) }}</div>
+    </div></div>
+  </div>
+  <div class="col-md-4">
+    <div class="card card-metric h-100"><div class="card-body">
+      <div class="text-muted small">Crédito canjeado este mes</div>
+      <div class="fs-4 fw-bold">${{ "{:,}".format(resumen.credito_canjeado) }}</div>
+    </div></div>
+  </div>
+  <div class="col-md-4">
+    <div class="card card-metric h-100 border-primary"><div class="card-body">
+      <div class="text-muted small">Saldo de crédito acumulado (a fin de este período)</div>
+      <div class="fs-4 fw-bold">${{ "{:,}".format(resumen.saldo_acumulado) }}</div>
+    </div></div>
+  </div>
+</div>
+
+{% if resumen.venta_por_producto %}
+<h2 class="h5">Venta del mes por producto</h2>
+<table class="table table-sm table-striped" style="max-width:500px;">
+  <thead><tr><th>Producto</th><th class="text-end">Valor vendido</th></tr></thead>
+  <tbody>
+    {% for nombre, valor in resumen.venta_por_producto.items() %}
+    <tr><td>{{ nombre }}</td><td class="text-end">${{ "{:,}".format(valor) }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}

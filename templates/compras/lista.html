@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Compras{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Historial de Compras</h1>
+  <a href="{{ url_for('compras.nueva') }}" class="btn btn-primary">+ Registrar compra</a>
+</div>
+
+<table class="table table-striped align-middle">
+  <thead>
+    <tr>
+      <th>Fecha</th>
+      <th>Factura</th>
+      <th class="text-end">Unidades compradas</th>
+      <th class="text-end">Costo total</th>
+      <th class="text-end">Crédito generado</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for f in filas %}
+    <tr>
+      <td>{{ f.compra.fecha.strftime("%Y-%m-%d") }}</td>
+      <td>{{ f.compra.numero_factura or "-" }}</td>
+      <td class="text-end">{{ f.unidades_total }}</td>
+      <td class="text-end">${{ "{:,}".format(f.costo_total) }}</td>
+      <td class="text-end">${{ "{:,}".format(f.credito_total) }}</td>
+      <td class="text-end"><a href="{{ url_for('compras.detalle', compra_id=f.compra.id) }}" class="btn btn-sm btn-outline-primary">Ver detalle</a></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" class="text-center text-muted">No hay compras registradas todavía.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

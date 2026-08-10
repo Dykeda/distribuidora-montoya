@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Registrar retorno{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">Registrar retorno de camión</h1>
+<p>Elige a qué salida corresponde el regreso:</p>
+
+<table class="table table-striped align-middle">
+  <thead><tr><th>Fecha salida</th><th>Notas</th><th></th></tr></thead>
+  <tbody>
+    {% for s in abiertas %}
+    <tr>
+      <td>{{ s.fecha.strftime("%Y-%m-%d") }}</td>
+      <td>{{ s.notas or "-" }}</td>
+      <td class="text-end"><a href="{{ url_for('camion.retorno_nueva', salida_id=s.id) }}" class="btn btn-sm btn-primary">Registrar regreso</a></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="3" class="text-center text-muted">No hay salidas en tránsito en este momento.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+<a href="{{ url_for('camion.listar') }}" class="btn btn-link">&larr; Volver</a>
+{% endblock %}

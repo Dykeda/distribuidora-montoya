@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Salida {{ salida.fecha }}{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">Salida del {{ salida.fecha.strftime("%Y-%m-%d") }}</h1>
+
+<h2 class="h5">Carga del camión</h2>
+<table class="table table-sm">
+  <thead><tr><th>Producto</th><th class="text-end">Unidades cargadas</th></tr></thead>
+  <tbody>
+    {% for d in salida.detalles %}
+    <tr><td>{{ d.producto.nombre }}</td><td class="text-end">{{ d.cantidad_unidades }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if salida.retorno %}
+<h2 class="h5 mt-4">Retorno del {{ salida.retorno.fecha.strftime("%Y-%m-%d") }}</h2>
+<table class="table table-sm">
+  <thead><tr><th>Producto</th><th class="text-end">Vendido</th><th class="text-end">Valor</th></tr></thead>
+  <tbody>
+    {% for v in venta %}
+    <tr>
+      <td>{{ v.producto.nombre }}</td>
+      <td class="text-end">{{ v.cantidad_vendida }}</td>
+      <td class="text-end">${{ "{:,}".format(v.valor) }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+  <tfoot>
+    <tr class="fw-bold">
+      <td colspan="2">Total venta de la ruta</td>
+      <td class="text-end">${{ "{:,}".format(venta | sum(attribute="valor")) }}</td>
+    </tr>
+  </tfoot>
+</table>
+{% else %}
+<div class="alert alert-warning mt-4">Esta ruta sigue en tránsito, aún no tiene retorno registrado.
+  <a href="{{ url_for('camion.retorno_nueva', salida_id=salida.id) }}">Registrar retorno ahora</a>
+</div>
+{% endif %}
+
+<a href="{{ url_for('camion.listar') }}" class="btn btn-link">&larr; Volver</a>
+{% endblock %}

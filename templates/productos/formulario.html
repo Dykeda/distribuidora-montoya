@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}{{ "Editar" if producto else "Nuevo" }} producto{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">{{ "Editar producto" if producto else "Nuevo producto" }}</h1>
+
+<form method="post" class="col-lg-6">
+  <div class="mb-3">
+    <label class="form-label">Nombre</label>
+    <input type="text" name="nombre" class="form-control" required
+           value="{{ (form.nombre if form else (producto.nombre if producto else '')) }}">
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Categoría (opcional)</label>
+    <input type="text" name="categoria" class="form-control"
+           value="{{ (form.categoria if form else (producto.categoria if producto else '')) or '' }}">
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Unidades por caja</label>
+    <input type="number" name="unidades_por_caja" class="form-control" min="1"
+           value="{{ (form.unidades_por_caja if form else (producto.unidades_por_caja if producto else 1)) }}">
+  </div>
+  <div class="mb-3 form-check">
+    <input type="checkbox" name="maneja_cajas" class="form-check-input" id="maneja_cajas"
+           {% if (producto and producto.maneja_cajas) or not producto %}checked{% endif %}>
+    <label class="form-check-label" for="maneja_cajas">Se maneja por caja</label>
+  </div>
+  <div class="mb-3 form-check">
+    <input type="checkbox" name="maneja_unidades" class="form-check-input" id="maneja_unidades"
+           {% if (producto and producto.maneja_unidades) or not producto %}checked{% endif %}>
+    <label class="form-check-label" for="maneja_unidades">Se maneja por unidad suelta</label>
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Precio de venta por unidad (COP)</label>
+    <input type="number" name="precio_venta_unidad" class="form-control" min="0"
+           value="{{ (form.precio_venta_unidad if form else (producto.precio_actual() if producto else '')) or '' }}">
+    {% if producto %}
+    <div class="form-text">Si cambias el precio, se guarda como nuevo precio vigente desde hoy; el histórico anterior se conserva para los reportes de meses pasados.</div>
+    {% endif %}
+  </div>
+  <button type="submit" class="btn btn-primary">Guardar</button>
+  <a href="{{ url_for('productos.listar') }}" class="btn btn-link">Cancelar</a>
+</form>
+{% endblock %}

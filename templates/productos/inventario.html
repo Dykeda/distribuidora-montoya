@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Inventario{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">Inventario en bodega</h1>
+
+<form class="mb-3" method="get">
+  <input type="text" name="q" class="form-control" placeholder="Buscar por nombre..." value="{{ q }}">
+</form>
+
+<table class="table table-striped align-middle">
+  <thead>
+    <tr>
+      <th>Producto</th>
+      <th>Categoría</th>
+      <th class="text-end">Stock (unidades)</th>
+      <th class="text-end">Stock (cajas)</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for fila in filas %}
+    <tr class="{{ 'table-warning' if fila.stock_unidades < fila.producto.unidades_por_caja else '' }}">
+      <td>{{ fila.producto.nombre }}</td>
+      <td>{{ fila.producto.categoria or "-" }}</td>
+      <td class="text-end">{{ fila.stock_unidades }}</td>
+      <td class="text-end">
+        {% if fila.producto.unidades_por_caja %}
+          {{ "%.1f"|format(fila.stock_unidades / fila.producto.unidades_por_caja) }}
+        {% else %}-{% endif %}
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="4" class="text-center text-muted">No hay productos todavía.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+<p class="text-muted small">Las filas resaltadas tienen menos de una caja completa en bodega.</p>
+{% endblock %}

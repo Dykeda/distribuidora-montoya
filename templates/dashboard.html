@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Inicio{% endblock %}
+{% block content %}
+<h1 class="h3 mb-1">Distribuidora Montoya</h1>
+<p class="text-muted mb-4">Resumen de {{ mes_actual }}</p>
+
+{% if not hay_productos %}
+<div class="alert alert-info">
+  Para empezar, <a href="{{ url_for('productos.nuevo') }}">crea tus primeros productos</a>
+  o usa la <a href="{{ url_for('productos.carga_masiva') }}">carga masiva</a> si tienes muchos a la vez.
+</div>
+{% endif %}
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="card card-metric h-100"><div class="card-body">
+      <div class="text-muted small">Compra total del mes</div>
+      <div class="fs-4 fw-bold">${{ "{:,}".format(resumen.compra_total_dinero) }}</div>
+    </div></div>
+  </div>
+  <div class="col-md-3">
+    <div class="card card-metric h-100"><div class="card-body">
+      <div class="text-muted small">Venta total del mes</div>
+      <div class="fs-4 fw-bold">${{ "{:,}".format(resumen.venta_total_dinero) }}</div>
+    </div></div>
+  </div>
+  <div class="col-md-3">
+    <div class="card card-metric h-100"><div class="card-body">
+      <div class="text-muted small">Crédito generado este mes</div>
+      <div class="fs-4 fw-bold">${{ "{:,}".format(resumen.credito_generado) }}</div>
+    </div></div>
+  </div>
+  <div class="col-md-3">
+    <div class="card card-metric h-100 border-primary"><div class="card-body">
+      <div class="text-muted small">Saldo de crédito acumulado</div>
+      <div class="fs-4 fw-bold">${{ "{:,}".format(resumen.saldo_acumulado) }}</div>
+      <a href="{{ url_for('descuentos.canje_nuevo') }}" class="small">Canjear &rarr;</a>
+    </div></div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="card h-100"><div class="card-body">
+      <h2 class="h5">Accesos rápidos</h2>
+      <div class="d-flex flex-wrap gap-2 mt-2">
+        <a href="{{ url_for('compras.nueva') }}" class="btn btn-outline-primary btn-sm">+ Compra</a>
+        <a href="{{ url_for('camion.salida_nueva') }}" class="btn btn-outline-primary btn-sm">+ Salida camión</a>
+        <a href="{{ url_for('camion.retorno_elegir') }}" class="btn btn-outline-primary btn-sm">+ Retorno camión</a>
+        <a href="{{ url_for('descuentos.canje_nuevo') }}" class="btn btn-outline-primary btn-sm">+ Canje descuento</a>
+        <a href="{{ url_for('reportes.index') }}" class="btn btn-outline-secondary btn-sm">Ver reportes</a>
+      </div>
+    </div></div>
+  </div>
+  <div class="col-md-6">
+    <div class="card h-100"><div class="card-body">
+      <h2 class="h5">Stock bajo (menos de 1 caja)</h2>
+      {% if stock_bajo %}
+      <ul class="list-unstyled mb-0">
+        {% for f in stock_bajo %}
+        <li>{{ f.producto.nombre }} &mdash; {{ f.stock_unidades }} unidades</li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="text-muted mb-0">Todo el inventario está por encima de una caja completa.</p>
+      {% endif %}
+    </div></div>
+  </div>
+</div>
+{% endblock %}
