@@ -10,6 +10,21 @@
   </div>
 </div>
 
+<form method="get" class="row col-lg-6 mb-4">
+  <div class="col-6">
+    <label class="form-label">Mes</label>
+    <select name="mes" class="form-select" onchange="this.form.submit()">
+      {% for nombre in meses %}
+      <option value="{{ loop.index }}" {% if loop.index == mes %}selected{% endif %}>{{ nombre }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-6">
+    <label class="form-label">Año</label>
+    <input type="number" name="anio" class="form-control" value="{{ anio }}" onchange="this.form.submit()">
+  </div>
+</form>
+
 <table class="table table-striped align-middle">
   <thead>
     <tr>
@@ -34,7 +49,7 @@
       <td class="text-end"><a href="{{ url_for('camion.detalle', salida_id=f.salida.id) }}" class="btn btn-sm btn-outline-primary">Ver detalle</a></td>
     </tr>
     {% else %}
-    <tr><td colspan="4" class="text-center text-muted">No hay salidas registradas todavía.</td></tr>
+    <tr><td colspan="4" class="text-center text-muted">No hay salidas registradas este mes.</td></tr>
     {% endfor %}
   </tbody>
 </table>

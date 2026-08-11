@@ -79,3 +79,52 @@ def rutas_en_transito():
         .order_by(SalidaCamion.fecha.desc())
         .all()
     )
+
+
+def historial_diario(fecha_inicio, fecha_fin):
+    """Venta bruta día por día (camión + bodega), ANTES de restar lo que quedó en
+    cartera — a diferencia de Caja, que muestra el efectivo neto. Útil para ver cuánto se
+    vendió en total cada día, sin importar si se cobró en efectivo o quedó a deber."""
+    por_fecha = {}
+
+    def fila(fecha):
+        return por_fecha.setdefault(fecha, {"camion": 0, "bodega": 0})
+
+    retornos = RetornoCamion.query.filter(
+        RetornoCamion.fecha >= fecha_inicio, RetornoCamion.fecha <= fecha_fin
+    ).all()
+    for retorno in retornos:
+        detalle = venta_por_salida(retorno.salida_id)
+        if not detalle:
+            continue
+        fila(retorno.fecha)["camion"] += sum(d["valor"] for d in detalle)
+
+    ventas_bodega = VentaBodega.query.filter(
+        VentaBodega.fecha >= fecha_inicio, VentaBodega.fecha <= fecha_fin
+    ).all()
+    for venta in ventas_bodega:
+        fila(venta.fecha)["bodega"] += sum(d.valor for d in venta.detalles)
+
+    filas = [
+        {"fecha": fecha, "camion": v["camion"], "bodega": v["bodega"], "total": v["camion"] + v["bodega"]}
+        for fecha, v in por_fecha.items()
+    ]
+    filas.sort(key=lambda f: f["fecha"], reverse=True)
+    return filas
+
+
+def detalle_dia(fecha):
+    """Todo lo que se vendió en una fecha específica: cada ruta de camión cerrada ese día
+    (con su detalle por producto) y cada venta de bodega de ese día (con su detalle)."""
+    rutas = []
+    for retorno in RetornoCamion.query.filter(RetornoCamion.fecha == fecha).all():
+        detalle = venta_por_salida(retorno.salida_id)
+        if not detalle:
+            continue
+        rutas.append({"salida": retorno.salida, "detalle": detalle, "total": sum(d["valor"] for d in detalle)})
+
+    ventas_bodega = []
+    for venta in VentaBodega.query.filter(VentaBodega.fecha == fecha).all():
+        ventas_bodega.append({"venta": venta, "total": sum(d.valor for d in venta.detalles)})
+
+    return {"rutas": rutas, "ventas_bodega": ventas_bodega}

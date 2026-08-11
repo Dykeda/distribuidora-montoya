@@ -35,13 +35,15 @@
             </a>
           </li>
           <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle {{ 'active' if request.blueprint in ('compras', 'camion', 'bodega') }}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <a class="nav-link dropdown-toggle {{ 'active' if request.blueprint in ('compras', 'camion', 'bodega', 'venta_diaria') }}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
               <i class="bi bi-arrow-left-right"></i> Movimientos
             </a>
             <ul class="dropdown-menu">
               <li><a class="dropdown-item {{ 'active' if request.blueprint == 'compras' }}" href="{{ url_for('compras.listar') }}"><i class="bi bi-cart"></i> Compras</a></li>
               <li><a class="dropdown-item {{ 'active' if request.blueprint == 'camion' }}" href="{{ url_for('camion.listar') }}"><i class="bi bi-truck"></i> Camión</a></li>
               <li><a class="dropdown-item {{ 'active' if request.blueprint == 'bodega' }}" href="{{ url_for('bodega.listar') }}"><i class="bi bi-shop"></i> Venta Bodega</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item {{ 'active' if request.blueprint == 'venta_diaria' }}" href="{{ url_for('venta_diaria.listar') }}"><i class="bi bi-calendar3"></i> Venta Diaria</a></li>
             </ul>
           </li>
           <li class="nav-item dropdown">

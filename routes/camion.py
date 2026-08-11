@@ -1,3 +1,4 @@
+import calendar
 from datetime import date, datetime
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash
@@ -13,6 +14,7 @@ from models import (
     RecargaCamionDetalle,
 )
 from services.ventas import venta_por_salida, rutas_en_transito, cargado_por_producto
+from services.fechas import MESES_ES
 
 bp = Blueprint("camion", __name__, url_prefix="/camion")
 
@@ -55,7 +57,18 @@ def _parsear_lineas(producto_por_id):
 
 @bp.route("/")
 def listar():
-    salidas = SalidaCamion.query.order_by(SalidaCamion.fecha.desc(), SalidaCamion.id.desc()).all()
+    hoy = date.today()
+    anio = int(request.args.get("anio", hoy.year))
+    mes = int(request.args.get("mes", hoy.month))
+
+    ultimo_dia = calendar.monthrange(anio, mes)[1]
+    fecha_inicio, fecha_fin = date(anio, mes, 1), date(anio, mes, ultimo_dia)
+
+    salidas = (
+        SalidaCamion.query.filter(SalidaCamion.fecha >= fecha_inicio, SalidaCamion.fecha <= fecha_fin)
+        .order_by(SalidaCamion.fecha.desc(), SalidaCamion.id.desc())
+        .all()
+    )
     filas = []
     for s in salidas:
         cerrada = s.retorno is not None
@@ -64,7 +77,7 @@ def listar():
             detalle = venta_por_salida(s.id)
             venta = sum(d["valor"] for d in detalle) if detalle else 0
         filas.append({"salida": s, "cerrada": cerrada, "venta": venta})
-    return render_template("camion/lista.html", filas=filas)
+    return render_template("camion/lista.html", filas=filas, anio=anio, mes=mes, meses=MESES_ES)
 
 
 @bp.route("/<int:salida_id>")

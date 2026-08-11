@@ -43,6 +43,7 @@ def create_app(config_overrides=None):
     from routes.cartera import bp as cartera_bp
     from routes.caja import bp as caja_bp
     from routes.gastos import bp as gastos_bp
+    from routes.venta_diaria import bp as venta_diaria_bp
     from routes.reportes import bp as reportes_bp
 
     app.register_blueprint(auth_bp)
@@ -55,6 +56,7 @@ def create_app(config_overrides=None):
     app.register_blueprint(cartera_bp)
     app.register_blueprint(caja_bp)
     app.register_blueprint(gastos_bp)
+    app.register_blueprint(venta_diaria_bp)
     app.register_blueprint(reportes_bp)
 
     @app.before_request

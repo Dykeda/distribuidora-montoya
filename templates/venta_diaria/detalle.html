@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Venta del {{ fecha.strftime("%Y-%m-%d") }}{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">Venta del {{ fecha.strftime("%Y-%m-%d") }}</h1>
+
+{% if not rutas and not ventas_bodega %}
+<p class="text-muted">No hay venta registrada en esta fecha.</p>
+{% endif %}
+
+{% for r in rutas %}
+<h2 class="h5 mt-4">Ruta de camión (salida del {{ r.salida.fecha.strftime("%Y-%m-%d") }})</h2>
+<table class="table table-sm">
+  <thead><tr><th>Producto</th><th class="text-end">Vendido</th><th class="text-end">Valor</th></tr></thead>
+  <tbody>
+    {% for v in r.detalle %}
+    <tr>
+      <td>{{ v.producto.nombre }}</td>
+      <td class="text-end">{{ v.cantidad_vendida }}</td>
+      <td class="text-end">${{ "{:,}".format(v.valor) }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+  <tfoot>
+    <tr class="fw-bold">
+      <td colspan="2">Total de la ruta</td>
+      <td class="text-end">${{ "{:,}".format(r.total) }}</td>
+    </tr>
+  </tfoot>
+</table>
+<a href="{{ url_for('camion.detalle', salida_id=r.salida.id) }}" class="small">Ver esta ruta en Camión &rarr;</a>
+{% endfor %}
+
+{% for v in ventas_bodega %}
+<h2 class="h5 mt-4">Venta de bodega{% if v.venta.notas %} — {{ v.venta.notas }}{% endif %}</h2>
+<table class="table table-sm">
+  <thead><tr><th>Producto</th><th class="text-end">Cantidad</th><th class="text-end">Valor</th></tr></thead>
+  <tbody>
+    {% for d in v.venta.detalles %}
+    <tr>
+      <td>{{ d.producto.nombre }}</td>
+      <td class="text-end">{{ d.cantidad_unidades }}</td>
+      <td class="text-end">${{ "{:,}".format(d.valor) }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+  <tfoot>
+    <tr class="fw-bold">
+      <td colspan="2">Total de la venta</td>
+      <td class="text-end">${{ "{:,}".format(v.total) }}</td>
+    </tr>
+  </tfoot>
+</table>
+{% endfor %}
+
+{% if rutas or ventas_bodega %}
+<div class="alert alert-primary mt-4 fw-bold">Total del día: ${{ "{:,}".format(total) }}</div>
+{% endif %}
+
+<a href="{{ url_for('venta_diaria.listar') }}" class="btn btn-link">&larr; Volver</a>
+{% endblock %}

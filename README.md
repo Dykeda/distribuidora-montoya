@@ -60,9 +60,15 @@ sube solo a la nube — así no se pierde nada aunque el computador falle.
 - **Camión**: registra qué carga el camión al salir a reparto, y cuánto regresa al
   volver. Con eso el sistema calcula solo cuánto se vendió — no hay que registrar la
   venta a mano. Si al camión se le acaba algo en plena ruta, usa "Recargar camión" para
-  mandarle más producto sin cerrar la ruta — se suma a lo cargado de ese día.
+  mandarle más producto sin cerrar la ruta — se suma a lo cargado de ese día. El
+  historial se puede filtrar por mes/año, igual que Caja y Reportes.
 - **Venta Bodega**: para cuando alguien compra directo en la bodega, sin pasar por el
   camión. Descuenta el inventario igual que una entrega, y se suma a la venta del día.
+- **Venta Diaria**: historial día por día de todo lo vendido (camión + bodega), con
+  filtro de mes/año y un detalle por fecha que muestra cada ruta cerrada y cada venta de
+  bodega de ese día, producto por producto. A diferencia de Caja, aquí se ve la venta
+  **bruta** tal como se vendió — no resta lo que quedó en cartera sin cobrar ni las
+  salidas de dinero.
 - **Descuentos**: aquí ves cuánto crédito tienes acumulado, y registras cuando Postobón
   te entrega producto a cambio de ese crédito. El botón "Ajustar saldo" sirve para cargar
   el crédito que ya tenías acumulado antes de empezar a usar el sistema (o para corregir
@@ -137,6 +143,15 @@ sube solo a la nube — así no se pierde nada aunque el computador falle.
   (`services/gastos.py::CATEGORIAS_DEFAULT`, sembradas al iniciar la app vía
   `asegurar_categorias_default()`, idempotente). `saldo_acumulado()` = todas las entradas
   menos todas las salidas hasta una fecha de corte.
+- Venta Diaria (`services/ventas.py::historial_diario()` y `detalle_dia()`, rutas en
+  `routes/venta_diaria.py`): día por día, venta de camión (rutas cuyo *retorno* cae en
+  la fecha) + venta de bodega (cuya fecha cae en la fecha), **sin restar cartera ni
+  gastos** — a propósito, es venta bruta, no efectivo neto. Ojo: este `historial_diario()`
+  vive en `services/ventas.py` y es una función distinta de
+  `services/caja.py::historial_diario()` (que sí resta cartera y gastos para mostrar el
+  efectivo neto del día) — mismo nombre, dos módulos, propósitos distintos; no son
+  duplicados a fusionar. El historial de Camión (`routes/camion.py::listar()`) usa el
+  mismo patrón de filtro mes/año que Caja y Venta Diaria.
 
 ### Comandos útiles
 ```

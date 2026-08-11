@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Venta Diaria{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">Venta Diaria</h1>
+<p class="text-muted">Venta bruta de cada día (camión + bodega), tal como se vendió — no
+  descuenta lo que quedó en cartera sin cobrar ni las salidas de dinero. Para ver el
+  efectivo neto de caja, revisa la sección Caja.</p>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card card-metric h-100"><div class="card-body">
+      <div class="text-muted small">Venta camión este mes</div>
+      <div class="fs-4 fw-bold">${{ "{:,}".format(camion_mes) }}</div>
+    </div></div>
+  </div>
+  <div class="col-md-4">
+    <div class="card card-metric h-100"><div class="card-body">
+      <div class="text-muted small">Venta bodega este mes</div>
+      <div class="fs-4 fw-bold">${{ "{:,}".format(bodega_mes) }}</div>
+    </div></div>
+  </div>
+  <div class="col-md-4">
+    <div class="card card-metric h-100 border-primary"><div class="card-body">
+      <div class="text-muted small">Total del mes</div>
+      <div class="fs-4 fw-bold">${{ "{:,}".format(total_mes) }}</div>
+    </div></div>
+  </div>
+</div>
+
+<form method="get" class="row col-lg-6 mb-4">
+  <div class="col-6">
+    <label class="form-label">Mes</label>
+    <select name="mes" class="form-select" onchange="this.form.submit()">
+      {% for nombre in meses %}
+      <option value="{{ loop.index }}" {% if loop.index == mes %}selected{% endif %}>{{ nombre }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-6">
+    <label class="form-label">Año</label>
+    <input type="number" name="anio" class="form-control" value="{{ anio }}" onchange="this.form.submit()">
+  </div>
+</form>
+
+<table class="table table-striped align-middle">
+  <thead>
+    <tr>
+      <th>Fecha</th>
+      <th class="text-end">Camión</th>
+      <th class="text-end">Bodega</th>
+      <th class="text-end">Total del día</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for f in filas %}
+    <tr>
+      <td>{{ f.fecha.strftime("%Y-%m-%d") }}</td>
+      <td class="text-end">${{ "{:,}".format(f.camion) }}</td>
+      <td class="text-end">${{ "{:,}".format(f.bodega) }}</td>
+      <td class="text-end fw-bold">${{ "{:,}".format(f.total) }}</td>
+      <td class="text-end"><a href="{{ url_for('venta_diaria.detalle', fecha_str=f.fecha.strftime('%Y-%m-%d')) }}" class="btn btn-sm btn-outline-primary">Ver detalle</a></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" class="text-center text-muted">No hay venta registrada este mes.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

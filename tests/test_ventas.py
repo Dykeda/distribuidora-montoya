@@ -12,7 +12,13 @@ from models import (
     VentaBodega,
     VentaBodegaDetalle,
 )
-from services.ventas import venta_por_salida, ventas_en_periodo, rutas_en_transito
+from services.ventas import (
+    venta_por_salida,
+    ventas_en_periodo,
+    rutas_en_transito,
+    historial_diario,
+    detalle_dia,
+)
 from services.inventario import calcular_stock
 
 
@@ -108,3 +114,69 @@ def test_venta_bodega_descuenta_stock_y_suma_a_venta_del_periodo(db):
     resumen = ventas_en_periodo(date(2026, 8, 1), date(2026, 8, 31))
     assert resumen["total"] == 30000
     assert resumen["por_producto"]["Coca-Cola 1.5L"] == 30000
+
+
+def test_historial_diario_no_resta_cartera(db):
+    p = crear_producto(db)
+    salida = SalidaCamion(fecha=date(2026, 8, 2))
+    db.session.add(salida)
+    db.session.flush()
+    db.session.add(SalidaCamionDetalle(salida_id=salida.id, producto_id=p.id, cantidad_unidades=30))
+    db.session.commit()
+
+    retorno = RetornoCamion(salida_id=salida.id, fecha=date(2026, 8, 2))
+    db.session.add(retorno)
+    db.session.flush()
+    db.session.add(RetornoCamionDetalle(retorno_id=retorno.id, producto_id=p.id, cantidad_unidades=6))
+    db.session.commit()
+
+    from models import FacturaCartera
+
+    # 20000 de esos 72000 quedaron en cartera -> el efectivo de Caja sería 52000, pero
+    # la venta bruta del día debe seguir mostrando los 72000 completos
+    db.session.add(
+        FacturaCartera(salida_id=salida.id, cliente="Tienda X", fecha=date(2026, 8, 2), monto=20000)
+    )
+    db.session.commit()
+
+    venta_bodega = VentaBodega(fecha=date(2026, 8, 2))
+    db.session.add(venta_bodega)
+    db.session.flush()
+    db.session.add(VentaBodegaDetalle(venta_id=venta_bodega.id, producto_id=p.id, cantidad_unidades=5, valor=15000))
+    db.session.commit()
+
+    filas = historial_diario(date(2026, 8, 1), date(2026, 8, 31))
+    assert len(filas) == 1
+    assert filas[0]["fecha"] == date(2026, 8, 2)
+    assert filas[0]["camion"] == 72000
+    assert filas[0]["bodega"] == 15000
+    assert filas[0]["total"] == 87000
+
+
+def test_detalle_dia_incluye_rutas_y_ventas_bodega(db):
+    p = crear_producto(db)
+    salida = SalidaCamion(fecha=date(2026, 8, 2))
+    db.session.add(salida)
+    db.session.flush()
+    db.session.add(SalidaCamionDetalle(salida_id=salida.id, producto_id=p.id, cantidad_unidades=30))
+    db.session.commit()
+
+    retorno = RetornoCamion(salida_id=salida.id, fecha=date(2026, 8, 2))
+    db.session.add(retorno)
+    db.session.flush()
+    db.session.add(RetornoCamionDetalle(retorno_id=retorno.id, producto_id=p.id, cantidad_unidades=6))
+    db.session.commit()
+
+    venta_bodega = VentaBodega(fecha=date(2026, 8, 2))
+    db.session.add(venta_bodega)
+    db.session.flush()
+    db.session.add(VentaBodegaDetalle(venta_id=venta_bodega.id, producto_id=p.id, cantidad_unidades=5, valor=15000))
+    db.session.commit()
+
+    detalle = detalle_dia(date(2026, 8, 2))
+    assert len(detalle["rutas"]) == 1
+    assert detalle["rutas"][0]["total"] == 72000
+    assert len(detalle["ventas_bodega"]) == 1
+    assert detalle["ventas_bodega"][0]["total"] == 15000
+
+    assert detalle_dia(date(2026, 8, 5)) == {"rutas": [], "ventas_bodega": []}
