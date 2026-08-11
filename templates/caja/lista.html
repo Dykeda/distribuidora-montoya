@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Caja{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">Caja (efectivo)</h1>
+<p class="text-muted">Se calcula solo, a partir de lo ya registrado: venta del camión
+  menos lo que quedó en cartera sin cobrar, más venta directa en bodega. No hace falta
+  registrar nada aparte.</p>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card card-metric h-100"><div class="card-body">
+      <div class="text-muted small">Efectivo recibido este mes</div>
+      <div class="fs-3 fw-bold">${{ "{:,}".format(total_mes) }}</div>
+    </div></div>
+  </div>
+  <div class="col-md-4">
+    <div class="card card-metric h-100 border-primary"><div class="card-body">
+      <div class="text-muted small">Efectivo total recibido (histórico)</div>
+      <div class="fs-3 fw-bold">${{ "{:,}".format(acumulado) }}</div>
+      <div class="text-muted small">Aún no descuenta gastos ni retiros de caja.</div>
+    </div></div>
+  </div>
+</div>
+
+<form method="get" class="row col-lg-6 mb-4">
+  <div class="col-6">
+    <label class="form-label">Mes</label>
+    <select name="mes" class="form-select" onchange="this.form.submit()">
+      {% for nombre in meses %}
+      <option value="{{ loop.index }}" {% if loop.index == mes %}selected{% endif %}>{{ nombre }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-6">
+    <label class="form-label">Año</label>
+    <input type="number" name="anio" class="form-control" value="{{ anio }}" onchange="this.form.submit()">
+  </div>
+</form>
+
+<table class="table table-striped align-middle">
+  <thead>
+    <tr>
+      <th>Fecha</th>
+      <th class="text-end">Camión</th>
+      <th class="text-end">Bodega</th>
+      <th class="text-end">Total del día</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for f in filas %}
+    <tr>
+      <td>{{ f.fecha.strftime("%Y-%m-%d") }}</td>
+      <td class="text-end">${{ "{:,}".format(f.camion) }}</td>
+      <td class="text-end">${{ "{:,}".format(f.bodega) }}</td>
+      <td class="text-end fw-bold">${{ "{:,}".format(f.total) }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="4" class="text-center text-muted">No entró efectivo registrado este mes.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

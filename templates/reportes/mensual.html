@@ -65,6 +65,12 @@
       <div class="fs-4 fw-bold">${{ "{:,}".format(resumen.cartera_pendiente) }}</div>
     </div></div>
   </div>
+  <div class="col-md-4">
+    <div class="card card-metric h-100"><div class="card-body">
+      <div class="text-muted small">Efectivo recibido en el período</div>
+      <div class="fs-4 fw-bold">${{ "{:,}".format(resumen.efectivo_periodo) }}</div>
+    </div></div>
+  </div>
 </div>
 
 {% if resumen.venta_por_producto %}

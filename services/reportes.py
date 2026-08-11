@@ -5,6 +5,7 @@ from models import CompraDetalle, Compra
 from services import descuentos as descuentos_service
 from services import ventas as ventas_service
 from services import cartera as cartera_service
+from services import caja as caja_service
 
 
 def compra_total_periodo(fecha_inicio, fecha_fin):
@@ -31,6 +32,7 @@ def resumen_periodo(fecha_inicio, fecha_fin):
     credito_canjeado = descuentos_service.credito_canjeado_periodo(fecha_inicio, fecha_fin)
     saldo = descuentos_service.saldo_acumulado(fecha_fin)
     cartera_pendiente = cartera_service.total_pendiente(fecha_fin)
+    efectivo_periodo = caja_service.efectivo_en_periodo(fecha_inicio, fecha_fin)
 
     # % de descuento promedio del mes = crédito generado / dinero comprado, ponderado por
     # cuánto se compró de cada producto (no un promedio simple de las tasas ingresadas).
@@ -49,4 +51,5 @@ def resumen_periodo(fecha_inicio, fecha_fin):
         "saldo_acumulado": saldo,
         "cartera_pendiente": cartera_pendiente,
         "pct_descuento_promedio": pct_descuento_promedio,
+        "efectivo_periodo": efectivo_periodo,
     }

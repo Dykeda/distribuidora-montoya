@@ -50,6 +50,13 @@
       <a href="{{ url_for('cartera.listar') }}" class="small">Ver cartera &rarr;</a>
     </div></div>
   </div>
+  <div class="col-md-3">
+    <div class="card card-metric h-100"><div class="card-body">
+      <div class="text-muted small">Efectivo recibido este mes</div>
+      <div class="fs-4 fw-bold">${{ "{:,}".format(resumen.efectivo_periodo) }}</div>
+      <a href="{{ url_for('caja.listar') }}" class="small">Ver caja &rarr;</a>
+    </div></div>
+  </div>
 </div>
 
 <div class="row g-3">

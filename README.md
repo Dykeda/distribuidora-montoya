@@ -71,8 +71,12 @@ sube solo a la nube — así no se pierde nada aunque el computador falle.
   cuando te paguen. Si la deuda es de una ruta del camión ya registrada, elígela en el
   formulario; si es una deuda de antes de usar el sistema, deja esa parte en blanco. Aquí
   también ves cuánto dinero tienes pendiente por cobrar en total.
-- **Reportes**: elige un mes y revisa los totales de compra, venta, crédito, saldo y
-  cartera pendiente.
+- **Caja**: cuánto efectivo ha entrado día a día — se calcula solo (venta del camión
+  menos lo que quedó en cartera sin cobrar, más venta directa en bodega), no hay que
+  registrar nada aparte. Por ahora solo suma entradas; los gastos/retiros de caja se
+  agregarán más adelante.
+- **Reportes**: elige un mes y revisa los totales de compra, venta, crédito, saldo,
+  cartera pendiente y efectivo recibido.
 
 ## Para quien mantenga el código (referencia técnica)
 
@@ -119,6 +123,12 @@ sube solo a la nube — así no se pierde nada aunque el computador falle.
   registrada en el sistema se liga a esa `salida_camion` (aparece en el detalle de esa
   ruta); si es una deuda de antes de usar el sistema, se deja en blanco. Ver
   `services/cartera.py`.
+- Caja (`services/caja.py`) **no tiene tabla propia** — todo se deriva de datos que ya
+  existen: `efectivo_por_salida()` = venta implícita de la ruta menos las facturas de
+  cartera ligadas a esa `salida_camion` (lo que no se cobró en efectivo), y se le suma la
+  venta directa en bodega (`VentaBodega`, que se asume siempre en efectivo). No hay
+  todavía un concepto de salidas de efectivo (gastos, retiros) — el módulo está pensado
+  para agregarlas después sin rehacer el cálculo de entradas.
 
 ### Comandos útiles
 ```
@@ -163,6 +173,10 @@ cartera_pendiente(fecha)  = SUM(monto) de facturas con fecha <= fecha, y que en 
 pct_descuento_promedio    = credito_generado(periodo) / compra_total_dinero(periodo) * 100
                              (ponderado por dinero comprado, no un promedio simple de las
                              tasas ingresadas en cada línea)
+efectivo_por_salida        = venta_por_salida(ruta) - SUM(monto) de las facturas de cartera
+                             ligadas a esa misma salida_camion
+efectivo(periodo)          = SUM(efectivo_por_salida) de rutas cerradas en el período
+                             + venta directa en bodega del período (siempre en efectivo)
 ```
 
 ### Limitaciones conocidas (v1)
