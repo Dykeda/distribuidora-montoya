@@ -169,3 +169,16 @@ class FacturaCartera(db.Model):
     notas = db.Column(db.String(255), nullable=True)
 
     salida = db.relationship("SalidaCamion", back_populates="facturas")
+
+
+class AjusteCredito(db.Model):
+    """Corrección manual al saldo de crédito acumulado — sobre todo para cargar el
+    crédito que ya se tenía acumulado con Postobón antes de empezar a usar el sistema.
+    monto positivo suma al saldo, negativo lo resta (por si hay que corregir un error)."""
+
+    __tablename__ = "ajuste_credito"
+
+    id = db.Column(db.Integer, primary_key=True)
+    fecha = db.Column(db.Date, nullable=False, default=date.today)
+    monto = db.Column(db.Integer, nullable=False)
+    notas = db.Column(db.String(255), nullable=True)

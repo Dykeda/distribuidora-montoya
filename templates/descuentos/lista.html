@@ -3,7 +3,10 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h1 class="h3 mb-0">Descuentos de Postobón</h1>
-  <a href="{{ url_for('descuentos.canje_nuevo') }}" class="btn btn-primary">+ Canjear descuento</a>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('descuentos.ajuste_nuevo') }}" class="btn btn-outline-secondary">Ajustar saldo</a>
+    <a href="{{ url_for('descuentos.canje_nuevo') }}" class="btn btn-primary">+ Canjear descuento</a>
+  </div>
 </div>
 
 <div class="card card-metric mb-4" style="max-width: 320px;">
@@ -25,6 +28,22 @@
     </tr>
     {% else %}
     <tr><td colspan="3" class="text-center text-muted">No hay canjes registrados todavía.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h2 class="h5 mt-4">Ajustes de saldo</h2>
+<table class="table table-striped align-middle">
+  <thead><tr><th>Fecha</th><th>Notas</th><th class="text-end">Monto</th></tr></thead>
+  <tbody>
+    {% for a in ajustes %}
+    <tr>
+      <td>{{ a.fecha.strftime("%Y-%m-%d") }}</td>
+      <td>{{ a.notas or "-" }}</td>
+      <td class="text-end {{ 'text-danger' if a.monto < 0 }}">${{ "{:,}".format(a.monto) }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="3" class="text-center text-muted">No hay ajustes registrados.</td></tr>
     {% endfor %}
   </tbody>
 </table>

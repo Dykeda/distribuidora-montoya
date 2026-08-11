@@ -3,8 +3,8 @@ from datetime import date, datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 
 from extensions import db
-from models import Producto, CanjeDescuento, CanjeDescuentoDetalle
-from services.descuentos import saldo_acumulado
+from models import Producto, CanjeDescuento, CanjeDescuentoDetalle, AjusteCredito
+from services.descuentos import saldo_acumulado, listar_ajustes
 
 bp = Blueprint("descuentos", __name__, url_prefix="/descuentos")
 
@@ -14,7 +14,35 @@ def listar():
     canjes = CanjeDescuento.query.order_by(CanjeDescuento.fecha.desc(), CanjeDescuento.id.desc()).all()
     filas = [{"canje": c, "valor_total": sum(d.valor_usado for d in c.detalles)} for c in canjes]
     saldo = saldo_acumulado(date.today())
-    return render_template("descuentos/lista.html", filas=filas, saldo=saldo)
+    return render_template(
+        "descuentos/lista.html", filas=filas, saldo=saldo, ajustes=listar_ajustes()
+    )
+
+
+@bp.route("/ajuste/nuevo", methods=["GET", "POST"])
+def ajuste_nuevo():
+    if request.method == "POST":
+        fecha_str = request.form.get("fecha")
+        try:
+            fecha = datetime.strptime(fecha_str, "%Y-%m-%d").date() if fecha_str else date.today()
+        except ValueError:
+            fecha = date.today()
+
+        try:
+            monto = int(request.form.get("monto") or 0)
+            if monto == 0:
+                raise ValueError
+        except ValueError:
+            flash("El monto debe ser un número distinto de cero.", "error")
+            return render_template("descuentos/ajuste_formulario.html", form=request.form)
+
+        ajuste = AjusteCredito(fecha=fecha, monto=monto, notas=request.form.get("notas") or None)
+        db.session.add(ajuste)
+        db.session.commit()
+        flash("Ajuste de crédito registrado.", "success")
+        return redirect(url_for("descuentos.listar"))
+
+    return render_template("descuentos/ajuste_formulario.html", form=None)
 
 
 @bp.route("/canje/nuevo", methods=["GET", "POST"])

@@ -56,7 +56,9 @@ sube solo a la nube — así no se pierde nada aunque el computador falle.
   volver. Con eso el sistema calcula solo cuánto se vendió — no hay que registrar la
   venta a mano.
 - **Descuentos**: aquí ves cuánto crédito tienes acumulado, y registras cuando Postobón
-  te entrega producto a cambio de ese crédito.
+  te entrega producto a cambio de ese crédito. El botón "Ajustar saldo" sirve para cargar
+  el crédito que ya tenías acumulado antes de empezar a usar el sistema (o para corregir
+  el saldo si algo quedó mal).
 - **Cartera**: registra las facturas que los clientes te deben (ligadas a la ruta del
   camión en la que se generaron), y márcalas como pagadas cuando te paguen. Aquí también
   ves cuánto dinero tienes pendiente por cobrar en total.
@@ -77,7 +79,9 @@ sube solo a la nube — así no se pierde nada aunque el computador falle.
   `tasa_descuento_aplicada` (%), porque puede variar por producto y por mes. El crédito
   generado = costo de la línea × tasa. Se acumula indefinidamente (no se resetea cada
   mes) y se reduce cuando se registra un "canje" (el dueño elige qué producto recibe a
-  cambio del crédito). Ver `services/descuentos.py`.
+  cambio del crédito). `AjusteCredito` permite sumar o restar manualmente al saldo (ej.
+  crédito acumulado antes de usar el sistema, monto positivo; corrección de un error,
+  monto negativo). Ver `services/descuentos.py`.
 - Los precios de producto tienen historial (`producto_precio`): editar el precio de un
   producto no sobrescribe el anterior, inserta una fila nueva con la fecha desde la que
   aplica. Los reportes usan el precio vigente en la fecha de cada transacción, no el
@@ -121,7 +125,8 @@ en `.gitignore` — no se versionan, se regeneran cuando hagan falta.
 compra_total(periodo)     = SUM(costo_linea) de las compras del período
 credito_generado(periodo) = SUM(costo_linea * tasa_descuento_aplicada / 100)
 credito_canjeado(periodo) = SUM(valor_usado) de los canjes del período
-saldo_acumulado(fecha)    = credito_generado_total_hasta(fecha) - credito_canjeado_total_hasta(fecha)
+saldo_acumulado(fecha)    = credito_generado_total_hasta(fecha) + ajustes_total_hasta(fecha)
+                             - credito_canjeado_total_hasta(fecha)
 venta_total(periodo)      = SUM((salida - retorno) * precio vigente en la fecha del retorno)
                              de las rutas cerradas cuyo retorno cae en el período
 cartera_pendiente(fecha)  = SUM(monto) de facturas con fecha <= fecha, y que en esa fecha
