@@ -61,7 +61,12 @@ def nuevo():
         db.session.add(p)
         db.session.flush()
         db.session.add(
-            ProductoPrecio(producto_id=p.id, precio_venta_unidad=precio_unidad, vigente_desde=date.today())
+            ProductoPrecio(
+                producto_id=p.id,
+                precio_venta_unidad=precio_unidad,
+                precio_venta_caja=precio_caja,
+                vigente_desde=date.today(),
+            )
         )
         db.session.commit()
         flash(f'Producto "{nombre}" creado.', "success")
@@ -97,10 +102,14 @@ def editar(producto_id):
         p.tasa_descuento_referencia = tasa_descuento_referencia
 
         nuevo_precio_unidad = round(nuevo_precio_caja / unidades_por_caja)
-        precio_actual = p.precio_actual()
-        if precio_actual != nuevo_precio_unidad:
+        if p.precio_caja_actual() != nuevo_precio_caja:
             db.session.add(
-                ProductoPrecio(producto_id=p.id, precio_venta_unidad=nuevo_precio_unidad, vigente_desde=date.today())
+                ProductoPrecio(
+                    producto_id=p.id,
+                    precio_venta_unidad=nuevo_precio_unidad,
+                    precio_venta_caja=nuevo_precio_caja,
+                    vigente_desde=date.today(),
+                )
             )
         db.session.commit()
         flash(f'Producto "{nombre}" actualizado.', "success")
@@ -161,7 +170,12 @@ def carga_masiva():
             db.session.add(p)
             db.session.flush()
             db.session.add(
-                ProductoPrecio(producto_id=p.id, precio_venta_unidad=precio_unidad, vigente_desde=date.today())
+                ProductoPrecio(
+                    producto_id=p.id,
+                    precio_venta_unidad=precio_unidad,
+                    precio_venta_caja=round(precio_caja),
+                    vigente_desde=date.today(),
+                )
             )
             creados.append(nombre)
 

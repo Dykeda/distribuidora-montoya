@@ -35,7 +35,7 @@
         {% if p.maneja_cajas %}<span class="badge bg-secondary">Cajas</span>{% endif %}
         {% if p.maneja_unidades %}<span class="badge bg-secondary">Unidades</span>{% endif %}
       </td>
-      <td>${{ "{:,}".format((p.precio_actual() or 0) * p.unidades_por_caja) }}</td>
+      <td>${{ "{:,}".format(p.precio_caja_actual() or 0) }}</td>
       <td>{{ p.tasa_descuento_referencia }}%</td>
       <td class="text-end">
         <a href="{{ url_for('productos.editar', producto_id=p.id) }}" class="btn btn-sm btn-outline-primary">Editar</a>

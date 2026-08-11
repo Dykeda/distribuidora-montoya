@@ -32,6 +32,18 @@ def test_precio_por_caja_se_guarda_como_precio_por_unidad(client):
     assert p.precio_actual() == 3000  # 18000 / 6
 
 
+def test_precio_de_caja_mostrado_no_arrastra_el_redondeo_del_precio_unidad(client):
+    # 20000 / 12 = 1666.67 -> se redondea a 1667 por unidad, pero el precio de caja
+    # mostrado debe seguir siendo el 20000 exacto que se escribió, no 1667*12=20004.
+    crear_producto(client, nombre="Agua Crist. Aloe", precio_caja="20000", unidades_por_caja="12")
+
+    from models import Producto
+
+    p = Producto.query.filter_by(nombre="Agua Crist. Aloe").first()
+    assert p.precio_actual() == 1667
+    assert p.precio_caja_actual() == 20000
+
+
 def test_editar_producto_recalcula_precio_por_unidad(client):
     crear_producto(client)
     from models import Producto

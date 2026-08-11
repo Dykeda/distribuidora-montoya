@@ -21,19 +21,35 @@ class Producto(db.Model):
         "ProductoPrecio", back_populates="producto", order_by="ProductoPrecio.vigente_desde"
     )
 
-    def precio_vigente(self, fecha: date):
-        """Precio de venta/lista efectivo en una fecha dada (el más reciente <= fecha).
-        Si dos precios quedan con la misma fecha (ej. dos ediciones el mismo día), gana el
-        que se creó después (id más alto), no el primero encontrado."""
+    def _fila_precio_vigente(self, fecha: date):
+        """Fila de ProductoPrecio vigente en una fecha (la más reciente <= fecha). Si dos
+        precios quedan con la misma fecha (ej. dos ediciones el mismo día), gana el que se
+        creó después (id más alto), no el primero encontrado."""
         vigente = None
         for p in self.precios:
             if p.vigente_desde <= fecha:
                 if vigente is None or (p.vigente_desde, p.id) > (vigente.vigente_desde, vigente.id):
                     vigente = p
-        return vigente.precio_venta_unidad if vigente else None
+        return vigente
+
+    def precio_vigente(self, fecha: date):
+        """Precio de venta por UNIDAD efectivo en una fecha — el que usa el resto del
+        sistema (ventas, canjes) para calcular dinero. Puede tener un pequeño redondeo
+        respecto al precio de caja ingresado si la caja no se divide exacto."""
+        fila = self._fila_precio_vigente(fecha)
+        return fila.precio_venta_unidad if fila else None
+
+    def precio_caja_vigente(self, fecha: date):
+        """Precio de venta por CAJA tal como se ingresó, efectivo en una fecha — el que se
+        muestra en Productos, sin el redondeo del precio por unidad."""
+        fila = self._fila_precio_vigente(fecha)
+        return fila.precio_venta_caja if fila else None
 
     def precio_actual(self):
         return self.precio_vigente(date.today())
+
+    def precio_caja_actual(self):
+        return self.precio_caja_vigente(date.today())
 
 
 class ProductoPrecio(db.Model):
@@ -41,7 +57,12 @@ class ProductoPrecio(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     producto_id = db.Column(db.Integer, db.ForeignKey("producto.id"), nullable=False)
+    # precio_venta_unidad es el que usan los cálculos internos (redondeado, por unidad
+    # suelta). precio_venta_caja es exactamente lo que el usuario escribió — se guarda
+    # aparte para que Productos siempre muestre el número exacto que se ingresó, sin
+    # arrastrar el redondeo del precio por unidad.
     precio_venta_unidad = db.Column(db.Integer, nullable=False)
+    precio_venta_caja = db.Column(db.Integer, nullable=False)
     vigente_desde = db.Column(db.Date, nullable=False, default=date.today)
 
     producto = db.relationship("Producto", back_populates="precios")

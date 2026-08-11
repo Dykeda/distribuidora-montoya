@@ -105,13 +105,14 @@ sube solo a la nube — así no se pierde nada aunque el computador falle.
   precio de hoy. Si dos precios quedan con la misma fecha (ej. dos ediciones el mismo
   día), `Producto.precio_vigente()` desempata por el id más alto (el más reciente), no
   por el primero encontrado.
-- El precio se **captura y se muestra por caja completa** en las pantallas de Productos
-  (`precio_venta_caja` en los formularios/carga masiva), pero se **guarda internamente
-  por unidad** (`ProductoPrecio.precio_venta_unidad = precio_caja / unidades_por_caja`,
-  redondeado) porque todo el resto del sistema (stock, ventas, canjes) opera en unidades
-  sueltas. Puede haber una diferencia de unos pocos pesos entre el precio de caja que se
-  escribió y el que se muestra después, por el redondeo a entero en el precio unitario
-  (ej. $51,800 ÷ 30 → $1,727/u → $51,810 mostrado) — es normal, no es un error de datos.
+- El precio se **captura y se muestra por caja completa** en las pantallas de Productos.
+  `ProductoPrecio` guarda **los dos valores por separado**: `precio_venta_caja` (el
+  número exacto que se escribió, sin tocar — es lo que Productos siempre muestra) y
+  `precio_venta_unidad` (ese mismo precio ÷ unidades por caja, redondeado — el que usa
+  el resto del sistema para calcular ventas, canjes, etc. en unidades sueltas). Guardarlos
+  aparte evita que el redondeo del precio por unidad se note al mostrar el precio de caja
+  (antes de esto, reconstruir el precio de caja multiplicando de vuelta el precio por
+  unidad producía diferencias de unos pesos, ej. $51,800 → $51,810 mostrado — ya no pasa).
 - La cartera de clientes (`factura_cartera`) es independiente del cálculo de venta/stock
   — es solo un registro de "este cliente debe tanto dinero", que no afecta el inventario
   ni las fórmulas de ganancia. `salida_id` es opcional: si la deuda viene de una ruta
