@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Venta en bodega{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Venta en bodega</h1>
+  <a href="{{ url_for('bodega.nueva') }}" class="btn btn-primary">+ Registrar venta</a>
+</div>
+
+<table class="table table-striped align-middle">
+  <thead>
+    <tr>
+      <th>Fecha</th>
+      <th>Notas</th>
+      <th class="text-end">Valor total</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for f in filas %}
+    <tr>
+      <td>{{ f.venta.fecha.strftime("%Y-%m-%d") }}</td>
+      <td>{{ f.venta.notas or "-" }}</td>
+      <td class="text-end">${{ "{:,}".format(f.valor_total) }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="3" class="text-center text-muted">No hay ventas en bodega registradas todavía.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

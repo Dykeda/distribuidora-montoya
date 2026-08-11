@@ -4,6 +4,7 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h1 class="h3 mb-0">Historial de Camión</h1>
   <div class="d-flex gap-2">
+    <a href="{{ url_for('camion.recarga_elegir') }}" class="btn btn-outline-secondary">Recargar camión</a>
     <a href="{{ url_for('camion.retorno_elegir') }}" class="btn btn-outline-secondary">Registrar retorno</a>
     <a href="{{ url_for('camion.salida_nueva') }}" class="btn btn-primary">+ Registrar salida</a>
   </div>

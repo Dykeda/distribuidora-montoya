@@ -6,32 +6,28 @@ from models import (
     SalidaCamionDetalle,
     RetornoCamionDetalle,
     CanjeDescuentoDetalle,
+    RecargaCamionDetalle,
+    VentaBodegaDetalle,
     Producto,
 )
 
 
+def _sumar(modelo, columna_cantidad, producto_id):
+    return (
+        db.session.query(func.coalesce(func.sum(columna_cantidad), 0))
+        .filter(modelo.producto_id == producto_id)
+        .scalar()
+    )
+
+
 def calcular_stock(producto_id):
-    comprado = (
-        db.session.query(func.coalesce(func.sum(CompraDetalle.cantidad_comprada_unidades), 0))
-        .filter(CompraDetalle.producto_id == producto_id)
-        .scalar()
-    )
-    salido = (
-        db.session.query(func.coalesce(func.sum(SalidaCamionDetalle.cantidad_unidades), 0))
-        .filter(SalidaCamionDetalle.producto_id == producto_id)
-        .scalar()
-    )
-    regresado = (
-        db.session.query(func.coalesce(func.sum(RetornoCamionDetalle.cantidad_unidades), 0))
-        .filter(RetornoCamionDetalle.producto_id == producto_id)
-        .scalar()
-    )
-    canjeado = (
-        db.session.query(func.coalesce(func.sum(CanjeDescuentoDetalle.cantidad_unidades), 0))
-        .filter(CanjeDescuentoDetalle.producto_id == producto_id)
-        .scalar()
-    )
-    return comprado - salido + regresado + canjeado
+    comprado = _sumar(CompraDetalle, CompraDetalle.cantidad_comprada_unidades, producto_id)
+    salido = _sumar(SalidaCamionDetalle, SalidaCamionDetalle.cantidad_unidades, producto_id)
+    recargado = _sumar(RecargaCamionDetalle, RecargaCamionDetalle.cantidad_unidades, producto_id)
+    regresado = _sumar(RetornoCamionDetalle, RetornoCamionDetalle.cantidad_unidades, producto_id)
+    canjeado = _sumar(CanjeDescuentoDetalle, CanjeDescuentoDetalle.cantidad_unidades, producto_id)
+    vendido_bodega = _sumar(VentaBodegaDetalle, VentaBodegaDetalle.cantidad_unidades, producto_id)
+    return comprado - salido - recargado + regresado + canjeado - vendido_bodega
 
 
 def listar_stock_todos(solo_activos=True):

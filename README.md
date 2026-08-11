@@ -54,7 +54,10 @@ sube solo a la nube — así no se pierde nada aunque el computador falle.
   descuento que te dieron ese mes en cada producto.
 - **Camión**: registra qué carga el camión al salir a reparto, y cuánto regresa al
   volver. Con eso el sistema calcula solo cuánto se vendió — no hay que registrar la
-  venta a mano.
+  venta a mano. Si al camión se le acaba algo en plena ruta, usa "Recargar camión" para
+  mandarle más producto sin cerrar la ruta — se suma a lo cargado de ese día.
+- **Venta Bodega**: para cuando alguien compra directo en la bodega, sin pasar por el
+  camión. Descuenta el inventario igual que una entrega, y se suma a la venta del día.
 - **Descuentos**: aquí ves cuánto crédito tienes acumulado, y registras cuando Postobón
   te entrega producto a cambio de ese crédito. El botón "Ajustar saldo" sirve para cargar
   el crédito que ya tenías acumulado antes de empezar a usar el sistema (o para corregir
@@ -73,8 +76,16 @@ sube solo a la nube — así no se pierde nada aunque el computador falle.
   crédito por descuento, reportes), separada de las rutas HTTP en `routes/`. Está cubierta
   por pruebas unitarias en `tests/`.
 - El stock de bodega y las ventas **no se guardan** como campos — se calculan a partir de
-  los movimientos (compras, salidas, retornos, canjes). Ver `services/inventario.py` y
-  `services/ventas.py`.
+  los movimientos (compras, salidas, recargas, retornos, canjes, ventas en bodega). Ver
+  `services/inventario.py` y `services/ventas.py`.
+- `RecargaCamion`/`RecargaCamionDetalle`: producto extra que se le manda a una ruta que
+  sigue en tránsito (no tiene retorno todavía). `services.ventas.cargado_por_producto()`
+  suma la salida inicial más todas las recargas del día para saber cuánto se vendió al
+  cerrar la ruta — por eso el formulario de retorno muestra "cargado (salida + recargas)"
+  en vez de solo lo que salió al principio.
+- `VentaBodega`/`VentaBodegaDetalle`: venta directa en bodega, sin pasar por el camión.
+  Se valoriza igual que un canje (cantidad × precio vigente en la fecha), descuenta stock,
+  y se suma a `ventas_en_periodo()` junto con la venta implícita de las rutas cerradas.
 - El "crédito por descuento": cada línea de compra guarda su propia
   `tasa_descuento_aplicada` (%), porque puede variar por producto y por mes. El crédito
   generado = costo de la línea × tasa. Se acumula indefinidamente (no se resetea cada

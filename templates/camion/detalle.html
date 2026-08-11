@@ -13,6 +13,28 @@
   </tbody>
 </table>
 
+{% if salida.recargas %}
+<h2 class="h5 mt-4">Recargas del día</h2>
+<table class="table table-sm">
+  <thead><tr><th>Fecha</th><th>Producto</th><th class="text-end">Unidades</th></tr></thead>
+  <tbody>
+    {% for r in salida.recargas %}
+      {% for d in r.detalles %}
+      <tr>
+        <td>{{ r.fecha.strftime("%Y-%m-%d") }}</td>
+        <td>{{ d.producto.nombre }}</td>
+        <td class="text-end">{{ d.cantidad_unidades }}</td>
+      </tr>
+      {% endfor %}
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+{% if not salida.retorno %}
+<a href="{{ url_for('camion.recarga_nueva', salida_id=salida.id) }}" class="btn btn-sm btn-outline-secondary mb-3">+ Recargar esta ruta</a>
+{% endif %}
+
 {% if salida.retorno %}
 <h2 class="h5 mt-4">Retorno del {{ salida.retorno.fecha.strftime("%Y-%m-%d") }}</h2>
 <table class="table table-sm">

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Recargar camión{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">Recargar camión</h1>
+<p>Elige a qué ruta en tránsito le vas a mandar más producto:</p>
+
+<table class="table table-striped align-middle">
+  <thead><tr><th>Fecha salida</th><th>Notas</th><th></th></tr></thead>
+  <tbody>
+    {% for s in abiertas %}
+    <tr>
+      <td>{{ s.fecha.strftime("%Y-%m-%d") }}</td>
+      <td>{{ s.notas or "-" }}</td>
+      <td class="text-end"><a href="{{ url_for('camion.recarga_nueva', salida_id=s.id) }}" class="btn btn-sm btn-primary">Recargar esta ruta</a></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="3" class="text-center text-muted">No hay rutas en tránsito en este momento.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+<a href="{{ url_for('camion.listar') }}" class="btn btn-link">&larr; Volver</a>
+{% endblock %}

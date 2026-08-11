@@ -20,16 +20,16 @@
     <thead>
       <tr>
         <th>Producto</th>
-        <th class="text-end">Salió (unidades)</th>
+        <th class="text-end">Cargado (salida + recargas)</th>
         <th style="width:160px">Regresó (unidades)</th>
       </tr>
     </thead>
     <tbody>
-      {% for d in salida.detalles %}
+      {% for f in filas %}
       <tr>
-        <td>{{ d.producto.nombre }}</td>
-        <td class="text-end">{{ d.cantidad_unidades }}</td>
-        <td><input type="number" min="0" max="{{ d.cantidad_unidades }}" name="regreso_{{ d.producto_id }}" class="form-control" value="0" required></td>
+        <td>{{ f.producto.nombre }}</td>
+        <td class="text-end">{{ f.cantidad_cargada }}</td>
+        <td><input type="number" min="0" max="{{ f.cantidad_cargada }}" name="regreso_{{ f.producto.id }}" class="form-control" value="0" required></td>
       </tr>
       {% endfor %}
     </tbody>

@@ -3,8 +3,16 @@ from datetime import date, datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 
 from extensions import db
-from models import Producto, SalidaCamion, SalidaCamionDetalle, RetornoCamion, RetornoCamionDetalle
-from services.ventas import venta_por_salida, rutas_en_transito
+from models import (
+    Producto,
+    SalidaCamion,
+    SalidaCamionDetalle,
+    RetornoCamion,
+    RetornoCamionDetalle,
+    RecargaCamion,
+    RecargaCamionDetalle,
+)
+from services.ventas import venta_por_salida, rutas_en_transito, cargado_por_producto
 
 bp = Blueprint("camion", __name__, url_prefix="/camion")
 
@@ -106,23 +114,29 @@ def retorno_nueva(salida_id):
         flash("Esa salida ya tiene un retorno registrado.", "error")
         return redirect(url_for("camion.detalle", salida_id=salida_id))
 
+    cargado = cargado_por_producto(salida)  # incluye salida inicial + recargas del día
+    filas = [
+        {"producto": db.session.get(Producto, pid), "cantidad_cargada": cant}
+        for pid, cant in cargado.items()
+    ]
+
     if request.method == "POST":
         fecha = _parsear_fecha("fecha")
         detalles = []
-        for det in salida.detalles:
-            campo = f"regreso_{det.producto_id}"
+        for fila in filas:
+            campo = f"regreso_{fila['producto'].id}"
             try:
                 cantidad = float(request.form.get(campo) or 0)
             except ValueError:
                 cantidad = 0
             cantidad_unidades = round(cantidad)
-            if cantidad_unidades > det.cantidad_unidades:
+            if cantidad_unidades > fila["cantidad_cargada"]:
                 flash(
-                    f"{det.producto.nombre}: no puede regresar más de lo que salió ({det.cantidad_unidades}).",
+                    f"{fila['producto'].nombre}: no puede regresar más de lo que salió/se le recargó ({fila['cantidad_cargada']}).",
                     "error",
                 )
-                return render_template("camion/retorno_formulario.html", salida=salida, form=request.form)
-            detalles.append(RetornoCamionDetalle(producto_id=det.producto_id, cantidad_unidades=cantidad_unidades))
+                return render_template("camion/retorno_formulario.html", salida=salida, filas=filas, form=request.form)
+            detalles.append(RetornoCamionDetalle(producto_id=fila["producto"].id, cantidad_unidades=cantidad_unidades))
 
         retorno = RetornoCamion(salida_id=salida.id, fecha=fecha, notas=request.form.get("notas") or None)
         retorno.detalles = detalles
@@ -131,4 +145,44 @@ def retorno_nueva(salida_id):
         flash("Retorno de camión registrado. Inventario actualizado.", "success")
         return redirect(url_for("camion.detalle", salida_id=salida.id))
 
-    return render_template("camion/retorno_formulario.html", salida=salida, form=None)
+    return render_template("camion/retorno_formulario.html", salida=salida, filas=filas, form=None)
+
+
+@bp.route("/recarga/nueva")
+def recarga_elegir():
+    abiertas = rutas_en_transito()
+    return render_template("camion/recarga_elegir.html", abiertas=abiertas)
+
+
+@bp.route("/recarga/nueva/<int:salida_id>", methods=["GET", "POST"])
+def recarga_nueva(salida_id):
+    salida = SalidaCamion.query.get_or_404(salida_id)
+    if salida.retorno is not None:
+        flash("Esa salida ya está cerrada, no se le puede mandar más producto.", "error")
+        return redirect(url_for("camion.detalle", salida_id=salida_id))
+
+    productos = Producto.query.filter_by(activo=True).order_by(Producto.nombre).all()
+    producto_por_id = {p.id: p for p in productos}
+
+    if request.method == "POST":
+        fecha = _parsear_fecha("fecha")
+        lineas, errores = _parsear_lineas(producto_por_id)
+        if not lineas:
+            errores.append("Debes agregar al menos un producto a la recarga.")
+        if errores:
+            for e in errores:
+                flash(e, "error")
+            return render_template(
+                "camion/recarga_formulario.html", salida=salida, productos=productos, form=request.form
+            )
+
+        recarga = RecargaCamion(salida_id=salida.id, fecha=fecha, notas=request.form.get("notas") or None)
+        recarga.detalles = [
+            RecargaCamionDetalle(producto_id=pid, cantidad_unidades=qty) for pid, qty in lineas
+        ]
+        db.session.add(recarga)
+        db.session.commit()
+        flash("Recarga registrada. Inventario actualizado.", "success")
+        return redirect(url_for("camion.detalle", salida_id=salida.id))
+
+    return render_template("camion/recarga_formulario.html", salida=salida, productos=productos, form=None)

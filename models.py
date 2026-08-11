@@ -89,6 +89,9 @@ class SalidaCamion(db.Model):
     facturas = db.relationship(
         "FacturaCartera", back_populates="salida", cascade="all, delete-orphan"
     )
+    recargas = db.relationship(
+        "RecargaCamion", back_populates="salida", cascade="all, delete-orphan"
+    )
 
 
 class SalidaCamionDetalle(db.Model):
@@ -182,3 +185,61 @@ class AjusteCredito(db.Model):
     fecha = db.Column(db.Date, nullable=False, default=date.today)
     monto = db.Column(db.Integer, nullable=False)
     notas = db.Column(db.String(255), nullable=True)
+
+
+class RecargaCamion(db.Model):
+    """Producto que se le manda al camión mientras sigue en ruta (aparte de la carga
+    inicial de la salida), porque se le acabó algo. Se suma a lo cargado de esa salida
+    para calcular cuánto se vendió cuando finalmente regresa."""
+
+    __tablename__ = "recarga_camion"
+
+    id = db.Column(db.Integer, primary_key=True)
+    salida_id = db.Column(db.Integer, db.ForeignKey("salida_camion.id"), nullable=False)
+    fecha = db.Column(db.Date, nullable=False, default=date.today)
+    notas = db.Column(db.String(255), nullable=True)
+
+    salida = db.relationship("SalidaCamion", back_populates="recargas")
+    detalles = db.relationship(
+        "RecargaCamionDetalle", back_populates="recarga", cascade="all, delete-orphan"
+    )
+
+
+class RecargaCamionDetalle(db.Model):
+    __tablename__ = "recarga_camion_detalle"
+
+    id = db.Column(db.Integer, primary_key=True)
+    recarga_id = db.Column(db.Integer, db.ForeignKey("recarga_camion.id"), nullable=False)
+    producto_id = db.Column(db.Integer, db.ForeignKey("producto.id"), nullable=False)
+    cantidad_unidades = db.Column(db.Integer, nullable=False)
+
+    recarga = db.relationship("RecargaCamion", back_populates="detalles")
+    producto = db.relationship("Producto")
+
+
+class VentaBodega(db.Model):
+    """Venta directa en bodega, sin pasar por el camión — se descuenta del inventario y
+    se suma a la venta del día igual que las ventas implícitas de las rutas."""
+
+    __tablename__ = "venta_bodega"
+
+    id = db.Column(db.Integer, primary_key=True)
+    fecha = db.Column(db.Date, nullable=False, default=date.today)
+    notas = db.Column(db.String(255), nullable=True)
+
+    detalles = db.relationship(
+        "VentaBodegaDetalle", back_populates="venta", cascade="all, delete-orphan"
+    )
+
+
+class VentaBodegaDetalle(db.Model):
+    __tablename__ = "venta_bodega_detalle"
+
+    id = db.Column(db.Integer, primary_key=True)
+    venta_id = db.Column(db.Integer, db.ForeignKey("venta_bodega.id"), nullable=False)
+    producto_id = db.Column(db.Integer, db.ForeignKey("producto.id"), nullable=False)
+    cantidad_unidades = db.Column(db.Integer, nullable=False)
+    valor = db.Column(db.Integer, nullable=False)
+
+    venta = db.relationship("VentaBodega", back_populates="detalles")
+    producto = db.relationship("Producto")

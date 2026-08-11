@@ -172,3 +172,66 @@ def test_flujo_completo(client):
 
     assert client.get("/cartera/").status_code == 200
     assert client.get(f"/camion/{salida.id}").status_code == 200
+
+    # Venta en bodega: 2 unidades de Agua Cristal (3000 COP c/u = 6000)
+    assert client.get("/bodega/nueva").status_code == 200
+    r = client.post(
+        "/bodega/nueva",
+        data={
+            "fecha": HOY,
+            "notas": "",
+            "producto_id[]": [str(agua.id)],
+            "cantidad[]": ["2"],
+            "tipo_cantidad[]": ["unidad"],
+        },
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+    assert calcular_stock(agua.id) == 1  # tenía 3 por el canje, vendió 2 en bodega
+    assert client.get("/bodega/").status_code == 200
+
+    # Recarga a camión: segunda salida, sin cerrar, para probar el flujo completo
+    r = client.post(
+        "/camion/salida/nueva",
+        data={
+            "fecha": HOY,
+            "notas": "Ruta Sur",
+            "producto_id[]": [str(coca.id)],
+            "cantidad[]": ["2"],
+            "tipo_cantidad[]": ["caja"],
+        },
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+
+    salida2 = SalidaCamion.query.filter_by(notas="Ruta Sur").first()
+    assert calcular_stock(coca.id) == 24  # 36 - 12 (2 cajas)
+
+    assert client.get("/camion/recarga/nueva").status_code == 200
+    assert client.get(f"/camion/recarga/nueva/{salida2.id}").status_code == 200
+    r = client.post(
+        f"/camion/recarga/nueva/{salida2.id}",
+        data={
+            "fecha": HOY,
+            "notas": "",
+            "producto_id[]": [str(coca.id)],
+            "cantidad[]": ["1"],
+            "tipo_cantidad[]": ["caja"],
+        },
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+    assert calcular_stock(coca.id) == 18  # 24 - 6 (1 caja recargada)
+
+    # Retorno de la segunda ruta: cargado total = 2 cajas + 1 recarga = 18u, regresan 0
+    r = client.post(
+        f"/camion/retorno/nueva/{salida2.id}",
+        data={"fecha": HOY, "notas": "", f"regreso_{coca.id}": "0"},
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+
+    from services.ventas import venta_por_salida
+
+    detalle2 = venta_por_salida(salida2.id)
+    assert detalle2[0]["cantidad_vendida"] == 18  # 12 (salida) + 6 (recarga) - 0 (retorno)
