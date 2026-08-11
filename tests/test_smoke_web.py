@@ -32,7 +32,7 @@ def test_flujo_completo(client):
             "unidades_por_caja": "6",
             "maneja_cajas": "on",
             "maneja_unidades": "on",
-            "precio_venta_unidad": "3000",
+            "precio_venta_caja": "18000",  # 3000/unidad x 6 unidades/caja
         },
         follow_redirects=True,
     )
@@ -46,7 +46,7 @@ def test_flujo_completo(client):
             "unidades_por_caja": "12",
             "maneja_cajas": "on",
             "maneja_unidades": "on",
-            "precio_venta_unidad": "3000",
+            "precio_venta_caja": "36000",  # 3000/unidad x 12 unidades/caja
         },
         follow_redirects=True,
     )
@@ -72,6 +72,9 @@ def test_flujo_completo(client):
     assert hit.tasa_descuento_referencia == 8.0
     assert manzana.tasa_descuento_referencia == 0.0
     assert coca is not None and agua is not None
+    # El precio se capturó por caja (18000/6 y 36000/12) y debe quedar guardado por unidad
+    assert coca.precio_actual() == 3000
+    assert agua.precio_actual() == 3000
 
     # Registrar compra: 10 cajas (60u) de Coca-Cola, 180000 COP, 5% descuento
     r = client.post(

@@ -33,7 +33,7 @@ def nuevo():
     if request.method == "POST":
         try:
             nombre = request.form["nombre"].strip()
-            precio = int(request.form["precio_venta_unidad"])
+            precio_caja = int(request.form["precio_venta_caja"])
             unidades_por_caja = int(request.form.get("unidades_por_caja") or 1)
             if not nombre:
                 raise ValueError("El nombre es obligatorio.")
@@ -46,6 +46,10 @@ def nuevo():
         except ValueError:
             tasa_descuento_referencia = 0.0
 
+        # El precio se captura por caja (así piensa el negocio) pero se guarda por unidad
+        # (así se valorizan ventas/canjes/etc. en el resto del sistema, en unidades sueltas).
+        precio_unidad = round(precio_caja / unidades_por_caja)
+
         p = Producto(
             nombre=nombre,
             categoria=request.form.get("categoria") or None,
@@ -57,7 +61,7 @@ def nuevo():
         db.session.add(p)
         db.session.flush()
         db.session.add(
-            ProductoPrecio(producto_id=p.id, precio_venta_unidad=precio, vigente_desde=date.today())
+            ProductoPrecio(producto_id=p.id, precio_venta_unidad=precio_unidad, vigente_desde=date.today())
         )
         db.session.commit()
         flash(f'Producto "{nombre}" creado.', "success")
@@ -72,7 +76,7 @@ def editar(producto_id):
     if request.method == "POST":
         try:
             nombre = request.form["nombre"].strip()
-            nuevo_precio = int(request.form["precio_venta_unidad"])
+            nuevo_precio_caja = int(request.form["precio_venta_caja"])
             unidades_por_caja = int(request.form.get("unidades_por_caja") or 1)
             if not nombre:
                 raise ValueError("El nombre es obligatorio.")
@@ -92,10 +96,11 @@ def editar(producto_id):
         p.maneja_unidades = bool(request.form.get("maneja_unidades"))
         p.tasa_descuento_referencia = tasa_descuento_referencia
 
+        nuevo_precio_unidad = round(nuevo_precio_caja / unidades_por_caja)
         precio_actual = p.precio_actual()
-        if precio_actual != nuevo_precio:
+        if precio_actual != nuevo_precio_unidad:
             db.session.add(
-                ProductoPrecio(producto_id=p.id, precio_venta_unidad=nuevo_precio, vigente_desde=date.today())
+                ProductoPrecio(producto_id=p.id, precio_venta_unidad=nuevo_precio_unidad, vigente_desde=date.today())
             )
         db.session.commit()
         flash(f'Producto "{nombre}" actualizado.', "success")
@@ -116,9 +121,10 @@ def desactivar(producto_id):
 @bp.route("/carga-masiva", methods=["GET", "POST"])
 def carga_masiva():
     """Alta rápida de muchos productos a la vez, pegando una lista en formato:
-    nombre; categoria; unidades_por_caja; precio_venta_unidad; tasa_descuento_referencia
+    nombre; categoria; unidades_por_caja; precio_venta_caja; tasa_descuento_referencia
     Una línea por producto. categoria y tasa_descuento_referencia son opcionales (pueden
-    quedar vacías entre punto y coma)."""
+    quedar vacías entre punto y coma). El precio se captura por caja y se guarda
+    internamente por unidad (precio_caja / unidades_por_caja)."""
     if request.method == "POST":
         texto = request.form.get("lineas", "")
         creados, errores = [], []
@@ -130,17 +136,19 @@ def carga_masiva():
             if len(partes) < 4:
                 errores.append(f"Línea {numero_linea}: faltan datos (se esperan al menos 4 campos separados por ;)")
                 continue
-            nombre, categoria, unidades_por_caja, precio = partes[0], partes[1], partes[2], partes[3]
+            nombre, categoria, unidades_por_caja, precio_caja = partes[0], partes[1], partes[2], partes[3]
             tasa_descuento_referencia = partes[4] if len(partes) > 4 else ""
             try:
                 unidades_por_caja = int(unidades_por_caja or 1)
-                precio = int(precio)
+                precio_caja = float(precio_caja)
                 tasa_descuento_referencia = float(tasa_descuento_referencia or 0)
                 if not nombre:
                     raise ValueError("nombre vacío")
             except ValueError:
                 errores.append(f"Línea {numero_linea}: unidades por caja, precio o descuento inválido")
                 continue
+
+            precio_unidad = round(precio_caja / unidades_por_caja)
 
             p = Producto(
                 nombre=nombre,
@@ -153,7 +161,7 @@ def carga_masiva():
             db.session.add(p)
             db.session.flush()
             db.session.add(
-                ProductoPrecio(producto_id=p.id, precio_venta_unidad=precio, vigente_desde=date.today())
+                ProductoPrecio(producto_id=p.id, precio_venta_unidad=precio_unidad, vigente_desde=date.today())
             )
             creados.append(nombre)
 

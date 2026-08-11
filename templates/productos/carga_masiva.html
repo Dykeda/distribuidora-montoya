@@ -4,16 +4,19 @@
 <h1 class="h3 mb-3">Carga masiva de productos</h1>
 <p>Útil para dar de alta muchos productos a la vez (por ejemplo, todo el catálogo Postobón inicial).
 Pega una línea por producto con este formato, separado por punto y coma:</p>
-<pre class="bg-light p-2 border rounded">nombre; categoria; unidades_por_caja; precio_venta_unidad; descuento_referencia</pre>
+<pre class="bg-light p-2 border rounded">nombre; categoria; unidades_por_caja; precio_venta_caja; descuento_referencia</pre>
 <p class="text-muted small">La categoría y el descuento de referencia pueden quedar vacíos
-  (ej: <code>Agua Cristal 600ml; ; 12; 2500</code> o <code>Agua Cristal 600ml; ; 12; 2500; 5</code>).
-  El descuento de referencia es solo para autocompletar el % al registrar compras — se puede dejar en 0.</p>
+  (ej: <code>Agua Cristal 600ml; ; 12; 30000</code> o <code>Agua Cristal 600ml; ; 12; 30000; 5</code>).
+  El precio es el de la caja completa (se guarda internamente dividido entre las unidades por
+  caja). El descuento de referencia es solo para autocompletar el % al registrar compras — se
+  puede dejar en 0. Para un producto que se vende suelto (no por caja), usa 1 en unidades por
+  caja y ahí el precio de caja y de unidad son el mismo número.</p>
 
 <form method="post" class="col-lg-8">
   <div class="mb-3">
-    <textarea name="lineas" class="form-control" rows="14" placeholder="Coca-Cola 1.5L; Gaseosa; 6; 3000; 5
-Hit Mango 250ml; Jugo; 24; 1500; 8
-Agua Cristal 600ml; Agua; 12; 2500; 3"></textarea>
+    <textarea name="lineas" class="form-control" rows="14" placeholder="Coca-Cola 1.5L; Gaseosa; 6; 18000; 5
+Hit Mango 250ml; Jugo; 24; 36000; 8
+Agua Cristal 600ml; Agua; 12; 30000; 3"></textarea>
   </div>
   <button type="submit" class="btn btn-primary">Cargar productos</button>
   <a href="{{ url_for('productos.listar') }}" class="btn btn-link">Cancelar</a>

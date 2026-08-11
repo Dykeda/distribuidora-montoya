@@ -11,11 +11,7 @@ from extensions import db as _db
 
 @pytest.fixture
 def app():
-    app = create_app()
-    app.config.update(
-        SQLALCHEMY_DATABASE_URI="sqlite:///:memory:",
-        TESTING=True,
-    )
+    app = create_app(config_overrides={"SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:", "TESTING": True})
     with app.app_context():
         _db.create_all()
         yield app

@@ -29,13 +29,15 @@
            {% if (producto and producto.maneja_unidades) or not producto %}checked{% endif %}>
     <label class="form-check-label" for="maneja_unidades">Se maneja por unidad suelta</label>
   </div>
+  {% set precio_caja_actual = (producto.precio_actual() * producto.unidades_por_caja) if (producto and producto.precio_actual()) else '' %}
   <div class="mb-3">
-    <label class="form-label">Precio de venta por unidad (COP)</label>
-    <input type="number" name="precio_venta_unidad" class="form-control" min="0"
-           value="{{ (form.precio_venta_unidad if form else (producto.precio_actual() if producto else '')) or '' }}">
-    {% if producto %}
-    <div class="form-text">Si cambias el precio, se guarda como nuevo precio vigente desde hoy; el histórico anterior se conserva para los reportes de meses pasados.</div>
-    {% endif %}
+    <label class="form-label">Precio de venta por caja (COP)</label>
+    <input type="number" name="precio_venta_caja" class="form-control" min="0"
+           value="{{ (form.precio_venta_caja if form else precio_caja_actual) or '' }}">
+    <div class="form-text">
+      {% if producto %}Si cambias el precio, se guarda como nuevo precio vigente desde hoy; el histórico anterior se conserva para los reportes de meses pasados. {% endif %}
+      Se guarda internamente como precio por unidad (este valor ÷ unidades por caja) para calcular ventas e inventario.
+    </div>
   </div>
   <div class="mb-3">
     <label class="form-label">Descuento de referencia (%)</label>

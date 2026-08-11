@@ -48,10 +48,13 @@ sube solo a la nube — así no se pierde nada aunque el computador falle.
   descuento se ganó, y cuánto saldo tienes disponible para canjear por producto.
 - **Inventario**: cuánto hay en bodega de cada producto, ahora mismo.
 - **Productos**: da de alta o edita las referencias que manejas (nombre, precio, si se
-  maneja por caja o por unidad). Si tienes muchos productos para cargar de una vez, usa
-  el botón "Carga masiva". El campo "Descuento de referencia" es opcional — si lo llenas,
-  ese % viene precargado automáticamente al elegir ese producto en una compra (lo puedes
-  cambiar ahí mismo si ese mes el descuento fue distinto).
+  maneja por caja o por unidad). El precio se ingresa **por caja completa** (así se
+  piensa el negocio), y el sistema lo guarda internamente por unidad para calcular
+  ventas e inventario — la lista de Productos también muestra el precio por caja, no por
+  unidad. Si tienes muchos productos para cargar de una vez, usa el botón "Carga masiva".
+  El campo "Descuento de referencia" es opcional — si lo llenas, ese % viene precargado
+  automáticamente al elegir ese producto en una compra (lo puedes cambiar ahí mismo si
+  ese mes el descuento fue distinto).
 - **Compras**: registra cada compra que le haces a Postobón, incluyendo el % de
   descuento que te dieron ese mes en cada producto.
 - **Camión**: registra qué carga el camión al salir a reparto, y cuánto regresa al
@@ -99,7 +102,16 @@ sube solo a la nube — así no se pierde nada aunque el computador falle.
 - Los precios de producto tienen historial (`producto_precio`): editar el precio de un
   producto no sobrescribe el anterior, inserta una fila nueva con la fecha desde la que
   aplica. Los reportes usan el precio vigente en la fecha de cada transacción, no el
-  precio de hoy.
+  precio de hoy. Si dos precios quedan con la misma fecha (ej. dos ediciones el mismo
+  día), `Producto.precio_vigente()` desempata por el id más alto (el más reciente), no
+  por el primero encontrado.
+- El precio se **captura y se muestra por caja completa** en las pantallas de Productos
+  (`precio_venta_caja` en los formularios/carga masiva), pero se **guarda internamente
+  por unidad** (`ProductoPrecio.precio_venta_unidad = precio_caja / unidades_por_caja`,
+  redondeado) porque todo el resto del sistema (stock, ventas, canjes) opera en unidades
+  sueltas. Puede haber una diferencia de unos pocos pesos entre el precio de caja que se
+  escribió y el que se muestra después, por el redondeo a entero en el precio unitario
+  (ej. $51,800 ÷ 30 → $1,727/u → $51,810 mostrado) — es normal, no es un error de datos.
 - La cartera de clientes (`factura_cartera`) es independiente del cálculo de venta/stock
   — es solo un registro de "este cliente debe tanto dinero", que no afecta el inventario
   ni las fórmulas de ganancia. `salida_id` es opcional: si la deuda viene de una ruta

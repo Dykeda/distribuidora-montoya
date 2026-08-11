@@ -22,11 +22,13 @@ class Producto(db.Model):
     )
 
     def precio_vigente(self, fecha: date):
-        """Precio de venta/lista efectivo en una fecha dada (el más reciente <= fecha)."""
+        """Precio de venta/lista efectivo en una fecha dada (el más reciente <= fecha).
+        Si dos precios quedan con la misma fecha (ej. dos ediciones el mismo día), gana el
+        que se creó después (id más alto), no el primero encontrado."""
         vigente = None
         for p in self.precios:
             if p.vigente_desde <= fecha:
-                if vigente is None or p.vigente_desde > vigente.vigente_desde:
+                if vigente is None or (p.vigente_desde, p.id) > (vigente.vigente_desde, vigente.id):
                     vigente = p
         return vigente.precio_venta_unidad if vigente else None
 

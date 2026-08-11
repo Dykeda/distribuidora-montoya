@@ -12,7 +12,7 @@ from extensions import db
 CONGELADO = getattr(sys, "frozen", False)
 
 
-def create_app():
+def create_app(config_overrides=None):
     if CONGELADO:
         # PyInstaller extrae templates/ y static/ a la carpeta temporal BASE_DIR;
         # sin esto, Flask buscaría esas carpetas junto al .exe y no las encontraría.
@@ -24,6 +24,12 @@ def create_app():
     else:
         app = Flask(__name__)
     app.config.from_object(Config)
+    if config_overrides:
+        # Debe aplicarse ANTES de db.init_app(): Flask-SQLAlchemy fija el engine con la
+        # config vigente en ese momento, así que cambiar SQLALCHEMY_DATABASE_URI después
+        # no lo mueve — las pruebas terminarían leyendo/escribiendo la base de datos real
+        # en vez de la de pruebas en memoria.
+        app.config.update(config_overrides)
     app.permanent_session_lifetime = timedelta(days=30)
     db.init_app(app)
 
