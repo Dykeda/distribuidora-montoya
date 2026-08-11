@@ -33,8 +33,6 @@ def nueva():
         errores = []
         if not cliente:
             errores.append("El cliente es obligatorio.")
-        if not salida_id:
-            errores.append("Debes elegir a qué ruta del camión corresponde esta factura.")
         try:
             monto = int(request.form.get("monto") or 0)
             if monto <= 0:
@@ -55,7 +53,7 @@ def nueva():
             )
 
         factura = FacturaCartera(
-            salida_id=int(salida_id),
+            salida_id=int(salida_id) if salida_id else None,
             cliente=cliente,
             fecha=fecha,
             monto=monto,

@@ -29,7 +29,13 @@
     <tr>
       <td>{{ f.cliente }}</td>
       <td>{{ f.fecha.strftime("%Y-%m-%d") }}</td>
-      <td><a href="{{ url_for('camion.detalle', salida_id=f.salida_id) }}">{{ f.salida.fecha.strftime("%Y-%m-%d") }}</a></td>
+      <td>
+        {% if f.salida %}
+        <a href="{{ url_for('camion.detalle', salida_id=f.salida_id) }}">{{ f.salida.fecha.strftime("%Y-%m-%d") }}</a>
+        {% else %}
+        <span class="text-muted">Deuda anterior</span>
+        {% endif %}
+      </td>
       <td class="text-end">${{ "{:,}".format(f.monto) }}</td>
       <td>
         {% if f.estado == 'pagada' %}

@@ -62,9 +62,10 @@ sube solo a la nube — así no se pierde nada aunque el computador falle.
   te entrega producto a cambio de ese crédito. El botón "Ajustar saldo" sirve para cargar
   el crédito que ya tenías acumulado antes de empezar a usar el sistema (o para corregir
   el saldo si algo quedó mal).
-- **Cartera**: registra las facturas que los clientes te deben (ligadas a la ruta del
-  camión en la que se generaron), y márcalas como pagadas cuando te paguen. Aquí también
-  ves cuánto dinero tienes pendiente por cobrar en total.
+- **Cartera**: registra las facturas que los clientes te deben, y márcalas como pagadas
+  cuando te paguen. Si la deuda es de una ruta del camión ya registrada, elígela en el
+  formulario; si es una deuda de antes de usar el sistema, deja esa parte en blanco. Aquí
+  también ves cuánto dinero tienes pendiente por cobrar en total.
 - **Reportes**: elige un mes y revisa los totales de compra, venta, crédito, saldo y
   cartera pendiente.
 
@@ -98,9 +99,11 @@ sube solo a la nube — así no se pierde nada aunque el computador falle.
   aplica. Los reportes usan el precio vigente en la fecha de cada transacción, no el
   precio de hoy.
 - La cartera de clientes (`factura_cartera`) es independiente del cálculo de venta/stock
-  — es solo un registro de "este cliente debe tanto dinero de esta ruta", que no afecta
-  el inventario ni las fórmulas de ganancia. Cada factura queda ligada a una
-  `salida_camion`. Ver `services/cartera.py`.
+  — es solo un registro de "este cliente debe tanto dinero", que no afecta el inventario
+  ni las fórmulas de ganancia. `salida_id` es opcional: si la deuda viene de una ruta
+  registrada en el sistema se liga a esa `salida_camion` (aparece en el detalle de esa
+  ruta); si es una deuda de antes de usar el sistema, se deja en blanco. Ver
+  `services/cartera.py`.
 
 ### Comandos útiles
 ```

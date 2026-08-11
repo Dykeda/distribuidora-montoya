@@ -163,7 +163,8 @@ class FacturaCartera(db.Model):
     __tablename__ = "factura_cartera"
 
     id = db.Column(db.Integer, primary_key=True)
-    salida_id = db.Column(db.Integer, db.ForeignKey("salida_camion.id"), nullable=False)
+    # Nulo para deudas de antes de usar el sistema, sin una ruta de camión a la cual ligarlas.
+    salida_id = db.Column(db.Integer, db.ForeignKey("salida_camion.id"), nullable=True)
     cliente = db.Column(db.String(120), nullable=False)
     fecha = db.Column(db.Date, nullable=False, default=date.today)
     monto = db.Column(db.Integer, nullable=False)

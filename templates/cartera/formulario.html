@@ -3,11 +3,6 @@
 {% block content %}
 <h1 class="h3 mb-3">Registrar factura pendiente de pago</h1>
 
-{% if not salidas %}
-<div class="alert alert-warning">Todavía no hay ninguna salida de camión registrada.
-  <a href="{{ url_for('camion.salida_nueva') }}">Registra una primero</a>.</div>
-{% endif %}
-
 <form method="post" class="col-lg-6">
   <div class="mb-3">
     <label class="form-label">Cliente</label>
@@ -16,13 +11,14 @@
   </div>
   {% set preseleccion = (form.salida_id if form else salida_preseleccionada) | string %}
   <div class="mb-3">
-    <label class="form-label">Ruta del camión (a qué salida corresponde)</label>
-    <select name="salida_id" class="form-select" required>
-      <option value="">-- elegir --</option>
+    <label class="form-label">Ruta del camión (opcional)</label>
+    <select name="salida_id" class="form-select">
+      <option value="">-- deuda anterior, sin ruta específica --</option>
       {% for s in salidas %}
       <option value="{{ s.id }}" {% if s.id | string == preseleccion %}selected{% endif %}>{{ s.fecha.strftime("%Y-%m-%d") }}{% if s.notas %} — {{ s.notas }}{% endif %}</option>
       {% endfor %}
     </select>
+    <div class="form-text">Déjalo en blanco para deudas de clientes de antes de usar el sistema.</div>
   </div>
   <div class="mb-3">
     <label class="form-label">Fecha de la factura</label>

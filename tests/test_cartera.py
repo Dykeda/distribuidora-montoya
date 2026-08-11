@@ -42,3 +42,15 @@ def test_marcar_pagada_actualiza_el_total_pendiente(db):
     db.session.commit()
 
     assert total_pendiente() == 0
+
+
+def test_factura_sin_ruta_para_deudas_anteriores_al_sistema(db):
+    factura = FacturaCartera(
+        salida_id=None, cliente="Tienda Vieja", fecha=date(2026, 5, 1), monto=120000,
+        notas="Deuda de antes de usar el sistema",
+    )
+    db.session.add(factura)
+    db.session.commit()
+
+    assert total_pendiente() == 120000
+    assert listar_facturas()[0].salida is None

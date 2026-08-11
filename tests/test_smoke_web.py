@@ -173,6 +173,19 @@ def test_flujo_completo(client):
     assert client.get("/cartera/").status_code == 200
     assert client.get(f"/camion/{salida.id}").status_code == 200
 
+    # Cartera: deuda anterior al sistema, sin ruta ligada
+    r = client.post(
+        "/cartera/nueva",
+        data={"cliente": "Tienda Vieja", "salida_id": "", "fecha": "2026-05-01", "monto": "120000", "notas": ""},
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+
+    factura_vieja = FacturaCartera.query.filter_by(cliente="Tienda Vieja").first()
+    assert factura_vieja is not None and factura_vieja.salida_id is None
+    assert total_pendiente() == 120000
+    assert "Deuda anterior" in client.get("/cartera/").get_data(as_text=True)
+
     # Venta en bodega: 2 unidades de Agua Cristal (3000 COP c/u = 6000)
     assert client.get("/bodega/nueva").status_code == 200
     r = client.post(
