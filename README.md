@@ -49,7 +49,9 @@ sube solo a la nube — así no se pierde nada aunque el computador falle.
 - **Inventario**: cuánto hay en bodega de cada producto, ahora mismo.
 - **Productos**: da de alta o edita las referencias que manejas (nombre, precio, si se
   maneja por caja o por unidad). Si tienes muchos productos para cargar de una vez, usa
-  el botón "Carga masiva".
+  el botón "Carga masiva". El campo "Descuento de referencia" es opcional — si lo llenas,
+  ese % viene precargado automáticamente al elegir ese producto en una compra (lo puedes
+  cambiar ahí mismo si ese mes el descuento fue distinto).
 - **Compras**: registra cada compra que le haces a Postobón, incluyendo el % de
   descuento que te dieron ese mes en cada producto.
 - **Camión**: registra qué carga el camión al salir a reparto, y cuánto regresa al

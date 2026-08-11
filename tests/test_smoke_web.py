@@ -55,10 +55,10 @@ def test_flujo_completo(client):
     assert client.get("/productos/").status_code == 200
     assert client.get("/productos/inventario").status_code == 200
 
-    # Carga masiva
+    # Carga masiva: una línea con descuento de referencia, otra sin (debe quedar en 0)
     r = client.post(
         "/productos/carga-masiva",
-        data={"lineas": "Hit Mango 250ml; Jugo; 24; 1500\nManzana Postobon 1.5L; Jugo; 6; 3200"},
+        data={"lineas": "Hit Mango 250ml; Jugo; 24; 1500; 8\nManzana Postobon 1.5L; Jugo; 6; 3200"},
         follow_redirects=True,
     )
     assert r.status_code == 200
@@ -67,6 +67,10 @@ def test_flujo_completo(client):
 
     coca = Producto.query.filter_by(nombre="Coca-Cola 1.5L").first()
     agua = Producto.query.filter_by(nombre="Agua Cristal 600ml").first()
+    hit = Producto.query.filter_by(nombre="Hit Mango 250ml").first()
+    manzana = Producto.query.filter_by(nombre="Manzana Postobon 1.5L").first()
+    assert hit.tasa_descuento_referencia == 8.0
+    assert manzana.tasa_descuento_referencia == 0.0
     assert coca is not None and agua is not None
 
     # Registrar compra: 10 cajas (60u) de Coca-Cola, 180000 COP, 5% descuento

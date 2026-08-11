@@ -21,6 +21,7 @@
       <th>Unidades/caja</th>
       <th>Maneja</th>
       <th>Precio actual</th>
+      <th>Descuento ref.</th>
       <th></th>
     </tr>
   </thead>
@@ -35,6 +36,7 @@
         {% if p.maneja_unidades %}<span class="badge bg-secondary">Unidades</span>{% endif %}
       </td>
       <td>${{ "{:,}".format(p.precio_actual() or 0) }}</td>
+      <td>{{ p.tasa_descuento_referencia }}%</td>
       <td class="text-end">
         <a href="{{ url_for('productos.editar', producto_id=p.id) }}" class="btn btn-sm btn-outline-primary">Editar</a>
         <form method="post" action="{{ url_for('productos.desactivar', producto_id=p.id) }}" class="d-inline"
@@ -44,7 +46,7 @@
       </td>
     </tr>
     {% else %}
-    <tr><td colspan="6" class="text-center text-muted">No hay productos todavía.</td></tr>
+    <tr><td colspan="7" class="text-center text-muted">No hay productos todavía.</td></tr>
     {% endfor %}
   </tbody>
 </table>

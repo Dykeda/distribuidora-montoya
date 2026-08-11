@@ -41,12 +41,18 @@ def nuevo():
             flash(f"Datos inválidos: {e}", "error")
             return render_template("productos/formulario.html", producto=None, form=request.form)
 
+        try:
+            tasa_descuento_referencia = float(request.form.get("tasa_descuento_referencia") or 0)
+        except ValueError:
+            tasa_descuento_referencia = 0.0
+
         p = Producto(
             nombre=nombre,
             categoria=request.form.get("categoria") or None,
             unidades_por_caja=unidades_por_caja,
             maneja_cajas=bool(request.form.get("maneja_cajas")),
             maneja_unidades=bool(request.form.get("maneja_unidades")),
+            tasa_descuento_referencia=tasa_descuento_referencia,
         )
         db.session.add(p)
         db.session.flush()
@@ -74,11 +80,17 @@ def editar(producto_id):
             flash(f"Datos inválidos: {e}", "error")
             return render_template("productos/formulario.html", producto=p, form=request.form)
 
+        try:
+            tasa_descuento_referencia = float(request.form.get("tasa_descuento_referencia") or 0)
+        except ValueError:
+            tasa_descuento_referencia = 0.0
+
         p.nombre = nombre
         p.categoria = request.form.get("categoria") or None
         p.unidades_por_caja = unidades_por_caja
         p.maneja_cajas = bool(request.form.get("maneja_cajas"))
         p.maneja_unidades = bool(request.form.get("maneja_unidades"))
+        p.tasa_descuento_referencia = tasa_descuento_referencia
 
         precio_actual = p.precio_actual()
         if precio_actual != nuevo_precio:
@@ -104,8 +116,9 @@ def desactivar(producto_id):
 @bp.route("/carga-masiva", methods=["GET", "POST"])
 def carga_masiva():
     """Alta rápida de muchos productos a la vez, pegando una lista en formato:
-    nombre; categoria; unidades_por_caja; precio_venta_unidad
-    Una línea por producto. categoria es opcional (puede quedar vacía entre punto y coma)."""
+    nombre; categoria; unidades_por_caja; precio_venta_unidad; tasa_descuento_referencia
+    Una línea por producto. categoria y tasa_descuento_referencia son opcionales (pueden
+    quedar vacías entre punto y coma)."""
     if request.method == "POST":
         texto = request.form.get("lineas", "")
         creados, errores = [], []
@@ -115,16 +128,18 @@ def carga_masiva():
                 continue
             partes = [x.strip() for x in linea.split(";")]
             if len(partes) < 4:
-                errores.append(f"Línea {numero_linea}: faltan datos (se esperan 4 campos separados por ;)")
+                errores.append(f"Línea {numero_linea}: faltan datos (se esperan al menos 4 campos separados por ;)")
                 continue
             nombre, categoria, unidades_por_caja, precio = partes[0], partes[1], partes[2], partes[3]
+            tasa_descuento_referencia = partes[4] if len(partes) > 4 else ""
             try:
                 unidades_por_caja = int(unidades_por_caja or 1)
                 precio = int(precio)
+                tasa_descuento_referencia = float(tasa_descuento_referencia or 0)
                 if not nombre:
                     raise ValueError("nombre vacío")
             except ValueError:
-                errores.append(f"Línea {numero_linea}: unidades por caja o precio inválido")
+                errores.append(f"Línea {numero_linea}: unidades por caja, precio o descuento inválido")
                 continue
 
             p = Producto(
@@ -133,6 +148,7 @@ def carga_masiva():
                 unidades_por_caja=unidades_por_caja,
                 maneja_cajas=True,
                 maneja_unidades=True,
+                tasa_descuento_referencia=tasa_descuento_referencia,
             )
             db.session.add(p)
             db.session.flush()

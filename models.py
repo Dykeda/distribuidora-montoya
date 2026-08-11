@@ -13,6 +13,9 @@ class Producto(db.Model):
     maneja_cajas = db.Column(db.Boolean, nullable=False, default=True)
     maneja_unidades = db.Column(db.Boolean, nullable=False, default=True)
     activo = db.Column(db.Boolean, nullable=False, default=True)
+    # % de descuento típico de este producto, solo para autocompletar el formulario de
+    # compra — la tasa real se puede variar en cada compra, esto es un punto de partida.
+    tasa_descuento_referencia = db.Column(db.Float, nullable=False, default=0.0)
 
     precios = db.relationship(
         "ProductoPrecio", back_populates="producto", order_by="ProductoPrecio.vigente_desde"

@@ -37,6 +37,12 @@
     <div class="form-text">Si cambias el precio, se guarda como nuevo precio vigente desde hoy; el histórico anterior se conserva para los reportes de meses pasados.</div>
     {% endif %}
   </div>
+  <div class="mb-3">
+    <label class="form-label">Descuento de referencia (%)</label>
+    <input type="number" step="0.1" min="0" name="tasa_descuento_referencia" class="form-control"
+           value="{{ (form.tasa_descuento_referencia if form else (producto.tasa_descuento_referencia if producto else 0)) }}">
+    <div class="form-text">Solo para autocompletar el % de descuento al registrar una compra de este producto — lo puedes cambiar en cada compra si ese mes fue distinto.</div>
+  </div>
   <button type="submit" class="btn btn-primary">Guardar</button>
   <a href="{{ url_for('productos.listar') }}" class="btn btn-link">Cancelar</a>
 </form>

@@ -48,7 +48,7 @@
       <select name="producto_id[]" class="form-select" required>
         <option value="">-- elegir --</option>
         {% for p in productos %}
-        <option value="{{ p.id }}">{{ p.nombre }}</option>
+        <option value="{{ p.id }}" data-tasa="{{ p.tasa_descuento_referencia }}">{{ p.nombre }}</option>
         {% endfor %}
       </select>
     </td>
@@ -73,6 +73,11 @@
     const nodo = plantilla.content.cloneNode(true);
     nodo.querySelector(".btn-quitar-linea").addEventListener("click", (e) => {
       e.target.closest("tr").remove();
+    });
+    nodo.querySelector('select[name="producto_id[]"]').addEventListener("change", (e) => {
+      const opcion = e.target.selectedOptions[0];
+      const tasaInput = e.target.closest("tr").querySelector('input[name="tasa_descuento[]"]');
+      tasaInput.value = opcion ? (opcion.dataset.tasa || 0) : 0;
     });
     cuerpo.appendChild(nodo);
   }
