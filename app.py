@@ -42,6 +42,7 @@ def create_app(config_overrides=None):
     from routes.descuentos import bp as descuentos_bp
     from routes.cartera import bp as cartera_bp
     from routes.caja import bp as caja_bp
+    from routes.gastos import bp as gastos_bp
     from routes.reportes import bp as reportes_bp
 
     app.register_blueprint(auth_bp)
@@ -53,6 +54,7 @@ def create_app(config_overrides=None):
     app.register_blueprint(descuentos_bp)
     app.register_blueprint(cartera_bp)
     app.register_blueprint(caja_bp)
+    app.register_blueprint(gastos_bp)
     app.register_blueprint(reportes_bp)
 
     @app.before_request
@@ -67,6 +69,9 @@ def create_app(config_overrides=None):
         """Crea todas las tablas si no existen. Uso: flask --app app init-db"""
         with app.app_context():
             db.create_all()
+            from services.gastos import asegurar_categorias_default
+
+            asegurar_categorias_default()
         print("Base de datos inicializada.")
 
     return app
@@ -77,6 +82,9 @@ app = create_app()
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
+        from services.gastos import asegurar_categorias_default
+
+        asegurar_categorias_default()
 
     def abrir_navegador():
         webbrowser.open("http://127.0.0.1:5000")

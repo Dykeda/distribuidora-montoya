@@ -67,8 +67,20 @@
   </div>
   <div class="col-md-4">
     <div class="card card-metric h-100"><div class="card-body">
-      <div class="text-muted small">Efectivo recibido en el período</div>
-      <div class="fs-4 fw-bold">${{ "{:,}".format(resumen.efectivo_periodo) }}</div>
+      <div class="text-muted small">Entradas de caja en el período</div>
+      <div class="fs-4 fw-bold">${{ "{:,}".format(resumen.entradas_periodo) }}</div>
+    </div></div>
+  </div>
+  <div class="col-md-4">
+    <div class="card card-metric h-100"><div class="card-body">
+      <div class="text-muted small">Salidas de dinero en el período</div>
+      <div class="fs-4 fw-bold">${{ "{:,}".format(resumen.gastos_periodo) }}</div>
+    </div></div>
+  </div>
+  <div class="col-md-4">
+    <div class="card card-metric h-100 border-primary"><div class="card-body">
+      <div class="text-muted small">Saldo de caja (a fin de este período)</div>
+      <div class="fs-4 fw-bold">${{ "{:,}".format(resumen.saldo_caja_acumulado) }}</div>
     </div></div>
   </div>
 </div>

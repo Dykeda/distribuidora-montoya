@@ -270,3 +270,33 @@ class VentaBodegaDetalle(db.Model):
 
     venta = db.relationship("VentaBodega", back_populates="detalles")
     producto = db.relationship("Producto")
+
+
+class CategoriaGasto(db.Model):
+    """Categoría de salida de dinero. tipo distingue si es un gasto del negocio (pagos a
+    Postobón/otros distribuidores/nómina) o del hogar (arriendo, servicios, etc.). El
+    usuario puede agregar más categorías de cualquiera de los dos tipos desde la pantalla."""
+
+    __tablename__ = "categoria_gasto"
+
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(120), nullable=False)
+    tipo = db.Column(db.String(20), nullable=False)  # "negocio" o "hogar"
+    activa = db.Column(db.Boolean, nullable=False, default=True)
+
+    gastos = db.relationship("Gasto", back_populates="categoria")
+
+
+class Gasto(db.Model):
+    """Una salida de dinero: pago a Postobón/distribuidores/nómina (negocio) o un gasto
+    del hogar (arriendo, servicios, etc.). Reduce el efectivo disponible en Caja."""
+
+    __tablename__ = "gasto"
+
+    id = db.Column(db.Integer, primary_key=True)
+    categoria_id = db.Column(db.Integer, db.ForeignKey("categoria_gasto.id"), nullable=False)
+    fecha = db.Column(db.Date, nullable=False, default=date.today)
+    monto = db.Column(db.Integer, nullable=False)
+    notas = db.Column(db.String(255), nullable=True)
+
+    categoria = db.relationship("CategoriaGasto", back_populates="gastos")

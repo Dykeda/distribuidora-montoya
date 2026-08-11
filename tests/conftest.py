@@ -14,6 +14,9 @@ def app():
     app = create_app(config_overrides={"SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:", "TESTING": True})
     with app.app_context():
         _db.create_all()
+        from services.gastos import asegurar_categorias_default
+
+        asegurar_categorias_default()
         yield app
         _db.session.remove()
         _db.drop_all()

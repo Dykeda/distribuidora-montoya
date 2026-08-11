@@ -71,12 +71,16 @@ sube solo a la nube — así no se pierde nada aunque el computador falle.
   cuando te paguen. Si la deuda es de una ruta del camión ya registrada, elígela en el
   formulario; si es una deuda de antes de usar el sistema, deja esa parte en blanco. Aquí
   también ves cuánto dinero tienes pendiente por cobrar en total.
-- **Caja**: cuánto efectivo ha entrado día a día — se calcula solo (venta del camión
-  menos lo que quedó en cartera sin cobrar, más venta directa en bodega), no hay que
-  registrar nada aparte. Por ahora solo suma entradas; los gastos/retiros de caja se
-  agregarán más adelante.
+- **Caja**: el saldo de efectivo día a día — se calcula solo (venta del camión menos lo
+  que quedó en cartera sin cobrar, más venta directa en bodega, menos las salidas de
+  dinero), no hay que registrar entradas aparte.
+- **Salidas de dinero**: registra pagos del negocio (a Postobón, otros distribuidores,
+  nómina) y gastos del hogar (arriendo, servicios, etc.). Si no está la categoría que
+  necesitas, la creas con el botón "+ Nueva categoría" — quedan disponibles para la
+  próxima vez. Aquí ves siempre el registro completo de todas las salidas, con pestañas
+  para filtrar por Negocio o Hogar. Se descuentan automáticamente de Caja.
 - **Reportes**: elige un mes y revisa los totales de compra, venta, crédito, saldo,
-  cartera pendiente y efectivo recibido.
+  cartera pendiente, entradas/salidas de caja y saldo de caja.
 
 ## Para quien mantenga el código (referencia técnica)
 
@@ -123,12 +127,16 @@ sube solo a la nube — así no se pierde nada aunque el computador falle.
   registrada en el sistema se liga a esa `salida_camion` (aparece en el detalle de esa
   ruta); si es una deuda de antes de usar el sistema, se deja en blanco. Ver
   `services/cartera.py`.
-- Caja (`services/caja.py`) **no tiene tabla propia** — todo se deriva de datos que ya
-  existen: `efectivo_por_salida()` = venta implícita de la ruta menos las facturas de
-  cartera ligadas a esa `salida_camion` (lo que no se cobró en efectivo), y se le suma la
-  venta directa en bodega (`VentaBodega`, que se asume siempre en efectivo). No hay
-  todavía un concepto de salidas de efectivo (gastos, retiros) — el módulo está pensado
-  para agregarlas después sin rehacer el cálculo de entradas.
+- Caja (`services/caja.py`): las **entradas** se derivan de datos que ya existen (no
+  tienen tabla propia) — `efectivo_por_salida()` = venta implícita de la ruta menos las
+  facturas de cartera ligadas a esa `salida_camion` (lo que no se cobró en efectivo), más
+  la venta directa en bodega (`VentaBodega`, siempre en efectivo). Las **salidas** sí
+  tienen tabla propia: `Gasto` (categoría, fecha, monto, notas), donde la categoría es
+  `CategoriaGasto` con un `tipo` ("negocio" o "hogar") — el usuario puede agregar más
+  categorías desde la pantalla, además de las 8 que vienen por defecto
+  (`services/gastos.py::CATEGORIAS_DEFAULT`, sembradas al iniciar la app vía
+  `asegurar_categorias_default()`, idempotente). `saldo_acumulado()` = todas las entradas
+  menos todas las salidas hasta una fecha de corte.
 
 ### Comandos útiles
 ```
@@ -175,8 +183,12 @@ pct_descuento_promedio    = credito_generado(periodo) / compra_total_dinero(peri
                              tasas ingresadas en cada línea)
 efectivo_por_salida        = venta_por_salida(ruta) - SUM(monto) de las facturas de cartera
                              ligadas a esa misma salida_camion
-efectivo(periodo)          = SUM(efectivo_por_salida) de rutas cerradas en el período
+entradas(periodo)          = SUM(efectivo_por_salida) de rutas cerradas en el período
                              + venta directa en bodega del período (siempre en efectivo)
+gastos(periodo)            = SUM(monto) de Gasto con fecha dentro del período
+saldo_caja(periodo)        = entradas(periodo) - gastos(periodo)
+saldo_caja_acumulado(fecha) = entradas(sin límite inferior, hasta fecha)
+                             - gastos(sin límite inferior, hasta fecha)
 ```
 
 ### Limitaciones conocidas (v1)

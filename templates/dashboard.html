@@ -52,8 +52,15 @@
   </div>
   <div class="col-md-3">
     <div class="card card-metric h-100"><div class="card-body">
-      <div class="text-muted small">Efectivo recibido este mes</div>
-      <div class="fs-4 fw-bold">${{ "{:,}".format(resumen.efectivo_periodo) }}</div>
+      <div class="text-muted small">Salidas de dinero este mes</div>
+      <div class="fs-4 fw-bold">${{ "{:,}".format(resumen.gastos_periodo) }}</div>
+      <a href="{{ url_for('gastos.listar') }}" class="small">Ver salidas &rarr;</a>
+    </div></div>
+  </div>
+  <div class="col-md-3">
+    <div class="card card-metric h-100 border-primary"><div class="card-body">
+      <div class="text-muted small">Saldo de caja (histórico)</div>
+      <div class="fs-4 fw-bold">${{ "{:,}".format(resumen.saldo_caja_acumulado) }}</div>
       <a href="{{ url_for('caja.listar') }}" class="small">Ver caja &rarr;</a>
     </div></div>
   </div>
@@ -71,6 +78,7 @@
         <a href="{{ url_for('bodega.nueva') }}" class="btn btn-outline-primary btn-sm">+ Venta bodega</a>
         <a href="{{ url_for('descuentos.canje_nuevo') }}" class="btn btn-outline-primary btn-sm">+ Canje descuento</a>
         <a href="{{ url_for('cartera.nueva') }}" class="btn btn-outline-primary btn-sm">+ Factura cartera</a>
+        <a href="{{ url_for('gastos.nuevo') }}" class="btn btn-outline-primary btn-sm">+ Salida de dinero</a>
         <a href="{{ url_for('reportes.index') }}" class="btn btn-outline-secondary btn-sm">Ver reportes</a>
       </div>
     </div></div>

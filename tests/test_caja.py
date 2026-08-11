@@ -10,8 +10,16 @@ from models import (
     FacturaCartera,
     VentaBodega,
     VentaBodegaDetalle,
+    CategoriaGasto,
+    Gasto,
 )
-from services.caja import efectivo_por_salida, efectivo_en_periodo, historial_diario, efectivo_acumulado
+from services.caja import (
+    efectivo_por_salida,
+    entradas_en_periodo,
+    historial_diario,
+    saldo_acumulado,
+    saldo_en_periodo,
+)
 
 
 def crear_producto(db, nombre="Coca-Cola 1.5L", precio=3000, unidades_por_caja=6):
@@ -64,7 +72,7 @@ def test_efectivo_por_salida_resta_lo_que_quedo_en_cartera(db):
     assert efectivo_por_salida(salida.id) == 52000
 
 
-def test_efectivo_en_periodo_suma_camion_y_bodega(db):
+def test_entradas_en_periodo_suma_camion_y_bodega(db):
     p = crear_producto(db)
     cerrar_ruta(db, p, cantidad_salida=30, cantidad_retorno=6, fecha=date(2026, 8, 2))  # 72000 efectivo
 
@@ -74,7 +82,18 @@ def test_efectivo_en_periodo_suma_camion_y_bodega(db):
     db.session.add(VentaBodegaDetalle(venta_id=venta_bodega.id, producto_id=p.id, cantidad_unidades=5, valor=15000))
     db.session.commit()
 
-    assert efectivo_en_periodo(date(2026, 8, 1), date(2026, 8, 31)) == 72000 + 15000
+    assert entradas_en_periodo(date(2026, 8, 1), date(2026, 8, 31)) == 72000 + 15000
+
+
+def test_saldo_en_periodo_resta_los_gastos(db):
+    p = crear_producto(db)
+    cerrar_ruta(db, p, cantidad_salida=30, cantidad_retorno=6, fecha=date(2026, 8, 2))  # 72000 entrada
+
+    cat = CategoriaGasto.query.filter_by(nombre="Arriendo", tipo="hogar").first()
+    db.session.add(Gasto(categoria_id=cat.id, fecha=date(2026, 8, 10), monto=30000))
+    db.session.commit()
+
+    assert saldo_en_periodo(date(2026, 8, 1), date(2026, 8, 31)) == 72000 - 30000
 
 
 def test_historial_diario_separa_por_fecha_y_fuente(db):
@@ -87,18 +106,27 @@ def test_historial_diario_separa_por_fecha_y_fuente(db):
     db.session.add(VentaBodegaDetalle(venta_id=venta_bodega.id, producto_id=p.id, cantidad_unidades=5, valor=15000))
     db.session.commit()
 
+    cat = CategoriaGasto.query.filter_by(nombre="Pago Nómina", tipo="negocio").first()
+    db.session.add(Gasto(categoria_id=cat.id, fecha=date(2026, 8, 2), monto=10000))
+    db.session.commit()
+
     filas = historial_diario(date(2026, 8, 1), date(2026, 8, 31))
     assert len(filas) == 1
     assert filas[0]["fecha"] == date(2026, 8, 2)
     assert filas[0]["camion"] == 72000
     assert filas[0]["bodega"] == 15000
-    assert filas[0]["total"] == 87000
+    assert filas[0]["gastos"] == 10000
+    assert filas[0]["total"] == 72000 + 15000 - 10000
 
 
-def test_efectivo_acumulado_no_tiene_limite_inferior(db):
+def test_saldo_acumulado_no_tiene_limite_inferior_y_resta_gastos(db):
     # el precio del producto rige desde 2026-01-01; la ruta es de esa misma semana, muy
     # anterior a la fecha de corte usada abajo, para probar que no hay límite inferior
     p = crear_producto(db)
     cerrar_ruta(db, p, cantidad_salida=30, cantidad_retorno=6, fecha=date(2026, 1, 5))
 
-    assert efectivo_acumulado(date(2026, 12, 31)) == 72000
+    cat = CategoriaGasto.query.filter_by(nombre="Luz", tipo="hogar").first()
+    db.session.add(Gasto(categoria_id=cat.id, fecha=date(2026, 6, 1), monto=8000))
+    db.session.commit()
+
+    assert saldo_acumulado(date(2026, 12, 31)) == 72000 - 8000

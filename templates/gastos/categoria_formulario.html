@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Nueva categoría{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">Nueva categoría de salida</h1>
+
+<form method="post" class="col-lg-6">
+  <div class="mb-3">
+    <label class="form-label">Nombre</label>
+    <input type="text" name="nombre" class="form-control" required
+           placeholder="Ej: Pago transporte, Internet, Mantenimiento del camión..."
+           value="{{ form.nombre if form else '' }}">
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Tipo</label>
+    <select name="tipo" class="form-select" required>
+      <option value="">-- elegir --</option>
+      <option value="negocio" {% if form and form.tipo == 'negocio' %}selected{% endif %}>Negocio</option>
+      <option value="hogar" {% if form and form.tipo == 'hogar' %}selected{% endif %}>Hogar</option>
+    </select>
+  </div>
+  <button type="submit" class="btn btn-primary">Guardar categoría</button>
+  <a href="{{ url_for('gastos.listar') }}" class="btn btn-link">Cancelar</a>
+</form>
+{% endblock %}

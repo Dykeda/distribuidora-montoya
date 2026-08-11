@@ -1,23 +1,38 @@
 {% extends "base.html" %}
 {% block title %}Caja{% endblock %}
 {% block content %}
-<h1 class="h3 mb-3">Caja (efectivo)</h1>
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Caja (efectivo)</h1>
+  <a href="{{ url_for('gastos.nuevo') }}" class="btn btn-outline-secondary">+ Registrar salida de dinero</a>
+</div>
 <p class="text-muted">Se calcula solo, a partir de lo ya registrado: venta del camión
-  menos lo que quedó en cartera sin cobrar, más venta directa en bodega. No hace falta
-  registrar nada aparte.</p>
+  menos lo que quedó en cartera sin cobrar, más venta directa en bodega, menos las
+  salidas de dinero (negocio y hogar). No hace falta registrar entradas aparte.</p>
 
 <div class="row g-3 mb-4">
-  <div class="col-md-4">
+  <div class="col-md-3">
     <div class="card card-metric h-100"><div class="card-body">
-      <div class="text-muted small">Efectivo recibido este mes</div>
-      <div class="fs-3 fw-bold">${{ "{:,}".format(total_mes) }}</div>
+      <div class="text-muted small">Entradas este mes</div>
+      <div class="fs-4 fw-bold">${{ "{:,}".format(entradas_mes) }}</div>
     </div></div>
   </div>
-  <div class="col-md-4">
+  <div class="col-md-3">
+    <div class="card card-metric h-100"><div class="card-body">
+      <div class="text-muted small">Salidas este mes</div>
+      <div class="fs-4 fw-bold">${{ "{:,}".format(gastos_mes) }}</div>
+      <a href="{{ url_for('gastos.listar') }}" class="small">Ver salidas &rarr;</a>
+    </div></div>
+  </div>
+  <div class="col-md-3">
+    <div class="card card-metric h-100"><div class="card-body">
+      <div class="text-muted small">Saldo neto este mes</div>
+      <div class="fs-4 fw-bold">${{ "{:,}".format(total_mes) }}</div>
+    </div></div>
+  </div>
+  <div class="col-md-3">
     <div class="card card-metric h-100 border-primary"><div class="card-body">
-      <div class="text-muted small">Efectivo total recibido (histórico)</div>
-      <div class="fs-3 fw-bold">${{ "{:,}".format(acumulado) }}</div>
-      <div class="text-muted small">Aún no descuenta gastos ni retiros de caja.</div>
+      <div class="text-muted small">Saldo de caja (histórico)</div>
+      <div class="fs-4 fw-bold">${{ "{:,}".format(acumulado) }}</div>
     </div></div>
   </div>
 </div>
@@ -43,7 +58,8 @@
       <th>Fecha</th>
       <th class="text-end">Camión</th>
       <th class="text-end">Bodega</th>
-      <th class="text-end">Total del día</th>
+      <th class="text-end">Salidas</th>
+      <th class="text-end">Neto del día</th>
     </tr>
   </thead>
   <tbody>
@@ -52,10 +68,11 @@
       <td>{{ f.fecha.strftime("%Y-%m-%d") }}</td>
       <td class="text-end">${{ "{:,}".format(f.camion) }}</td>
       <td class="text-end">${{ "{:,}".format(f.bodega) }}</td>
+      <td class="text-end {{ 'text-danger' if f.gastos > 0 }}">${{ "{:,}".format(f.gastos) }}</td>
       <td class="text-end fw-bold">${{ "{:,}".format(f.total) }}</td>
     </tr>
     {% else %}
-    <tr><td colspan="4" class="text-center text-muted">No entró efectivo registrado este mes.</td></tr>
+    <tr><td colspan="5" class="text-center text-muted">No hay movimientos de caja este mes.</td></tr>
     {% endfor %}
   </tbody>
 </table>

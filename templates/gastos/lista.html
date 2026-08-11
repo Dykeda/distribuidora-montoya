@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Salidas de dinero{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Salidas de dinero</h1>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('gastos.categoria_nueva') }}" class="btn btn-outline-secondary">+ Nueva categoría</a>
+    <a href="{{ url_for('gastos.nuevo') }}" class="btn btn-primary">+ Registrar salida</a>
+  </div>
+</div>
+
+<div class="card card-metric mb-4" style="max-width: 320px;">
+  <div class="card-body">
+    <div class="text-muted small">Total {{ "de " + (tipo_activo|title) if tipo_activo else "de todas las salidas" }}</div>
+    <div class="fs-3 fw-bold">${{ "{:,}".format(total) }}</div>
+  </div>
+</div>
+
+<ul class="nav nav-pills mb-3">
+  <li class="nav-item"><a class="nav-link {{ 'active' if not tipo_activo }}" href="{{ url_for('gastos.listar') }}">Todas</a></li>
+  <li class="nav-item"><a class="nav-link {{ 'active' if tipo_activo == 'negocio' }}" href="{{ url_for('gastos.listar', tipo='negocio') }}">Negocio</a></li>
+  <li class="nav-item"><a class="nav-link {{ 'active' if tipo_activo == 'hogar' }}" href="{{ url_for('gastos.listar', tipo='hogar') }}">Hogar</a></li>
+</ul>
+
+<table class="table table-striped align-middle">
+  <thead>
+    <tr>
+      <th>Fecha</th>
+      <th>Tipo</th>
+      <th>Categoría</th>
+      <th>Notas</th>
+      <th class="text-end">Monto</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for g in gastos %}
+    <tr>
+      <td>{{ g.fecha.strftime("%Y-%m-%d") }}</td>
+      <td>
+        {% if g.categoria.tipo == 'negocio' %}
+          <span class="badge bg-secondary">Negocio</span>
+        {% else %}
+          <span class="badge bg-secondary">Hogar</span>
+        {% endif %}
+      </td>
+      <td>{{ g.categoria.nombre }}</td>
+      <td>{{ g.notas or "-" }}</td>
+      <td class="text-end">${{ "{:,}".format(g.monto) }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" class="text-center text-muted">No hay salidas registradas todavía.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

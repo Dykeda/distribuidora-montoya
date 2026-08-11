@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Registrar salida de dinero{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">Registrar salida de dinero</h1>
+
+<form method="post" class="col-lg-6">
+  <div class="mb-3">
+    <label class="form-label">Categoría</label>
+    <select name="categoria_id" class="form-select" required>
+      <option value="">-- elegir --</option>
+      <optgroup label="Negocio">
+        {% for c in categorias_negocio %}
+        <option value="{{ c.id }}" {% if form and form.categoria_id == c.id|string %}selected{% endif %}>{{ c.nombre }}</option>
+        {% endfor %}
+      </optgroup>
+      <optgroup label="Hogar">
+        {% for c in categorias_hogar %}
+        <option value="{{ c.id }}" {% if form and form.categoria_id == c.id|string %}selected{% endif %}>{{ c.nombre }}</option>
+        {% endfor %}
+      </optgroup>
+    </select>
+    <div class="form-text">¿No está la categoría que necesitas? <a href="{{ url_for('gastos.categoria_nueva') }}">Crea una nueva</a>.</div>
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Fecha</label>
+    <input type="date" name="fecha" class="form-control" value="{{ form.fecha if form else '' }}" required>
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Monto (COP)</label>
+    <input type="number" name="monto" class="form-control" min="1" required
+           value="{{ form.monto if form else '' }}">
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Notas (opcional)</label>
+    <input type="text" name="notas" class="form-control" value="{{ form.notas if form else '' }}">
+  </div>
+  <button type="submit" class="btn btn-primary">Guardar salida</button>
+  <a href="{{ url_for('gastos.listar') }}" class="btn btn-link">Cancelar</a>
+</form>
+{% endblock %}
