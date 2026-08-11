@@ -32,6 +32,13 @@ def resumen_periodo(fecha_inicio, fecha_fin):
     saldo = descuentos_service.saldo_acumulado(fecha_fin)
     cartera_pendiente = cartera_service.total_pendiente(fecha_fin)
 
+    # % de descuento promedio del mes = crédito generado / dinero comprado, ponderado por
+    # cuánto se compró de cada producto (no un promedio simple de las tasas ingresadas).
+    if compra["dinero"] > 0:
+        pct_descuento_promedio = round(credito_generado / compra["dinero"] * 100, 1)
+    else:
+        pct_descuento_promedio = 0.0
+
     return {
         "compra_total_dinero": compra["dinero"],
         "compra_total_unidades": compra["unidades"],
@@ -41,4 +48,5 @@ def resumen_periodo(fecha_inicio, fecha_fin):
         "credito_canjeado": credito_canjeado,
         "saldo_acumulado": saldo,
         "cartera_pendiente": cartera_pendiente,
+        "pct_descuento_promedio": pct_descuento_promedio,
     }

@@ -42,6 +42,13 @@
   </div>
   <div class="col-md-4">
     <div class="card card-metric h-100"><div class="card-body">
+      <div class="text-muted small">% de descuento promedio del mes</div>
+      <div class="fs-4 fw-bold">{{ resumen.pct_descuento_promedio }}%</div>
+      <div class="text-muted small">crédito generado ÷ compra total</div>
+    </div></div>
+  </div>
+  <div class="col-md-4">
+    <div class="card card-metric h-100"><div class="card-body">
       <div class="text-muted small">Crédito canjeado este mes</div>
       <div class="fs-4 fw-bold">${{ "{:,}".format(resumen.credito_canjeado) }}</div>
     </div></div>

@@ -31,6 +31,12 @@
     </div></div>
   </div>
   <div class="col-md-3">
+    <div class="card card-metric h-100"><div class="card-body">
+      <div class="text-muted small">% de descuento promedio del mes</div>
+      <div class="fs-4 fw-bold">{{ resumen.pct_descuento_promedio }}%</div>
+    </div></div>
+  </div>
+  <div class="col-md-3">
     <div class="card card-metric h-100 border-primary"><div class="card-body">
       <div class="text-muted small">Saldo de crédito acumulado</div>
       <div class="fs-4 fw-bold">${{ "{:,}".format(resumen.saldo_acumulado) }}</div>

@@ -131,6 +131,9 @@ venta_total(periodo)      = SUM((salida - retorno) * precio vigente en la fecha 
                              de las rutas cerradas cuyo retorno cae en el período
 cartera_pendiente(fecha)  = SUM(monto) de facturas con fecha <= fecha, y que en esa fecha
                              seguían sin pagar (estado pendiente, o se pagaron después)
+pct_descuento_promedio    = credito_generado(periodo) / compra_total_dinero(periodo) * 100
+                             (ponderado por dinero comprado, no un promedio simple de las
+                             tasas ingresadas en cada línea)
 ```
 
 ### Limitaciones conocidas (v1)
