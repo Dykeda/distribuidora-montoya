@@ -39,5 +39,32 @@
 </div>
 {% endif %}
 
+<div class="d-flex justify-content-between align-items-center mt-4">
+  <h2 class="h5 mb-0">Cartera de esta ruta</h2>
+  <a href="{{ url_for('cartera.nueva') }}" class="btn btn-sm btn-outline-primary">+ Registrar factura</a>
+</div>
+{% if salida.facturas %}
+<table class="table table-sm">
+  <thead><tr><th>Cliente</th><th class="text-end">Monto</th><th>Estado</th></tr></thead>
+  <tbody>
+    {% for f in salida.facturas %}
+    <tr>
+      <td>{{ f.cliente }}</td>
+      <td class="text-end">${{ "{:,}".format(f.monto) }}</td>
+      <td>
+        {% if f.estado == 'pagada' %}
+          <span class="badge bg-success">Pagada</span>
+        {% else %}
+          <span class="badge bg-warning text-dark">Pendiente</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="text-muted">No hay facturas de cartera registradas para esta ruta.</p>
+{% endif %}
+
 <a href="{{ url_for('camion.listar') }}" class="btn btn-link">&larr; Volver</a>
 {% endblock %}

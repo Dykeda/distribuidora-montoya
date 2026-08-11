@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Cartera{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Cartera de clientes</h1>
+  <a href="{{ url_for('cartera.nueva') }}" class="btn btn-primary">+ Registrar factura</a>
+</div>
+
+<div class="card card-metric mb-4" style="max-width: 320px;">
+  <div class="card-body">
+    <div class="text-muted small">Dinero pendiente por cobrar (hoy)</div>
+    <div class="fs-3 fw-bold">${{ "{:,}".format(total_pendiente) }}</div>
+  </div>
+</div>
+
+<table class="table table-striped align-middle">
+  <thead>
+    <tr>
+      <th>Cliente</th>
+      <th>Fecha factura</th>
+      <th>Ruta (salida)</th>
+      <th class="text-end">Monto</th>
+      <th>Estado</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for f in facturas %}
+    <tr>
+      <td>{{ f.cliente }}</td>
+      <td>{{ f.fecha.strftime("%Y-%m-%d") }}</td>
+      <td><a href="{{ url_for('camion.detalle', salida_id=f.salida_id) }}">{{ f.salida.fecha.strftime("%Y-%m-%d") }}</a></td>
+      <td class="text-end">${{ "{:,}".format(f.monto) }}</td>
+      <td>
+        {% if f.estado == 'pagada' %}
+          <span class="badge bg-success">Pagada</span>
+        {% else %}
+          <span class="badge bg-warning text-dark">Pendiente</span>
+        {% endif %}
+      </td>
+      <td class="text-end">
+        {% if f.estado == 'pagada' %}
+        <form method="post" action="{{ url_for('cartera.marcar_pendiente', factura_id=f.id) }}" class="d-inline">
+          <button type="submit" class="btn btn-sm btn-outline-secondary">Marcar pendiente</button>
+        </form>
+        {% else %}
+        <form method="post" action="{{ url_for('cartera.marcar_pagada', factura_id=f.id) }}" class="d-inline">
+          <button type="submit" class="btn btn-sm btn-outline-success">Marcar pagada</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" class="text-center text-muted">No hay facturas registradas todavía.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

@@ -33,6 +33,7 @@ def create_app():
     from routes.compras import bp as compras_bp
     from routes.camion import bp as camion_bp
     from routes.descuentos import bp as descuentos_bp
+    from routes.cartera import bp as cartera_bp
     from routes.reportes import bp as reportes_bp
 
     app.register_blueprint(auth_bp)
@@ -41,6 +42,7 @@ def create_app():
     app.register_blueprint(compras_bp)
     app.register_blueprint(camion_bp)
     app.register_blueprint(descuentos_bp)
+    app.register_blueprint(cartera_bp)
     app.register_blueprint(reportes_bp)
 
     @app.before_request

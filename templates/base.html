@@ -24,6 +24,7 @@
           <li class="nav-item"><a class="nav-link {{ 'active' if request.blueprint == 'compras' }}" href="{{ url_for('compras.listar') }}">Compras</a></li>
           <li class="nav-item"><a class="nav-link {{ 'active' if request.blueprint == 'camion' }}" href="{{ url_for('camion.listar') }}">Camión</a></li>
           <li class="nav-item"><a class="nav-link {{ 'active' if request.blueprint == 'descuentos' }}" href="{{ url_for('descuentos.listar') }}">Descuentos</a></li>
+          <li class="nav-item"><a class="nav-link {{ 'active' if request.blueprint == 'cartera' }}" href="{{ url_for('cartera.listar') }}">Cartera</a></li>
           <li class="nav-item"><a class="nav-link {{ 'active' if request.blueprint == 'reportes' }}" href="{{ url_for('reportes.index') }}">Reportes</a></li>
         </ul>
         <ul class="navbar-nav">

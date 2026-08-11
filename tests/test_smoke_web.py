@@ -147,3 +147,28 @@ def test_flujo_completo(client):
 
     assert client.get("/camion/").status_code == 200
     assert client.get(f"/camion/{salida.id}").status_code == 200
+
+    # Cartera: factura pendiente ligada a esa misma ruta
+    assert client.get("/cartera/nueva").status_code == 200
+    r = client.post(
+        "/cartera/nueva",
+        data={"cliente": "Tienda El Ahorro", "salida_id": str(salida.id), "fecha": HOY, "monto": "40000", "notas": ""},
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+
+    from models import FacturaCartera
+
+    factura = FacturaCartera.query.filter_by(cliente="Tienda El Ahorro").first()
+    assert factura is not None and factura.estado == "pendiente"
+
+    from services.cartera import total_pendiente
+
+    assert total_pendiente() == 40000
+
+    r = client.post(f"/cartera/{factura.id}/marcar-pagada", follow_redirects=True)
+    assert r.status_code == 200
+    assert total_pendiente() == 0
+
+    assert client.get("/cartera/").status_code == 200
+    assert client.get(f"/camion/{salida.id}").status_code == 200

@@ -4,6 +4,7 @@ from extensions import db
 from models import CompraDetalle, Compra
 from services import descuentos as descuentos_service
 from services import ventas as ventas_service
+from services import cartera as cartera_service
 
 
 def compra_total_periodo(fecha_inicio, fecha_fin):
@@ -29,6 +30,7 @@ def resumen_periodo(fecha_inicio, fecha_fin):
     credito_generado = descuentos_service.credito_generado_periodo(fecha_inicio, fecha_fin)
     credito_canjeado = descuentos_service.credito_canjeado_periodo(fecha_inicio, fecha_fin)
     saldo = descuentos_service.saldo_acumulado(fecha_fin)
+    cartera_pendiente = cartera_service.total_pendiente(fecha_fin)
 
     return {
         "compra_total_dinero": compra["dinero"],
@@ -38,4 +40,5 @@ def resumen_periodo(fecha_inicio, fecha_fin):
         "credito_generado": credito_generado,
         "credito_canjeado": credito_canjeado,
         "saldo_acumulado": saldo,
+        "cartera_pendiente": cartera_pendiente,
     }

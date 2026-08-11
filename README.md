@@ -57,7 +57,11 @@ sube solo a la nube — así no se pierde nada aunque el computador falle.
   venta a mano.
 - **Descuentos**: aquí ves cuánto crédito tienes acumulado, y registras cuando Postobón
   te entrega producto a cambio de ese crédito.
-- **Reportes**: elige un mes y revisa los totales de compra, venta, crédito y saldo.
+- **Cartera**: registra las facturas que los clientes te deben (ligadas a la ruta del
+  camión en la que se generaron), y márcalas como pagadas cuando te paguen. Aquí también
+  ves cuánto dinero tienes pendiente por cobrar en total.
+- **Reportes**: elige un mes y revisa los totales de compra, venta, crédito, saldo y
+  cartera pendiente.
 
 ## Para quien mantenga el código (referencia técnica)
 
@@ -78,6 +82,10 @@ sube solo a la nube — así no se pierde nada aunque el computador falle.
   producto no sobrescribe el anterior, inserta una fila nueva con la fecha desde la que
   aplica. Los reportes usan el precio vigente en la fecha de cada transacción, no el
   precio de hoy.
+- La cartera de clientes (`factura_cartera`) es independiente del cálculo de venta/stock
+  — es solo un registro de "este cliente debe tanto dinero de esta ruta", que no afecta
+  el inventario ni las fórmulas de ganancia. Cada factura queda ligada a una
+  `salida_camion`. Ver `services/cartera.py`.
 
 ### Comandos útiles
 ```
@@ -116,12 +124,15 @@ credito_canjeado(periodo) = SUM(valor_usado) de los canjes del período
 saldo_acumulado(fecha)    = credito_generado_total_hasta(fecha) - credito_canjeado_total_hasta(fecha)
 venta_total(periodo)      = SUM((salida - retorno) * precio vigente en la fecha del retorno)
                              de las rutas cerradas cuyo retorno cae en el período
+cartera_pendiente(fecha)  = SUM(monto) de facturas con fecha <= fecha, y que en esa fecha
+                             seguían sin pagar (estado pendiente, o se pagaron después)
 ```
 
 ### Limitaciones conocidas (v1)
 - No distingue mermas/producto dañado de ventas reales (todo lo que no regresa en el
   camión se cuenta como vendido).
-- No maneja cartera/ventas a crédito de los clientes de la distribuidora.
 - No hay pantalla de ajuste manual de inventario (para cuadrar un conteo físico).
+- La cartera no valida el monto de la factura contra la venta calculada de la ruta — el
+  dueño lo ingresa libremente, no hay una regla que los cruce automáticamente.
 
 Todas declaradas en el plan original; se pueden agregar después si el uso real lo pide.

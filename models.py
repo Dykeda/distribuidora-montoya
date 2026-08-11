@@ -86,6 +86,9 @@ class SalidaCamion(db.Model):
     retorno = db.relationship(
         "RetornoCamion", back_populates="salida", uselist=False, cascade="all, delete-orphan"
     )
+    facturas = db.relationship(
+        "FacturaCartera", back_populates="salida", cascade="all, delete-orphan"
+    )
 
 
 class SalidaCamionDetalle(db.Model):
@@ -151,3 +154,18 @@ class CanjeDescuentoDetalle(db.Model):
 
     canje = db.relationship("CanjeDescuento", back_populates="detalles")
     producto = db.relationship("Producto")
+
+
+class FacturaCartera(db.Model):
+    __tablename__ = "factura_cartera"
+
+    id = db.Column(db.Integer, primary_key=True)
+    salida_id = db.Column(db.Integer, db.ForeignKey("salida_camion.id"), nullable=False)
+    cliente = db.Column(db.String(120), nullable=False)
+    fecha = db.Column(db.Date, nullable=False, default=date.today)
+    monto = db.Column(db.Integer, nullable=False)
+    estado = db.Column(db.String(20), nullable=False, default="pendiente")
+    fecha_pago = db.Column(db.Date, nullable=True)
+    notas = db.Column(db.String(255), nullable=True)
+
+    salida = db.relationship("SalidaCamion", back_populates="facturas")
