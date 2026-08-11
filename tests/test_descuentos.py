@@ -9,7 +9,12 @@ from models import (
     CanjeDescuentoDetalle,
     AjusteCredito,
 )
-from services.descuentos import credito_generado_periodo, credito_canjeado_periodo, saldo_acumulado
+from services.descuentos import (
+    credito_generado_periodo,
+    credito_canjeado_periodo,
+    saldo_acumulado,
+    rendimiento_por_producto,
+)
 from services.inventario import calcular_stock
 
 
@@ -94,3 +99,51 @@ def test_ajuste_negativo_resta_del_saldo(db):
     db.session.commit()
 
     assert saldo_acumulado(date(2026, 8, 31)) == 30000
+
+
+def test_rendimiento_por_producto_ordena_por_credito_generado(db):
+    coca = crear_producto(db, "Coca-Cola 1.5L", 3000)
+    agua = crear_producto(db, "Agua Cristal", 3000)
+
+    compra = Compra(fecha=date(2026, 8, 1))
+    db.session.add(compra)
+    db.session.flush()
+    db.session.add(
+        CompraDetalle(
+            compra_id=compra.id, producto_id=coca.id, cantidad_comprada_unidades=60,
+            costo_linea=180000, tasa_descuento_aplicada=5.0,
+        )
+    )
+    db.session.add(
+        CompraDetalle(
+            compra_id=compra.id, producto_id=agua.id, cantidad_comprada_unidades=60,
+            costo_linea=100000, tasa_descuento_aplicada=15.0,
+        )
+    )
+    db.session.commit()
+
+    filas = rendimiento_por_producto(date(2026, 8, 1), date(2026, 8, 31))
+
+    assert len(filas) == 2
+    # agua generó 15000 de crédito, coca solo 9000 -> agua primero aunque se compró menos
+    assert filas[0]["producto"] == "Agua Cristal"
+    assert filas[0]["credito_generado"] == 15000
+    assert filas[0]["tasa_promedio"] == 15.0
+    assert filas[1]["producto"] == "Coca-Cola 1.5L"
+    assert filas[1]["credito_generado"] == 9000
+
+
+def test_rendimiento_por_producto_fuera_del_periodo_no_aparece(db):
+    coca = crear_producto(db, "Coca-Cola 1.5L", 3000)
+    compra = Compra(fecha=date(2026, 5, 1))
+    db.session.add(compra)
+    db.session.flush()
+    db.session.add(
+        CompraDetalle(
+            compra_id=compra.id, producto_id=coca.id, cantidad_comprada_unidades=60,
+            costo_linea=180000, tasa_descuento_aplicada=5.0,
+        )
+    )
+    db.session.commit()
+
+    assert rendimiento_por_producto(date(2026, 8, 1), date(2026, 8, 31)) == []

@@ -76,7 +76,9 @@ sube solo a la nube — así no se pierde nada aunque el computador falle.
 - **Cartera**: registra las facturas que los clientes te deben, y márcalas como pagadas
   cuando te paguen. Si la deuda es de una ruta del camión ya registrada, elígela en el
   formulario; si es una deuda de antes de usar el sistema, deja esa parte en blanco. Aquí
-  también ves cuánto dinero tienes pendiente por cobrar en total.
+  también ves cuánto dinero tienes pendiente por cobrar en total, agrupado por
+  antigüedad (0-15, 16-30, 31-60 y más de 60 días) y con los días pendientes de cada
+  factura, para que sea fácil ver qué deudas llevan más tiempo sin cobrarse.
 - **Caja**: el saldo de efectivo día a día — se calcula solo (venta del camión menos lo
   que quedó en cartera sin cobrar, más venta directa en bodega, menos las salidas de
   dinero), no hay que registrar entradas aparte.
@@ -86,7 +88,11 @@ sube solo a la nube — así no se pierde nada aunque el computador falle.
   próxima vez. Aquí ves siempre el registro completo de todas las salidas, con pestañas
   para filtrar por Negocio o Hogar. Se descuentan automáticamente de Caja.
 - **Reportes**: elige un mes y revisa los totales de compra, venta, crédito, saldo,
-  cartera pendiente, entradas/salidas de caja y saldo de caja.
+  cartera pendiente, entradas/salidas de caja y saldo de caja. Incluye una tabla de
+  "Rendimiento por producto" — qué productos generaron más crédito de descuento ese mes,
+  de mayor a menor, independiente de cuánto se vendió de cada uno (como la ganancia real
+  es el crédito y no un margen de venta, esto ayuda a decidir qué productos conviene
+  empujar más).
 
 ## Para quien mantenga el código (referencia técnica)
 
@@ -113,6 +119,12 @@ sube solo a la nube — así no se pierde nada aunque el computador falle.
   cambio del crédito). `AjusteCredito` permite sumar o restar manualmente al saldo (ej.
   crédito acumulado antes de usar el sistema, monto positivo; corrección de un error,
   monto negativo). Ver `services/descuentos.py`.
+- `services/descuentos.py::rendimiento_por_producto()`: agrupa `CompraDetalle` por
+  producto dentro del período y calcula el crédito generado de cada uno, ordenado de
+  mayor a menor — deliberadamente independiente de `ventas_en_periodo()` (cuánto se
+  vendió), porque en este negocio un producto puede venderse mucho y dejar poco crédito,
+  o venderse poco y ser el más rentable, según la tasa de descuento que le dio Postobón
+  ese mes.
 - Los precios de producto tienen historial (`producto_precio`): editar el precio de un
   producto no sobrescribe el anterior, inserta una fila nueva con la fecha desde la que
   aplica. Los reportes usan el precio vigente en la fecha de cada transacción, no el
@@ -133,6 +145,12 @@ sube solo a la nube — así no se pierde nada aunque el computador falle.
   registrada en el sistema se liga a esa `salida_camion` (aparece en el detalle de esa
   ruta); si es una deuda de antes de usar el sistema, se deja en blanco. Ver
   `services/cartera.py`.
+- Antigüedad de cartera (`services/cartera.py::facturas_con_antiguedad()` y
+  `resumen_antiguedad()`): los días pendientes de una factura se calculan al vuelo
+  (`fecha_referencia - factura.fecha`, hoy por defecto), no se guardan — no hay campo de
+  "días" ni de "fecha de vencimiento" en el modelo. `resumen_antiguedad()` agrupa el
+  dinero pendiente en 4 rangos fijos (`RANGOS_ANTIGUEDAD`: 0-15, 16-30, 31-60, 60+ días);
+  las facturas pagadas no cuentan en ningún rango.
 - Caja (`services/caja.py`): las **entradas** se derivan de datos que ya existen (no
   tienen tabla propia) — `efectivo_por_salida()` = venta implícita de la ruta menos las
   facturas de cartera ligadas a esa `salida_camion` (lo que no se cobró en efectivo), más

@@ -4,7 +4,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 
 from extensions import db
 from models import SalidaCamion, FacturaCartera
-from services.cartera import listar_facturas, total_pendiente
+from services.cartera import total_pendiente, facturas_con_antiguedad, resumen_antiguedad
 
 bp = Blueprint("cartera", __name__, url_prefix="/cartera")
 
@@ -12,7 +12,10 @@ bp = Blueprint("cartera", __name__, url_prefix="/cartera")
 @bp.route("/")
 def listar():
     return render_template(
-        "cartera/lista.html", facturas=listar_facturas(), total_pendiente=total_pendiente()
+        "cartera/lista.html",
+        facturas=facturas_con_antiguedad(),
+        total_pendiente=total_pendiente(),
+        antiguedad=resumen_antiguedad(),
     )
 
 

@@ -38,3 +38,46 @@ def facturas_por_salida(salida_id):
         .order_by(FacturaCartera.fecha.desc())
         .all()
     )
+
+
+RANGOS_ANTIGUEDAD = [
+    {"etiqueta": "0-15 días", "min": 0, "max": 15},
+    {"etiqueta": "16-30 días", "min": 16, "max": 30},
+    {"etiqueta": "31-60 días", "min": 31, "max": 60},
+    {"etiqueta": "Más de 60 días", "min": 61, "max": None},
+]
+
+
+def _rango_de(dias):
+    for r in RANGOS_ANTIGUEDAD:
+        if dias >= r["min"] and (r["max"] is None or dias <= r["max"]):
+            return r["etiqueta"]
+    return RANGOS_ANTIGUEDAD[-1]["etiqueta"]
+
+
+def facturas_con_antiguedad(fecha_referencia=None):
+    """Todas las facturas, con los días que lleva pendiente cada una sin cobrar (None para
+    las ya pagadas). Útil para ver de un vistazo cuáles llevan más tiempo sin cobrarse."""
+    fecha_referencia = fecha_referencia or date.today()
+    resultado = []
+    for f in listar_facturas():
+        dias = (fecha_referencia - f.fecha).days if f.estado == "pendiente" else None
+        resultado.append({"factura": f, "dias_pendiente": dias})
+    return resultado
+
+
+def resumen_antiguedad(fecha_referencia=None):
+    """Agrupa el dinero pendiente por cobrar en rangos de antigüedad (0-15, 16-30, 31-60,
+    60+ días). Con un margen tan ajustado, la cartera vieja es el riesgo más directo al
+    flujo de caja — este resumen lo hace visible sin tener que revisar factura por factura."""
+    fecha_referencia = fecha_referencia or date.today()
+    rangos = {r["etiqueta"]: {"etiqueta": r["etiqueta"], "monto": 0, "cantidad": 0} for r in RANGOS_ANTIGUEDAD}
+
+    pendientes = FacturaCartera.query.filter_by(estado="pendiente").all()
+    for f in pendientes:
+        dias = (fecha_referencia - f.fecha).days
+        etiqueta = _rango_de(dias)
+        rangos[etiqueta]["monto"] += f.monto
+        rangos[etiqueta]["cantidad"] += 1
+
+    return [rangos[r["etiqueta"]] for r in RANGOS_ANTIGUEDAD]

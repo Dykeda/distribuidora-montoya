@@ -13,6 +13,23 @@
   </div>
 </div>
 
+<h2 class="h5">Antigüedad de la cartera pendiente</h2>
+<p class="text-muted">Con un margen tan ajustado, la cartera vieja es lo que más pega al
+  flujo de caja — revisa primero los rangos de más días.</p>
+<div class="row g-3 mb-4">
+  {% for r in antiguedad %}
+  <div class="col-md-3">
+    <div class="card card-metric h-100">
+      <div class="card-body">
+        <div class="text-muted small">{{ r.etiqueta }}</div>
+        <div class="fs-4 fw-bold {{ 'text-danger' if r.etiqueta == 'Más de 60 días' and r.monto > 0 }}">${{ "{:,}".format(r.monto) }}</div>
+        <div class="text-muted small">{{ r.cantidad }} factura{{ 's' if r.cantidad != 1 }}</div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
 <table class="table table-striped align-middle">
   <thead>
     <tr>
@@ -21,11 +38,13 @@
       <th>Ruta (salida)</th>
       <th class="text-end">Monto</th>
       <th>Estado</th>
+      <th class="text-end">Días pendiente</th>
       <th></th>
     </tr>
   </thead>
   <tbody>
-    {% for f in facturas %}
+    {% for fila in facturas %}
+    {% set f = fila.factura %}
     <tr>
       <td>{{ f.cliente }}</td>
       <td>{{ f.fecha.strftime("%Y-%m-%d") }}</td>
@@ -44,6 +63,9 @@
           <span class="badge bg-warning text-dark">Pendiente</span>
         {% endif %}
       </td>
+      <td class="text-end {{ 'text-danger fw-bold' if fila.dias_pendiente and fila.dias_pendiente > 60 }}">
+        {{ fila.dias_pendiente if fila.dias_pendiente is not none else '-' }}
+      </td>
       <td class="text-end">
         {% if f.estado == 'pagada' %}
         <form method="post" action="{{ url_for('cartera.marcar_pendiente', factura_id=f.id) }}" class="d-inline">
@@ -57,7 +79,7 @@
       </td>
     </tr>
     {% else %}
-    <tr><td colspan="6" class="text-center text-muted">No hay facturas registradas todavía.</td></tr>
+    <tr><td colspan="7" class="text-center text-muted">No hay facturas registradas todavía.</td></tr>
     {% endfor %}
   </tbody>
 </table>
