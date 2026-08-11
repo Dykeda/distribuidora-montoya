@@ -19,6 +19,7 @@ def listar():
 @bp.route("/nueva", methods=["GET", "POST"])
 def nueva():
     salidas = SalidaCamion.query.order_by(SalidaCamion.fecha.desc()).all()
+    salida_preseleccionada = request.args.get("salida_id", type=int)
 
     if request.method == "POST":
         cliente = request.form.get("cliente", "").strip()
@@ -45,7 +46,13 @@ def nueva():
         if errores:
             for e in errores:
                 flash(e, "error")
-            return render_template("cartera/formulario.html", salidas=salidas, form=request.form)
+            return render_template(
+                "cartera/formulario.html",
+                salidas=salidas,
+                form=request.form,
+                salida_preseleccionada=None,
+                hoy=date.today().isoformat(),
+            )
 
         factura = FacturaCartera(
             salida_id=int(salida_id),
@@ -59,7 +66,13 @@ def nueva():
         flash("Factura registrada en cartera.", "success")
         return redirect(url_for("cartera.listar"))
 
-    return render_template("cartera/formulario.html", salidas=salidas, form=None)
+    return render_template(
+        "cartera/formulario.html",
+        salidas=salidas,
+        form=None,
+        salida_preseleccionada=salida_preseleccionada,
+        hoy=date.today().isoformat(),
+    )
 
 
 @bp.route("/<int:factura_id>/marcar-pagada", methods=["POST"])
