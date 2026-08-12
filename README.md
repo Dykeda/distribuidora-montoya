@@ -24,6 +24,14 @@ Si recibiste un archivo `DistribuidoraMontoya.exe`, no necesitas instalar nada:
 5. Todos tus datos quedan guardados en una carpeta `instance` que aparece junto al .exe —
    no la borres ni la muevas por separado del programa.
 
+### Respaldo de la información (recomendado hacerlo seguido)
+Junto al `.exe` debe venir un archivo **`respaldar.bat`** (y su acompañante
+`respaldar.ps1`, en la misma carpeta) — si no lo tienes, pídeselo a quien te envió el
+programa. Doble clic en `respaldar.bat` guarda una copia de toda la información del
+negocio con la fecha y hora en el nombre. Si el computador tiene OneDrive, el respaldo
+queda ahí y se sube solo a la nube — así no se pierde nada aunque el computador falle. No
+necesita tener Python instalado, solo funciona con lo que trae Windows.
+
 ## Para el dueño (uso diario, si corre localmente con Python instalado)
 
 ### Primera vez (una sola vez)
@@ -216,6 +224,12 @@ venv\Scripts\python -m PyInstaller --onefile --console --name DistribuidoraMonto
 ```
 El resultado queda en `dist\DistribuidoraMontoya.exe`. `build/`, `dist/` y `*.spec` están
 en `.gitignore` — no se versionan, se regeneran cuando hagan falta.
+
+`paquete_exe/` (`respaldar.bat` + `respaldar.ps1`) es el equivalente de `respaldar.bat`/
+`respaldar.py` pero para cuando NO hay Python instalado — usa PowerShell (viene con
+Windows) en vez del venv del proyecto. Cada vez que se entregue el `.exe` a alguien (ej.
+al dueño), estos dos archivos deben copiarse junto a él — no van dentro del `.exe`
+mismo, son scripts sueltos que se ejecutan por fuera.
 
 ### Contraseña y despliegue en línea
 - La app exige login en todas partes (`app.py`, función `exigir_login`). La contraseña
