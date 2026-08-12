@@ -10,6 +10,7 @@
 </div>
 <p>Factura: {{ compra.numero_factura or "-" }} {% if compra.notas %}&mdash; {{ compra.notas }}{% endif %}</p>
 
+<div class="table-responsive">
 <table class="table table-striped align-middle">
   <thead>
     <tr>
@@ -41,5 +42,6 @@
     </tr>
   </tfoot>
 </table>
+</div>
 <a href="{{ url_for('compras.listar') }}" class="btn btn-link">&larr; Volver</a>
 {% endblock %}

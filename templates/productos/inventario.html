@@ -7,6 +7,7 @@
   <input type="text" name="q" class="form-control" placeholder="Buscar por nombre..." value="{{ q }}">
 </form>
 
+<div class="table-responsive">
 <table class="table table-striped align-middle">
   <thead>
     <tr>
@@ -33,5 +34,6 @@
     {% endfor %}
   </tbody>
 </table>
+</div>
 <p class="text-muted small">Las filas resaltadas tienen menos de una caja completa en bodega.</p>
 {% endblock %}

@@ -22,6 +22,7 @@
   <li class="nav-item"><a class="nav-link {{ 'active' if tipo_activo == 'hogar' }}" href="{{ url_for('gastos.listar', tipo='hogar') }}">Hogar</a></li>
 </ul>
 
+<div class="table-responsive">
 <table class="table table-striped align-middle">
   <thead>
     <tr>
@@ -52,4 +53,5 @@
     {% endfor %}
   </tbody>
 </table>
+</div>
 {% endblock %}

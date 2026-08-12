@@ -4,6 +4,7 @@
 <h1 class="h3 mb-3">Registrar retorno de camión</h1>
 <p>Elige a qué salida corresponde el regreso:</p>
 
+<div class="table-responsive">
 <table class="table table-striped align-middle">
   <thead><tr><th>Fecha salida</th><th>Notas</th><th></th></tr></thead>
   <tbody>
@@ -18,5 +19,6 @@
     {% endfor %}
   </tbody>
 </table>
+</div>
 <a href="{{ url_for('camion.listar') }}" class="btn btn-link">&larr; Volver</a>
 {% endblock %}

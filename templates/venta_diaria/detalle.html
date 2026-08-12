@@ -9,6 +9,7 @@
 
 {% for r in rutas %}
 <h2 class="h5 mt-4">Ruta de camión (salida del {{ r.salida.fecha.strftime("%Y-%m-%d") }})</h2>
+<div class="table-responsive">
 <table class="table table-sm">
   <thead><tr><th>Producto</th><th class="text-end">Vendido</th><th class="text-end">Valor</th></tr></thead>
   <tbody>
@@ -27,11 +28,13 @@
     </tr>
   </tfoot>
 </table>
+</div>
 <a href="{{ url_for('camion.detalle', salida_id=r.salida.id) }}" class="small">Ver esta ruta en Camión &rarr;</a>
 {% endfor %}
 
 {% for v in ventas_bodega %}
 <h2 class="h5 mt-4">Venta de bodega{% if v.venta.notas %} — {{ v.venta.notas }}{% endif %}</h2>
+<div class="table-responsive">
 <table class="table table-sm">
   <thead><tr><th>Producto</th><th class="text-end">Cantidad</th><th class="text-end">Valor</th></tr></thead>
   <tbody>
@@ -50,6 +53,7 @@
     </tr>
   </tfoot>
 </table>
+</div>
 {% endfor %}
 
 {% if rutas or ventas_bodega %}

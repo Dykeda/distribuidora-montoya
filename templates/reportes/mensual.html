@@ -90,6 +90,7 @@
 <p class="text-muted">Como la ganancia real es el crédito de descuento y no un margen de
   venta, esta tabla muestra qué productos son los que más te convienen — ordenados de
   mayor a menor crédito generado, sin importar cuánto se vendió de cada uno.</p>
+<div class="table-responsive">
 <table class="table table-sm table-striped" style="max-width:700px;">
   <thead>
     <tr>
@@ -110,10 +111,12 @@
     {% endfor %}
   </tbody>
 </table>
+</div>
 {% endif %}
 
 {% if resumen.venta_por_producto %}
 <h2 class="h5 mt-4">Venta del mes por producto</h2>
+<div class="table-responsive">
 <table class="table table-sm table-striped" style="max-width:500px;">
   <thead><tr><th>Producto</th><th class="text-end">Valor vendido</th></tr></thead>
   <tbody>
@@ -122,5 +125,6 @@
     {% endfor %}
   </tbody>
 </table>
+</div>
 {% endif %}
 {% endblock %}
