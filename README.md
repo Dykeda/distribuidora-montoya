@@ -80,7 +80,8 @@ sube solo a la nube — así no se pierde nada aunque el computador falle.
   formulario; si es una deuda de antes de usar el sistema, deja esa parte en blanco. Aquí
   también ves cuánto dinero tienes pendiente por cobrar en total, agrupado por
   antigüedad (0-15, 16-30, 31-60 y más de 60 días) y con los días pendientes de cada
-  factura, para que sea fácil ver qué deudas llevan más tiempo sin cobrarse.
+  factura, para que sea fácil ver qué deudas llevan más tiempo sin cobrarse. Cada factura
+  tiene botón "Eliminar" por si se registró mal.
 - **Caja**: el saldo de efectivo día a día — se calcula solo (venta del camión menos lo
   que quedó en cartera sin cobrar, más venta directa en bodega, menos las salidas de
   dinero), no hay que registrar entradas aparte.
@@ -110,9 +111,12 @@ sube solo a la nube — así no se pierde nada aunque el computador falle.
   seguro precisamente porque nada se guarda como contador — `Compra.detalles` tiene
   `cascade="all, delete-orphan"`, así que borrar la compra borra sus `CompraDetalle` con
   ella, y el stock/crédito de descuento que esa compra había generado desaparece solo en
-  el siguiente cálculo (no hay que "revertir" nada a mano). Es la única pantalla de
-  movimientos con botón de eliminar por ahora; las demás (Camión, Venta Bodega, etc.) no
-  lo tienen todavía.
+  el siguiente cálculo (no hay que "revertir" nada a mano).
+- Eliminar una factura de cartera (`POST /cartera/<id>/eliminar`,
+  `routes/cartera.py::eliminar()`) es un borrado simple — `FacturaCartera` no tiene tablas
+  hijas ni afecta stock/crédito, solo el total pendiente por cobrar.
+- Compras y Cartera son las únicas pantallas con botón de eliminar por ahora; Camión,
+  Venta Bodega, Descuentos, Caja/Gastos todavía no lo tienen.
 - `RecargaCamion`/`RecargaCamionDetalle`: producto extra que se le manda a una ruta que
   sigue en tránsito (no tiene retorno todavía). `services.ventas.cargado_por_producto()`
   suma la salida inicial más todas las recargas del día para saber cuánto se vendió al

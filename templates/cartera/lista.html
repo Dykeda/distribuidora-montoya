@@ -76,6 +76,10 @@
           <button type="submit" class="btn btn-sm btn-outline-success">Marcar pagada</button>
         </form>
         {% endif %}
+        <form method="post" action="{{ url_for('cartera.eliminar', factura_id=f.id) }}" class="d-inline"
+              onsubmit="return confirm('¿Eliminar la factura de {{ f.cliente }} por ${{ '{:,}'.format(f.monto) }}? Esto no se puede deshacer.');">
+          <button type="submit" class="btn btn-sm btn-outline-danger">Eliminar</button>
+        </form>
       </td>
     </tr>
     {% else %}

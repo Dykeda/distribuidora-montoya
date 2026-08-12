@@ -1,5 +1,7 @@
 from datetime import date
 
+import pytest
+
 from models import SalidaCamion, FacturaCartera
 from services.cartera import (
     total_pendiente,
@@ -8,6 +10,13 @@ from services.cartera import (
     facturas_con_antiguedad,
     resumen_antiguedad,
 )
+
+
+@pytest.fixture
+def client(app):
+    c = app.test_client()
+    c.post("/login", data={"password": app.config["APP_PASSWORD"]})
+    return c
 
 
 def crear_salida(db, fecha=date(2026, 8, 2)):
@@ -106,3 +115,23 @@ def test_resumen_antiguedad_agrupa_por_rango(db):
     assert rangos["31-60 días"]["monto"] == 30000
     assert rangos["Más de 60 días"]["monto"] == 40000
     assert sum(r["monto"] for r in rangos.values()) == 100000
+
+
+def test_eliminar_factura_la_quita_del_total_pendiente(db, client):
+    salida = crear_salida(db)
+    factura = FacturaCartera(salida_id=salida.id, cliente="Tienda El Ahorro", fecha=date(2026, 8, 2), monto=50000)
+    db.session.add(factura)
+    db.session.commit()
+    factura_id = factura.id
+
+    assert total_pendiente() == 50000
+
+    r = client.post(f"/cartera/{factura_id}/eliminar", follow_redirects=True)
+    assert r.status_code == 200
+
+    assert FacturaCartera.query.get(factura_id) is None
+    assert total_pendiente() == 0
+
+
+def test_eliminar_factura_inexistente_da_404(client):
+    assert client.post("/cartera/999/eliminar").status_code == 404

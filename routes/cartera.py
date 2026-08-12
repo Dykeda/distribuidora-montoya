@@ -94,3 +94,13 @@ def marcar_pendiente(factura_id):
     db.session.commit()
     flash(f"Factura de {factura.cliente} marcada como pendiente de pago.", "success")
     return redirect(url_for("cartera.listar"))
+
+
+@bp.route("/<int:factura_id>/eliminar", methods=["POST"])
+def eliminar(factura_id):
+    factura = FacturaCartera.query.get_or_404(factura_id)
+    cliente = factura.cliente
+    db.session.delete(factura)
+    db.session.commit()
+    flash(f"Factura de {cliente} eliminada.", "success")
+    return redirect(url_for("cartera.listar"))
