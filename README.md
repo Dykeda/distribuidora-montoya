@@ -224,7 +224,11 @@ en `.gitignore` — no se versionan, se regeneran cuando hagan falta.
   (firma las cookies de sesión).
 - **Si se despliega en línea, hay que fijar `APP_PASSWORD` y `SECRET_KEY` propios como
   variables de entorno — nunca dejar los valores por defecto expuestos a internet.**
-  Guía completa de despliegue (PythonAnywhere + GitHub) en `DEPLOY.md`.
+  También hay que fijar `FORZAR_HTTPS=true` (activa `SESSION_COOKIE_SECURE`, ver
+  `config.py`) para que la cookie de sesión nunca viaje sin cifrar — dejarlo en `false`
+  (o sin fijar) para uso local, donde no hay HTTPS.
+- Guía completa de despliegue (VPS en DigitalOcean + HTTPS con DuckDNS/Certbot +
+  systemd/nginx, archivos de referencia en `deploy/`) en `DEPLOY.md`.
 
 ### Fórmulas de reportes
 ```
