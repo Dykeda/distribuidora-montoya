@@ -54,7 +54,10 @@ sube solo a la nube — así no se pierde nada aunque el computador falle.
   unidad. Si tienes muchos productos para cargar de una vez, usa el botón "Carga masiva".
   El campo "Descuento de referencia" es opcional — si lo llenas, ese % viene precargado
   automáticamente al elegir ese producto en una compra (lo puedes cambiar ahí mismo si
-  ese mes el descuento fue distinto).
+  ese mes el descuento fue distinto). "Desactivar" lo saca de las listas sin borrar su
+  historial; "Eliminar" lo borra de verdad, pero solo funciona si el producto nunca tuvo
+  compras, ventas ni otro movimiento — si ya los tiene, el sistema lo bloquea y te dice
+  que uses "Desactivar" en su lugar.
 - **Compras**: registra cada compra que le haces a Postobón, incluyendo el % de
   descuento que te dieron ese mes en cada producto. Si te equivocaste al registrar una,
   entra al detalle de esa compra y usa "Eliminar compra" — el inventario y el crédito de
@@ -115,8 +118,18 @@ sube solo a la nube — así no se pierde nada aunque el computador falle.
 - Eliminar una factura de cartera (`POST /cartera/<id>/eliminar`,
   `routes/cartera.py::eliminar()`) es un borrado simple — `FacturaCartera` no tiene tablas
   hijas ni afecta stock/crédito, solo el total pendiente por cobrar.
-- Compras y Cartera son las únicas pantallas con botón de eliminar por ahora; Camión,
-  Venta Bodega, Descuentos, Caja/Gastos todavía no lo tienen.
+- Eliminar un producto (`POST /productos/<id>/eliminar`, `routes/productos.py::eliminar()`)
+  es distinto de los dos anteriores: un producto puede estar referenciado por seis tablas
+  de movimiento distintas (`CompraDetalle`, `SalidaCamionDetalle`, `RetornoCamionDetalle`,
+  `CanjeDescuentoDetalle`, `RecargaCamionDetalle`, `VentaBodegaDetalle`), y borrarlo
+  corrompería el historial de esas transacciones. `services/inventario.py::
+  tiene_movimientos()` revisa las seis antes de permitir el borrado — si el producto ya
+  tiene algún movimiento real, el borrado se bloquea y se le dice al usuario que use
+  "Desactivar" en su lugar (que sí sigue existiendo, sin cambios). Solo si el producto
+  nunca se usó en nada (ej. se creó por error) se elimina de verdad; `Producto.precios`
+  tiene `cascade="all, delete-orphan"` para que sus `ProductoPrecio` se borren con él.
+- Compras, Cartera y Productos son las únicas pantallas con botón de eliminar por ahora;
+  Camión, Venta Bodega, Descuentos, Caja/Gastos todavía no lo tienen.
 - `RecargaCamion`/`RecargaCamionDetalle`: producto extra que se le manda a una ruta que
   sigue en tránsito (no tiene retorno todavía). `services.ventas.cargado_por_producto()`
   suma la salida inicial más todas las recargas del día para saber cuánto se vendió al

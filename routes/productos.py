@@ -4,7 +4,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 
 from extensions import db
 from models import Producto, ProductoPrecio
-from services.inventario import listar_stock_todos
+from services.inventario import listar_stock_todos, tiene_movimientos
 
 bp = Blueprint("productos", __name__, url_prefix="/productos")
 
@@ -124,6 +124,24 @@ def desactivar(producto_id):
     p.activo = False
     db.session.commit()
     flash(f'Producto "{p.nombre}" desactivado.', "success")
+    return redirect(url_for("productos.listar"))
+
+
+@bp.route("/<int:producto_id>/eliminar", methods=["POST"])
+def eliminar(producto_id):
+    p = Producto.query.get_or_404(producto_id)
+    if tiene_movimientos(producto_id):
+        flash(
+            f'"{p.nombre}" ya tiene compras, ventas u otros movimientos registrados — '
+            'no se puede eliminar sin dañar ese historial. Usa "Desactivar" en su lugar.',
+            "error",
+        )
+        return redirect(url_for("productos.listar"))
+
+    nombre = p.nombre
+    db.session.delete(p)
+    db.session.commit()
+    flash(f'Producto "{nombre}" eliminado.', "success")
     return redirect(url_for("productos.listar"))
 
 

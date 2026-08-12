@@ -65,3 +65,40 @@ def test_editar_producto_recalcula_precio_por_unidad(client):
     )
 
     assert p.precio_actual() == 4000  # 24000 / 6
+
+
+def test_eliminar_producto_sin_movimientos_lo_borra(client):
+    crear_producto(client)
+    from models import Producto
+
+    p = Producto.query.filter_by(nombre="Coca-Cola 1.5L").first()
+    producto_id = p.id
+
+    r = client.post(f"/productos/{producto_id}/eliminar", follow_redirects=True)
+    assert r.status_code == 200
+    assert Producto.query.get(producto_id) is None
+
+
+def test_eliminar_producto_con_movimientos_se_bloquea(client, db):
+    crear_producto(client)
+    from datetime import date
+    from models import Producto, Compra, CompraDetalle
+
+    p = Producto.query.filter_by(nombre="Coca-Cola 1.5L").first()
+    producto_id = p.id
+
+    compra = Compra(fecha=date(2026, 8, 1))
+    db.session.add(compra)
+    db.session.flush()
+    db.session.add(
+        CompraDetalle(
+            compra_id=compra.id, producto_id=producto_id, cantidad_comprada_unidades=60,
+            costo_linea=180000, tasa_descuento_aplicada=5.0,
+        )
+    )
+    db.session.commit()
+
+    r = client.post(f"/productos/{producto_id}/eliminar", follow_redirects=True)
+    assert r.status_code == 200
+    # sigue existiendo -- no se pudo eliminar por tener movimientos
+    assert Producto.query.get(producto_id) is not None

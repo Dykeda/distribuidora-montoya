@@ -43,6 +43,10 @@
               onsubmit="return confirm('¿Desactivar {{ p.nombre }}?');">
           <button type="submit" class="btn btn-sm btn-outline-danger">Desactivar</button>
         </form>
+        <form method="post" action="{{ url_for('productos.eliminar', producto_id=p.id) }}" class="d-inline"
+              onsubmit="return confirm('¿Eliminar {{ p.nombre }} por completo? Solo funciona si el producto no tiene compras, ventas ni otros movimientos registrados. No se puede deshacer.');">
+          <button type="submit" class="btn btn-sm btn-outline-danger">Eliminar</button>
+        </form>
       </td>
     </tr>
     {% else %}

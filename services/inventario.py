@@ -20,6 +20,22 @@ def _sumar(modelo, columna_cantidad, producto_id):
     )
 
 
+def tiene_movimientos(producto_id):
+    """True si el producto ya aparece en alguna compra, salida, recarga, retorno, canje o
+    venta de bodega. Un producto con movimientos reales no se puede eliminar (borrarlo
+    corrompería el historial de esas transacciones) — solo desactivar. Uno sin ningún
+    movimiento (ej. se creó por error) sí se puede eliminar de verdad."""
+    modelos = [
+        CompraDetalle,
+        SalidaCamionDetalle,
+        RetornoCamionDetalle,
+        CanjeDescuentoDetalle,
+        RecargaCamionDetalle,
+        VentaBodegaDetalle,
+    ]
+    return any(modelo.query.filter_by(producto_id=producto_id).first() is not None for modelo in modelos)
+
+
 def calcular_stock(producto_id):
     comprado = _sumar(CompraDetalle, CompraDetalle.cantidad_comprada_unidades, producto_id)
     salido = _sumar(SalidaCamionDetalle, SalidaCamionDetalle.cantidad_unidades, producto_id)

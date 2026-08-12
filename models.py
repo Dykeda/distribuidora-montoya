@@ -18,7 +18,10 @@ class Producto(db.Model):
     tasa_descuento_referencia = db.Column(db.Float, nullable=False, default=0.0)
 
     precios = db.relationship(
-        "ProductoPrecio", back_populates="producto", order_by="ProductoPrecio.vigente_desde"
+        "ProductoPrecio",
+        back_populates="producto",
+        order_by="ProductoPrecio.vigente_desde",
+        cascade="all, delete-orphan",
     )
 
     def _fila_precio_vigente(self, fecha: date):
