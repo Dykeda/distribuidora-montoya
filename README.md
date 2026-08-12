@@ -56,7 +56,9 @@ sube solo a la nube — así no se pierde nada aunque el computador falle.
   automáticamente al elegir ese producto en una compra (lo puedes cambiar ahí mismo si
   ese mes el descuento fue distinto).
 - **Compras**: registra cada compra que le haces a Postobón, incluyendo el % de
-  descuento que te dieron ese mes en cada producto.
+  descuento que te dieron ese mes en cada producto. Si te equivocaste al registrar una,
+  entra al detalle de esa compra y usa "Eliminar compra" — el inventario y el crédito de
+  descuento que generó se recalculan solos, no hay que corregir nada más a mano.
 - **Camión**: registra qué carga el camión al salir a reparto, y cuánto regresa al
   volver. Con eso el sistema calcula solo cuánto se vendió — no hay que registrar la
   venta a mano. Si al camión se le acaba algo en plena ruta, usa "Recargar camión" para
@@ -104,6 +106,13 @@ sube solo a la nube — así no se pierde nada aunque el computador falle.
 - El stock de bodega y las ventas **no se guardan** como campos — se calculan a partir de
   los movimientos (compras, salidas, recargas, retornos, canjes, ventas en bodega). Ver
   `services/inventario.py` y `services/ventas.py`.
+- Eliminar una compra (`POST /compras/<id>/eliminar`, `routes/compras.py::eliminar()`) es
+  seguro precisamente porque nada se guarda como contador — `Compra.detalles` tiene
+  `cascade="all, delete-orphan"`, así que borrar la compra borra sus `CompraDetalle` con
+  ella, y el stock/crédito de descuento que esa compra había generado desaparece solo en
+  el siguiente cálculo (no hay que "revertir" nada a mano). Es la única pantalla de
+  movimientos con botón de eliminar por ahora; las demás (Camión, Venta Bodega, etc.) no
+  lo tienen todavía.
 - `RecargaCamion`/`RecargaCamionDetalle`: producto extra que se le manda a una ruta que
   sigue en tránsito (no tiene retorno todavía). `services.ventas.cargado_por_producto()`
   suma la salida inicial más todas las recargas del día para saber cuánto se vendió al

@@ -1,7 +1,13 @@
 {% extends "base.html" %}
 {% block title %}Compra {{ compra.fecha }}{% endblock %}
 {% block content %}
-<h1 class="h3 mb-3">Compra del {{ compra.fecha.strftime("%Y-%m-%d") }}</h1>
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Compra del {{ compra.fecha.strftime("%Y-%m-%d") }}</h1>
+  <form method="post" action="{{ url_for('compras.eliminar', compra_id=compra.id) }}"
+        onsubmit="return confirm('¿Eliminar esta compra? Esto también reduce el crédito de descuento e inventario que generó, y no se puede deshacer.');">
+    <button type="submit" class="btn btn-outline-danger btn-sm">Eliminar compra</button>
+  </form>
+</div>
 <p>Factura: {{ compra.numero_factura or "-" }} {% if compra.notas %}&mdash; {{ compra.notas }}{% endif %}</p>
 
 <table class="table table-striped align-middle">

@@ -28,6 +28,15 @@ def detalle(compra_id):
     return render_template("compras/detalle.html", compra=compra)
 
 
+@bp.route("/<int:compra_id>/eliminar", methods=["POST"])
+def eliminar(compra_id):
+    compra = Compra.query.get_or_404(compra_id)
+    db.session.delete(compra)
+    db.session.commit()
+    flash("Compra eliminada. El inventario y el crédito de descuento se recalculan solos.", "success")
+    return redirect(url_for("compras.listar"))
+
+
 @bp.route("/nueva", methods=["GET", "POST"])
 def nueva():
     productos = Producto.query.filter_by(activo=True).order_by(Producto.nombre).all()
