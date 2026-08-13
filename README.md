@@ -106,7 +106,10 @@ sube solo a la nube — así no se pierde nada aunque el computador falle.
   "Rendimiento por producto" — qué productos generaron más crédito de descuento ese mes,
   de mayor a menor, independiente de cuánto se vendió de cada uno (como la ganancia real
   es el crédito y no un margen de venta, esto ayuda a decidir qué productos conviene
-  empujar más).
+  empujar más). El botón **"Descargar Excel"** descarga toda la información del negocio
+  (no solo del mes elegido) en un archivo con una hoja por tipo de dato — útil para tener
+  una copia legible en tu computador, sin nada técnico; cualquiera con la contraseña
+  puede usarlo, incluyendo desde el celular.
 
 ## Para quien mantenga el código (referencia técnica)
 
@@ -258,6 +261,12 @@ archivo `.db` descargado — no reimplementa la lógica de negocio, son tablas p
 falta; el Excel es solo una foto legible extra, no se restaura desde ahí. Corre solo
 todos los días vía el Programador de tareas de Windows ("Respaldo Distribuidora
 Montoya", 9:00 PM) — requiere que la PC esté encendida y con internet a esa hora.
+- La lógica de armar el Excel (una hoja por tipo de dato) vive una sola vez en
+  `services/exportar.py::construir_workbook()`, para no mantenerla dos veces. La usan
+  tanto `respaldo_local/generar_excel.py` (contra una copia `.db` descargada, para
+  Kevin) como `routes/reportes.py::exportar_excel()` (contra los datos en vivo del
+  servidor, con un botón "Descargar Excel" en Reportes — pensado para que el dueño
+  también pueda bajar una copia él mismo, sin nada técnico, sin necesitar SSH ni Python).
 
 ### Fórmulas de reportes
 ```

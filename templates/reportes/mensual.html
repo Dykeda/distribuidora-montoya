@@ -1,7 +1,15 @@
 {% extends "base.html" %}
 {% block title %}Reportes{% endblock %}
 {% block content %}
-<h1 class="h3 mb-3">Reportes</h1>
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Reportes</h1>
+  <a href="{{ url_for('reportes.exportar_excel') }}" class="btn btn-outline-secondary">
+    <i class="bi bi-file-earmark-excel"></i> Descargar Excel
+  </a>
+</div>
+<p class="text-muted">Descarga toda la información del negocio (productos, compras,
+  rutas de camión, cartera, gastos, descuentos) en un Excel — útil para tener una copia
+  legible en tu computador, por si acaso.</p>
 
 <form method="get" class="row col-lg-6 mb-4">
   <div class="col-6">

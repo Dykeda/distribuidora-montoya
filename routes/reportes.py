@@ -1,10 +1,12 @@
 import calendar
 from datetime import date
+from io import BytesIO
 
-from flask import Blueprint, render_template, request
+from flask import Blueprint, render_template, request, send_file
 
 from services.reportes import resumen_periodo
 from services.fechas import MESES_ES
+from services.exportar import construir_workbook
 
 bp = Blueprint("reportes", __name__, url_prefix="/reportes")
 
@@ -31,4 +33,22 @@ def index():
         fecha_inicio=fecha_inicio,
         fecha_fin=fecha_fin,
         meses=MESES_ES,
+    )
+
+
+@bp.route("/exportar-excel")
+def exportar_excel():
+    """Descarga toda la información del negocio en un Excel, una hoja por tipo de dato
+    (Productos, Compras, Camión, Cartera, Gastos, Descuentos, Venta Bodega). Útil para
+    tener una copia legible fuera del sistema sin necesitar nada técnico."""
+    wb = construir_workbook()
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    nombre_archivo = f"distribuidora_montoya_{date.today().isoformat()}.xlsx"
+    return send_file(
+        buffer,
+        as_attachment=True,
+        download_name=nombre_archivo,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
