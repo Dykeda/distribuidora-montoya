@@ -1,7 +1,14 @@
 """Genera un Excel legible con toda la información del negocio, una hoja por tipo de
 dato. Usado tanto por la descarga directa desde la web (routes/reportes.py) como por el
 script de respaldo local (respaldo_local/generar_excel.py) — ahí es la única fuente de
-esta lógica, para no mantenerla dos veces."""
+esta lógica, para no mantenerla dos veces.
+
+Además de las tablas en bruto, incluye una hoja "Resumen" y "Rendimiento por producto"
+con los mismos cálculos que ya existen en la app (saldo de crédito, cartera pendiente,
+saldo de caja, % de descuento ponderado, venta implícita en dinero) — así el Excel sirve
+de verdad como respaldo legible, no solo como un volcado de tablas."""
+from datetime import date
+
 from openpyxl import Workbook
 from openpyxl.styles import Font
 
@@ -15,7 +22,17 @@ from models import (
     AjusteCredito,
     VentaBodegaDetalle,
 )
-from services.ventas import cargado_por_producto
+from services.ventas import cargado_por_producto, venta_por_salida, ventas_en_periodo
+from services.descuentos import (
+    saldo_acumulado as saldo_credito_acumulado,
+    credito_generado_periodo,
+    rendimiento_por_producto,
+)
+from services.cartera import total_pendiente
+from services.caja import saldo_acumulado as saldo_caja_acumulado
+from services.reportes import compra_total_periodo
+
+DESDE_SIEMPRE = date(2000, 1, 1)
 
 
 def _hoja(wb, nombre, encabezados, filas):
@@ -34,9 +51,44 @@ def construir_workbook():
     """Arma el Excel a partir de los datos actuales. Debe llamarse dentro de un
     contexto de aplicación Flask con acceso a la base de datos."""
     productos = Producto.query.order_by(Producto.nombre).all()
+    hoy = date.today()
 
     wb = Workbook()
     wb.remove(wb.active)
+
+    compra_historica = compra_total_periodo(DESDE_SIEMPRE, hoy)
+    venta_historica = ventas_en_periodo(DESDE_SIEMPRE, hoy)
+    credito_generado_historico = credito_generado_periodo(DESDE_SIEMPRE, hoy)
+    credito_acumulado = saldo_credito_acumulado(hoy)
+    cartera = total_pendiente(hoy)
+    caja = saldo_caja_acumulado(hoy)
+    pct_descuento = (
+        round(credito_generado_historico / compra_historica["dinero"] * 100, 1)
+        if compra_historica["dinero"] > 0 else 0.0
+    )
+
+    _hoja(
+        wb, "Resumen",
+        ["Concepto", "Valor (a hoy)"],
+        [
+            ["Fecha de este resumen", hoy],
+            ["Compra total (histórico)", compra_historica["dinero"]],
+            ["Venta total (histórico)", venta_historica["total"]],
+            ["Saldo de crédito acumulado", credito_acumulado],
+            ["Cartera pendiente por cobrar", cartera],
+            ["Saldo de caja acumulado", caja],
+            ["% de descuento promedio (ponderado, histórico)", pct_descuento],
+        ],
+    )
+
+    _hoja(
+        wb, "Rendimiento por producto",
+        ["Producto", "Comprado (histórico)", "Crédito generado (histórico)", "% promedio"],
+        [
+            [r["producto"], r["dinero_comprado"], r["credito_generado"], r["tasa_promedio"]]
+            for r in rendimiento_por_producto(DESDE_SIEMPRE, hoy)
+        ],
+    )
 
     _hoja(
         wb, "Productos",
@@ -64,19 +116,22 @@ def construir_workbook():
     )
 
     salidas = SalidaCamion.query.order_by(SalidaCamion.fecha.desc()).all()
-    filas_salidas, filas_retornos = [], []
+    filas_salidas, filas_ventas = [], []
     for s in salidas:
         for pid, cant in cargado_por_producto(s).items():
             producto = next((p for p in productos if p.id == pid), None)
             filas_salidas.append([s.fecha, producto.nombre if producto else pid, cant])
         if s.retorno:
-            for d in s.retorno.detalles:
-                filas_retornos.append([s.fecha, s.retorno.fecha, d.producto.nombre, d.cantidad_unidades])
+            for v in venta_por_salida(s.id) or []:
+                filas_ventas.append([
+                    s.fecha, s.retorno.fecha, v["producto"].nombre,
+                    v["cantidad_vendida"], v["precio_usado"], v["valor"],
+                ])
     _hoja(wb, "Camion Salidas", ["Fecha salida", "Producto", "Cantidad cargada (unid.)"], filas_salidas)
     _hoja(
-        wb, "Camion Retornos",
-        ["Fecha salida", "Fecha retorno", "Producto", "Cantidad regresada (unid.)"],
-        filas_retornos,
+        wb, "Camion Ventas",
+        ["Fecha salida", "Fecha retorno", "Producto", "Cantidad vendida (unid.)", "Precio usado", "Valor"],
+        filas_ventas,
     )
 
     facturas = FacturaCartera.query.order_by(FacturaCartera.fecha.desc()).all()

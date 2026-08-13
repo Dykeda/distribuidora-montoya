@@ -8,6 +8,10 @@ from models import (
     ProductoPrecio,
     Compra,
     CompraDetalle,
+    SalidaCamion,
+    SalidaCamionDetalle,
+    RetornoCamion,
+    RetornoCamionDetalle,
     FacturaCartera,
 )
 from services.exportar import construir_workbook
@@ -29,8 +33,9 @@ def crear_producto(db, nombre="Coca-Cola 1.5L", precio=3000):
     return p
 
 
-def test_construir_workbook_incluye_todas_las_hojas(db):
+def test_construir_workbook_incluye_todas_las_hojas_y_resumen_calculado(db):
     coca = crear_producto(db)
+
     compra = Compra(fecha=date(2026, 8, 1))
     db.session.add(compra)
     db.session.flush()
@@ -40,18 +45,50 @@ def test_construir_workbook_incluye_todas_las_hojas(db):
             costo_linea=180000, tasa_descuento_aplicada=5.0,
         )
     )
+    db.session.commit()
+
+    salida = SalidaCamion(fecha=date(2026, 8, 2))
+    db.session.add(salida)
+    db.session.flush()
+    db.session.add(SalidaCamionDetalle(salida_id=salida.id, producto_id=coca.id, cantidad_unidades=30))
+    db.session.commit()
+    retorno = RetornoCamion(salida_id=salida.id, fecha=date(2026, 8, 2))
+    db.session.add(retorno)
+    db.session.flush()
+    db.session.add(RetornoCamionDetalle(retorno_id=retorno.id, producto_id=coca.id, cantidad_unidades=6))
+    db.session.commit()
+    # vendido = 30 - 6 = 24 unidades * 3000 = 72000
+
     db.session.add(FacturaCartera(cliente="Tienda X", fecha=date(2026, 8, 2), monto=20000))
     db.session.commit()
 
     wb = construir_workbook()
 
     assert set(wb.sheetnames) == {
-        "Productos", "Compras", "Camion Salidas", "Camion Retornos",
-        "Cartera", "Gastos", "Descuentos Canjes", "Descuentos Ajustes", "Venta Bodega",
+        "Resumen", "Rendimiento por producto", "Productos", "Compras",
+        "Camion Salidas", "Camion Ventas", "Cartera", "Gastos",
+        "Descuentos Canjes", "Descuentos Ajustes", "Venta Bodega",
     }
 
+    resumen = {fila[0]: fila[1] for fila in wb["Resumen"].iter_rows(min_row=2, values_only=True)}
+    assert resumen["Compra total (histórico)"] == 180000
+    assert resumen["Venta total (histórico)"] == 72000
+    assert resumen["Saldo de crédito acumulado"] == 9000
+    assert resumen["Cartera pendiente por cobrar"] == 20000
+    assert resumen["Saldo de caja acumulado"] == 72000  # la factura no está ligada a esta salida
+    assert resumen["% de descuento promedio (ponderado, histórico)"] == 5.0
+
+    rendimiento = wb["Rendimiento por producto"]
+    assert rendimiento.cell(row=2, column=1).value == "Coca-Cola 1.5L"
+    assert rendimiento.cell(row=2, column=3).value == 9000  # credito generado
+
+    ventas_camion = wb["Camion Ventas"]
+    assert ventas_camion.max_row == 2
+    assert ventas_camion.cell(row=2, column=4).value == 24  # cantidad vendida
+    assert ventas_camion.cell(row=2, column=6).value == 72000  # valor
+
     productos = wb["Productos"]
-    assert productos.max_row == 2  # encabezado + 1 producto
+    assert productos.max_row == 2
     assert productos.cell(row=2, column=1).value == "Coca-Cola 1.5L"
 
     compras = wb["Compras"]
@@ -67,6 +104,9 @@ def test_construir_workbook_incluye_todas_las_hojas(db):
 def test_construir_workbook_sin_datos_no_falla(db):
     wb = construir_workbook()
     assert wb["Productos"].max_row == 1  # solo encabezado
+    resumen = {fila[0]: fila[1] for fila in wb["Resumen"].iter_rows(min_row=2, values_only=True)}
+    assert resumen["Compra total (histórico)"] == 0
+    assert resumen["% de descuento promedio (ponderado, histórico)"] == 0.0
 
 
 def test_ruta_exportar_excel_descarga_archivo(client):

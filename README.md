@@ -107,9 +107,12 @@ sube solo a la nube — así no se pierde nada aunque el computador falle.
   de mayor a menor, independiente de cuánto se vendió de cada uno (como la ganancia real
   es el crédito y no un margen de venta, esto ayuda a decidir qué productos conviene
   empujar más). El botón **"Descargar Excel"** descarga toda la información del negocio
-  (no solo del mes elegido) en un archivo con una hoja por tipo de dato — útil para tener
-  una copia legible en tu computador, sin nada técnico; cualquiera con la contraseña
-  puede usarlo, incluyendo desde el celular.
+  (no solo del mes elegido, todo el histórico) en un archivo con una hoja "Resumen" (los
+  mismos totales calculados que ves en pantalla: saldo de crédito, cartera pendiente,
+  saldo de caja, % de descuento ponderado), una hoja "Rendimiento por producto", y una
+  hoja por cada tipo de movimiento — útil para tener una copia legible en tu computador,
+  sin nada técnico; cualquiera con la contraseña puede usarlo, incluyendo desde el
+  celular.
 
 ## Para quien mantenga el código (referencia técnica)
 
@@ -255,18 +258,27 @@ disco que la base de datos real, así que no protege si el droplet completo fall
 del servidor por `scp` (usando la llave SSH que ya existe en `~/.ssh/id_ed25519`, sin
 contraseñas) a una carpeta en la PC local (OneDrive si existe, si no
 `respaldo_local/respaldos/`), y genera un Excel legible a partir de esa copia
-(`respaldo_local/generar_excel.py`, usa los modelos de SQLAlchemy del proyecto contra el
-archivo `.db` descargado — no reimplementa la lógica de negocio, son tablas planas). El
-`.db` descargado es la copia real que serviría para restaurar el sistema si hiciera
-falta; el Excel es solo una foto legible extra, no se restaura desde ahí. Corre solo
-todos los días vía el Programador de tareas de Windows ("Respaldo Distribuidora
-Montoya", 9:00 PM) — requiere que la PC esté encendida y con internet a esa hora.
-- La lógica de armar el Excel (una hoja por tipo de dato) vive una sola vez en
-  `services/exportar.py::construir_workbook()`, para no mantenerla dos veces. La usan
-  tanto `respaldo_local/generar_excel.py` (contra una copia `.db` descargada, para
-  Kevin) como `routes/reportes.py::exportar_excel()` (contra los datos en vivo del
-  servidor, con un botón "Descargar Excel" en Reportes — pensado para que el dueño
-  también pueda bajar una copia él mismo, sin nada técnico, sin necesitar SSH ni Python).
+(`respaldo_local/generar_excel.py`, usa los servicios del proyecto contra el archivo
+`.db` descargado). El `.db` descargado es la copia real que serviría para restaurar el
+sistema si hiciera falta; el Excel es solo una foto legible extra, no se restaura desde
+ahí. Corre solo todos los días vía el Programador de tareas de Windows ("Respaldo
+Distribuidora Montoya", 9:00 PM) — requiere que la PC esté encendida y con internet a
+esa hora.
+- La lógica de armar el Excel vive una sola vez en
+  `services/exportar.py::construir_workbook()`, para no mantenerla dos veces. Tiene una
+  hoja "Resumen" y "Rendimiento por producto" con los mismos cálculos que ya existen en
+  `services/descuentos.py`, `services/cartera.py`, `services/caja.py` y
+  `services/reportes.py` (saldo de crédito, cartera pendiente, saldo de caja, % de
+  descuento ponderado — todo calculado "histórico", desde `DESDE_SIEMPRE = date(2000,
+  1, 1)` hasta hoy, ya que el Excel no está acotado a un mes como sí lo está la pantalla
+  de Reportes), y "Camión Ventas" muestra el valor en dinero de la venta implícita de
+  cada ruta (via `services.ventas.venta_por_salida()`), no solo las cantidades en bruto.
+  El resto de las hojas (Productos, Compras, Cartera, Gastos, Descuentos, Venta Bodega)
+  sí son tablas planas de cada tipo de movimiento, sin agregaciones. La usan tanto
+  `respaldo_local/generar_excel.py` (contra una copia `.db` descargada, para Kevin) como
+  `routes/reportes.py::exportar_excel()` (contra los datos en vivo del servidor, con un
+  botón "Descargar Excel" en Reportes — pensado para que el dueño también pueda bajar
+  una copia él mismo, sin nada técnico, sin necesitar SSH ni Python).
 
 ### Fórmulas de reportes
 ```
