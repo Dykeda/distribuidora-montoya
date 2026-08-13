@@ -1,5 +1,5 @@
 import calendar
-from datetime import date
+from datetime import date, datetime
 from io import BytesIO
 
 from flask import Blueprint, render_template, request, send_file
@@ -45,7 +45,8 @@ def exportar_excel():
     buffer = BytesIO()
     wb.save(buffer)
     buffer.seek(0)
-    nombre_archivo = f"distribuidora_montoya_{date.today().isoformat()}.xlsx"
+    marca = datetime.now().strftime("%Y-%m-%d_%H%M")
+    nombre_archivo = f"distribuidora_montoya_{marca}.xlsx"
     return send_file(
         buffer,
         as_attachment=True,

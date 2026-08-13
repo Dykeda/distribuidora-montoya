@@ -1,3 +1,4 @@
+import re
 from datetime import date
 
 import pytest
@@ -73,3 +74,10 @@ def test_ruta_exportar_excel_descarga_archivo(client):
     assert r.status_code == 200
     assert r.mimetype == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     assert "attachment" in r.headers.get("Content-Disposition", "")
+
+
+def test_ruta_exportar_excel_nombre_incluye_fecha_y_hora(client):
+    r = client.get("/reportes/exportar-excel")
+    disposicion = r.headers.get("Content-Disposition", "")
+    # ej. distribuidora_montoya_2026-08-14_1530.xlsx -- fecha y hora, no solo fecha
+    assert re.search(r"distribuidora_montoya_\d{4}-\d{2}-\d{2}_\d{4}\.xlsx", disposicion)
