@@ -244,6 +244,21 @@ mismo, son scripts sueltos que se ejecutan por fuera.
 - Guía completa de despliegue (VPS en DigitalOcean + HTTPS con DuckDNS/Certbot +
   systemd/nginx, archivos de referencia en `deploy/`) en `DEPLOY.md`.
 
+### Respaldo local desde el VPS (`respaldo_local/`)
+Con la app en línea, los datos reales viven solo en el servidor — el respaldo diario por
+cron ahí (`deploy/respaldar_servidor.sh`) protege contra errores, pero vive en el mismo
+disco que la base de datos real, así que no protege si el droplet completo fallara.
+`respaldo_local/actualizar_respaldo.ps1` cierra esa brecha: baja la base de datos real
+del servidor por `scp` (usando la llave SSH que ya existe en `~/.ssh/id_ed25519`, sin
+contraseñas) a una carpeta en la PC local (OneDrive si existe, si no
+`respaldo_local/respaldos/`), y genera un Excel legible a partir de esa copia
+(`respaldo_local/generar_excel.py`, usa los modelos de SQLAlchemy del proyecto contra el
+archivo `.db` descargado — no reimplementa la lógica de negocio, son tablas planas). El
+`.db` descargado es la copia real que serviría para restaurar el sistema si hiciera
+falta; el Excel es solo una foto legible extra, no se restaura desde ahí. Corre solo
+todos los días vía el Programador de tareas de Windows ("Respaldo Distribuidora
+Montoya", 9:00 PM) — requiere que la PC esté encendida y con internet a esa hora.
+
 ### Fórmulas de reportes
 ```
 compra_total(periodo)     = SUM(costo_linea) de las compras del período

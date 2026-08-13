@@ -6,3 +6,4 @@ instance/*.db
 build/
 dist/
 *.spec
+respaldo_local/respaldos/
