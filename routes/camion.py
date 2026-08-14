@@ -128,21 +128,30 @@ def retorno_nueva(salida_id):
         return redirect(url_for("camion.detalle", salida_id=salida_id))
 
     cargado = cargado_por_producto(salida)  # incluye salida inicial + recargas del día
-    filas = [
-        {"producto": db.session.get(Producto, pid), "cantidad_cargada": cant}
-        for pid, cant in cargado.items()
-    ]
+    filas = []
+    for pid, cant in cargado.items():
+        producto = db.session.get(Producto, pid)
+        filas.append({
+            "producto": producto,
+            "cantidad_cargada": cant,
+            "cajas_cargadas": cant // producto.unidades_por_caja,
+            "unidades_sueltas_cargadas": cant % producto.unidades_por_caja,
+        })
 
     if request.method == "POST":
         fecha = _parsear_fecha("fecha")
         detalles = []
         for fila in filas:
-            campo = f"regreso_{fila['producto'].id}"
+            producto = fila["producto"]
             try:
-                cantidad = float(request.form.get(campo) or 0)
+                cajas = float(request.form.get(f"regreso_cajas_{producto.id}") or 0)
             except ValueError:
-                cantidad = 0
-            cantidad_unidades = round(cantidad)
+                cajas = 0
+            try:
+                unidades_sueltas = float(request.form.get(f"regreso_unidades_{producto.id}") or 0)
+            except ValueError:
+                unidades_sueltas = 0
+            cantidad_unidades = round(cajas * producto.unidades_por_caja + unidades_sueltas)
             if cantidad_unidades > fila["cantidad_cargada"]:
                 flash(
                     f"{fila['producto'].nombre}: no puede regresar más de lo que salió/se le recargó ({fila['cantidad_cargada']}).",

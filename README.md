@@ -72,9 +72,12 @@ sube solo a la nube — así no se pierde nada aunque el computador falle.
   descuento que generó se recalculan solos, no hay que corregir nada más a mano.
 - **Camión**: registra qué carga el camión al salir a reparto, y cuánto regresa al
   volver. Con eso el sistema calcula solo cuánto se vendió — no hay que registrar la
-  venta a mano. Si al camión se le acaba algo en plena ruta, usa "Recargar camión" para
-  mandarle más producto sin cerrar la ruta — se suma a lo cargado de ese día. El
-  historial se puede filtrar por mes/año, igual que Caja y Reportes.
+  venta a mano. Al registrar el retorno, lo que sobró de cada producto se ingresa en dos
+  campos separados — **cajas completas** y **unidades sueltas** — tal como regresa
+  realmente el camión, sin tener que calcular a mano cuántas unidades son. Si al camión
+  se le acaba algo en plena ruta, usa "Recargar camión" para mandarle más producto sin
+  cerrar la ruta — se suma a lo cargado de ese día. El historial se puede filtrar por
+  mes/año, igual que Caja y Reportes.
 - **Venta Bodega**: para cuando alguien compra directo en la bodega, sin pasar por el
   camión. Descuenta el inventario igual que una entrega, y se suma a la venta del día.
 - **Venta Diaria**: historial día por día de todo lo vendido (camión + bodega), con

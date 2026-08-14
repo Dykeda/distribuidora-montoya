@@ -121,7 +121,7 @@ def test_flujo_completo(client):
     # Retorno: 6 unidades sin vender
     r = client.post(
         f"/camion/retorno/nueva/{salida.id}",
-        data={"fecha": HOY, "notas": "", f"regreso_{coca.id}": "6"},
+        data={"fecha": HOY, "notas": "", f"regreso_cajas_{coca.id}": "0", f"regreso_unidades_{coca.id}": "6"},
         follow_redirects=True,
     )
     assert r.status_code == 200
@@ -246,7 +246,7 @@ def test_flujo_completo(client):
     # Retorno de la segunda ruta: cargado total = 2 cajas + 1 recarga = 18u, regresan 0
     r = client.post(
         f"/camion/retorno/nueva/{salida2.id}",
-        data={"fecha": HOY, "notas": "", f"regreso_{coca.id}": "0"},
+        data={"fecha": HOY, "notas": "", f"regreso_cajas_{coca.id}": "0", f"regreso_unidades_{coca.id}": "0"},
         follow_redirects=True,
     )
     assert r.status_code == 200
