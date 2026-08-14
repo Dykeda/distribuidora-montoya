@@ -31,6 +31,7 @@ from services.descuentos import (
 from services.cartera import total_pendiente
 from services.caja import saldo_acumulado as saldo_caja_acumulado
 from services.reportes import compra_total_periodo
+from services.gastos import total_gastos_periodo
 
 DESDE_SIEMPRE = date(2000, 1, 1)
 
@@ -66,6 +67,8 @@ def construir_workbook():
         round(credito_generado_historico / compra_historica["dinero"] * 100, 1)
         if compra_historica["dinero"] > 0 else 0.0
     )
+    gastos_negocio_historico = total_gastos_periodo(None, hoy, tipo="negocio")
+    ganancia_neta_historica = credito_generado_historico - gastos_negocio_historico
 
     _hoja(
         wb, "Resumen",
@@ -78,6 +81,7 @@ def construir_workbook():
             ["Cartera pendiente por cobrar", cartera],
             ["Saldo de caja acumulado", caja],
             ["% de descuento promedio (ponderado, histórico)", pct_descuento],
+            ["Ganancia neta del negocio (histórico)", ganancia_neta_historica],
         ],
     )
 

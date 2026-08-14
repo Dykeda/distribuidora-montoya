@@ -91,6 +91,19 @@
       <div class="fs-4 fw-bold">${{ "{:,}".format(resumen.saldo_caja_acumulado) }}</div>
     </div></div>
   </div>
+  <div class="col-md-4">
+    <div class="card card-metric h-100"><div class="card-body">
+      <div class="text-muted small">Ganancia neta del negocio (este período)</div>
+      <div class="fs-4 fw-bold">${{ "{:,}".format(resumen.ganancia_neta_periodo) }}</div>
+      <div class="text-muted small">crédito generado − gastos de negocio (sin hogar)</div>
+    </div></div>
+  </div>
+  <div class="col-md-4">
+    <div class="card card-metric h-100 border-primary"><div class="card-body">
+      <div class="text-muted small">Ganancia neta del negocio (acumulada)</div>
+      <div class="fs-4 fw-bold">${{ "{:,}".format(resumen.ganancia_neta_acumulada) }}</div>
+    </div></div>
+  </div>
 </div>
 
 {% if resumen.rendimiento_por_producto %}

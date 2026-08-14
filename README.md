@@ -110,11 +110,14 @@ sube solo a la nube — así no se pierde nada aunque el computador falle.
   próxima vez. Aquí ves siempre el registro completo de todas las salidas, con pestañas
   para filtrar por Negocio o Hogar. Se descuentan automáticamente de Caja.
 - **Reportes**: elige un mes y revisa los totales de compra, venta, crédito, saldo,
-  cartera pendiente, entradas/salidas de caja y saldo de caja. Incluye una tabla de
-  "Rendimiento por producto" — qué productos generaron más crédito de descuento ese mes,
-  de mayor a menor, independiente de cuánto se vendió de cada uno (como la ganancia real
-  es el crédito y no un margen de venta, esto ayuda a decidir qué productos conviene
-  empujar más). El botón **"Descargar Excel"** descarga toda la información del negocio
+  cartera pendiente, entradas/salidas de caja y saldo de caja. Incluye la **ganancia
+  neta del negocio** (crédito generado − gastos de negocio, **sin** contar los gastos de
+  hogar) tanto del mes elegido como acumulada desde siempre — distinta del "saldo de
+  caja", que si mezcla los gastos de hogar. Incluye una tabla de "Rendimiento por
+  producto" — qué productos generaron más crédito de descuento ese mes, de mayor a
+  menor, independiente de cuánto se vendió de cada uno (como la ganancia real es el
+  crédito y no un margen de venta, esto ayuda a decidir qué productos conviene empujar
+  más). El botón **"Descargar Excel"** descarga toda la información del negocio
   (no solo del mes elegido, todo el histórico) en un archivo con una hoja "Resumen" (los
   mismos totales calculados que ves en pantalla: saldo de crédito, cartera pendiente,
   saldo de caja, % de descuento ponderado), una hoja "Rendimiento por producto", y una
@@ -328,6 +331,10 @@ gastos(periodo)            = SUM(monto) de Gasto con fecha dentro del período
 saldo_caja(periodo)        = entradas(periodo) - gastos(periodo)
 saldo_caja_acumulado(fecha) = entradas(sin límite inferior, hasta fecha)
                              - gastos(sin límite inferior, hasta fecha)
+ganancia_neta(periodo)    = credito_generado(periodo) - gastos(periodo, tipo="negocio")
+                             (NO incluye venta del camión/bodega -- esa plata solo pasa
+                             por el negocio, se paga lo mismo a Postobón, no es ganancia
+                             real -- ni gastos de hogar, a diferencia de saldo_caja)
 ```
 
 ### Limitaciones conocidas (v1)

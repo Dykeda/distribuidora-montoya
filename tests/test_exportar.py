@@ -81,6 +81,7 @@ def test_construir_workbook_incluye_todas_las_hojas_y_resumen_calculado(db):
     assert resumen["Cartera pendiente por cobrar"] == 20000
     assert resumen["Saldo de caja acumulado"] == 72000  # la factura no está ligada a esta salida
     assert resumen["% de descuento promedio (ponderado, histórico)"] == 5.0
+    assert resumen["Ganancia neta del negocio (histórico)"] == 9000  # credito generado, sin gastos
 
     rendimiento = wb["Rendimiento por producto"]
     assert rendimiento.cell(row=2, column=1).value == "Coca-Cola 1.5L"
@@ -111,6 +112,7 @@ def test_construir_workbook_sin_datos_no_falla(db):
     resumen = {fila[0]: fila[1] for fila in wb["Resumen"].iter_rows(min_row=2, values_only=True)}
     assert resumen["Compra total (histórico)"] == 0
     assert resumen["% de descuento promedio (ponderado, histórico)"] == 0.0
+    assert resumen["Ganancia neta del negocio (histórico)"] == 0
 
 
 def test_ruta_exportar_excel_descarga_archivo(client):

@@ -11,6 +11,8 @@ from models import (
     RetornoCamionDetalle,
     CanjeDescuento,
     CanjeDescuentoDetalle,
+    CategoriaGasto,
+    Gasto,
 )
 from services.reportes import resumen_periodo
 
@@ -102,3 +104,31 @@ def test_pct_descuento_promedio_pondera_por_dinero_comprado(db):
 def test_pct_descuento_promedio_sin_compras_es_cero(db):
     resumen = resumen_periodo(date(2026, 8, 1), date(2026, 8, 31))
     assert resumen["pct_descuento_promedio"] == 0.0
+
+
+def test_ganancia_neta_resta_solo_gastos_de_negocio(db):
+    coca = crear_producto(db, "Coca-Cola 1.5L", 3000)
+    compra = Compra(fecha=date(2026, 8, 1))
+    db.session.add(compra)
+    db.session.flush()
+    db.session.add(
+        CompraDetalle(
+            compra_id=compra.id, producto_id=coca.id, cantidad_comprada_unidades=60,
+            costo_linea=100000, tasa_descuento_aplicada=10.0,
+        )
+    )
+    db.session.commit()
+    # credito generado = 100000 * 10% = 10000
+
+    cat_negocio = CategoriaGasto.query.filter_by(tipo="negocio").first()
+    cat_hogar = CategoriaGasto.query.filter_by(tipo="hogar").first()
+    db.session.add(Gasto(categoria_id=cat_negocio.id, fecha=date(2026, 8, 5), monto=4000))
+    db.session.add(Gasto(categoria_id=cat_hogar.id, fecha=date(2026, 8, 5), monto=2000))
+    db.session.commit()
+
+    resumen = resumen_periodo(date(2026, 8, 1), date(2026, 8, 31))
+
+    assert resumen["gastos_negocio_periodo"] == 4000
+    # 10000 (credito) - 4000 (gastos negocio) = 6000 -- el gasto de hogar (2000) NO cuenta
+    assert resumen["ganancia_neta_periodo"] == 6000
+    assert resumen["ganancia_neta_acumulada"] == 6000

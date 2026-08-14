@@ -39,6 +39,15 @@ def resumen_periodo(fecha_inicio, fecha_fin):
     saldo_caja_acumulado = caja_service.saldo_acumulado(fecha_fin)
     rendimiento_por_producto = descuentos_service.rendimiento_por_producto(fecha_inicio, fecha_fin)
 
+    # Ganancia neta del negocio = crédito generado - gastos de negocio (NO de hogar,
+    # y NO la venta del camión/bodega — esa plata solo pasa por las manos del negocio,
+    # se paga lo mismo a Postobón, no es ganancia real). Se calcula del período elegido
+    # y también acumulada desde siempre, para ver cuánto ha dejado el negocio en total.
+    gastos_negocio_periodo = gastos_service.total_gastos_periodo(fecha_inicio, fecha_fin, tipo="negocio")
+    ganancia_neta_periodo = credito_generado - gastos_negocio_periodo
+    gastos_negocio_acumulado = gastos_service.total_gastos_periodo(None, fecha_fin, tipo="negocio")
+    ganancia_neta_acumulada = descuentos_service.credito_generado_total_hasta(fecha_fin) - gastos_negocio_acumulado
+
     # % de descuento promedio del mes = crédito generado / dinero comprado, ponderado por
     # cuánto se compró de cada producto (no un promedio simple de las tasas ingresadas).
     if compra["dinero"] > 0:
@@ -61,4 +70,7 @@ def resumen_periodo(fecha_inicio, fecha_fin):
         "saldo_caja_periodo": saldo_caja_periodo,
         "saldo_caja_acumulado": saldo_caja_acumulado,
         "rendimiento_por_producto": rendimiento_por_producto,
+        "gastos_negocio_periodo": gastos_negocio_periodo,
+        "ganancia_neta_periodo": ganancia_neta_periodo,
+        "ganancia_neta_acumulada": ganancia_neta_acumulada,
     }
