@@ -188,13 +188,27 @@ class CanjeDescuentoDetalle(db.Model):
     producto = db.relationship("Producto")
 
 
+class Cliente(db.Model):
+    """Catálogo de clientes, para no tener que reescribir el nombre en cada factura de
+    cartera y poder ver de un vistazo todas las facturas de un mismo cliente."""
+
+    __tablename__ = "cliente"
+
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(120), nullable=False, unique=True)
+    notas = db.Column(db.String(255), nullable=True)
+    activo = db.Column(db.Boolean, nullable=False, default=True)
+
+    facturas = db.relationship("FacturaCartera", back_populates="cliente")
+
+
 class FacturaCartera(db.Model):
     __tablename__ = "factura_cartera"
 
     id = db.Column(db.Integer, primary_key=True)
     # Nulo para deudas de antes de usar el sistema, sin una ruta de camión a la cual ligarlas.
     salida_id = db.Column(db.Integer, db.ForeignKey("salida_camion.id"), nullable=True)
-    cliente = db.Column(db.String(120), nullable=False)
+    cliente_id = db.Column(db.Integer, db.ForeignKey("cliente.id"), nullable=False)
     fecha = db.Column(db.Date, nullable=False, default=date.today)
     monto = db.Column(db.Integer, nullable=False)
     estado = db.Column(db.String(20), nullable=False, default="pendiente")
@@ -202,6 +216,7 @@ class FacturaCartera(db.Model):
     notas = db.Column(db.String(255), nullable=True)
 
     salida = db.relationship("SalidaCamion", back_populates="facturas")
+    cliente = db.relationship("Cliente", back_populates="facturas")
 
 
 class AjusteCredito(db.Model):

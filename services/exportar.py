@@ -139,7 +139,7 @@ def construir_workbook():
         wb, "Cartera",
         ["Cliente", "Fecha factura", "Ruta (fecha salida)", "Monto", "Estado", "Fecha pago", "Notas"],
         [
-            [f.cliente, f.fecha, f.salida.fecha if f.salida else "Deuda anterior",
+            [f.cliente.nombre, f.fecha, f.salida.fecha if f.salida else "Deuda anterior",
              f.monto, f.estado, f.fecha_pago or "", f.notas or ""]
             for f in facturas
         ],

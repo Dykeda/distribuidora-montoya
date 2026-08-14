@@ -78,7 +78,7 @@
   <tbody>
     {% for f in salida.facturas %}
     <tr>
-      <td>{{ f.cliente }}</td>
+      <td><a href="{{ url_for('clientes.detalle', cliente_id=f.cliente.id) }}">{{ f.cliente.nombre }}</a></td>
       <td class="text-end">${{ "{:,}".format(f.monto) }}</td>
       <td>
         {% if f.estado == 'pagada' %}

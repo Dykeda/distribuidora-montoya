@@ -6,13 +6,14 @@ from extensions import db
 from models import FacturaCartera
 
 
-def total_pendiente(fecha_corte=None):
+def total_pendiente(fecha_corte=None, cliente_id=None):
     """Dinero en cartera sin cobrar a la fecha de corte (hoy por defecto).
     Incluye facturas todavía pendientes, y facturas que en esa fecha aún no se habían
     pagado (se pagaron después de fecha_corte) — para que un reporte de un mes pasado
-    muestre la cartera como estaba en ese momento, no como está hoy."""
+    muestre la cartera como estaba en ese momento, no como está hoy. Con cliente_id,
+    calcula el total pendiente de un solo cliente."""
     fecha_corte = fecha_corte or date.today()
-    total = (
+    query = (
         db.session.query(func.coalesce(func.sum(FacturaCartera.monto), 0))
         .filter(FacturaCartera.fecha <= fecha_corte)
         .filter(
@@ -21,9 +22,10 @@ def total_pendiente(fecha_corte=None):
                 FacturaCartera.fecha_pago > fecha_corte,
             )
         )
-        .scalar()
     )
-    return round(total)
+    if cliente_id is not None:
+        query = query.filter(FacturaCartera.cliente_id == cliente_id)
+    return round(query.scalar())
 
 
 def listar_facturas():

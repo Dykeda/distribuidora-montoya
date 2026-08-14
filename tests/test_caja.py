@@ -8,6 +8,7 @@ from models import (
     RetornoCamion,
     RetornoCamionDetalle,
     FacturaCartera,
+    Cliente,
     VentaBodega,
     VentaBodegaDetalle,
     CategoriaGasto,
@@ -63,8 +64,11 @@ def test_efectivo_por_salida_resta_lo_que_quedo_en_cartera(db):
     p = crear_producto(db)
     salida = cerrar_ruta(db, p, cantidad_salida=30, cantidad_retorno=6)
 
+    ahorro = Cliente(nombre="Tienda El Ahorro")
+    db.session.add(ahorro)
+    db.session.flush()
     db.session.add(
-        FacturaCartera(salida_id=salida.id, cliente="Tienda El Ahorro", fecha=date(2026, 8, 2), monto=20000)
+        FacturaCartera(salida_id=salida.id, cliente_id=ahorro.id, fecha=date(2026, 8, 2), monto=20000)
     )
     db.session.commit()
 

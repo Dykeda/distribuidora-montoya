@@ -130,12 +130,16 @@ def test_historial_diario_no_resta_cartera(db):
     db.session.add(RetornoCamionDetalle(retorno_id=retorno.id, producto_id=p.id, cantidad_unidades=6))
     db.session.commit()
 
-    from models import FacturaCartera
+    from models import FacturaCartera, Cliente
+
+    tienda_x = Cliente(nombre="Tienda X")
+    db.session.add(tienda_x)
+    db.session.flush()
 
     # 20000 de esos 72000 quedaron en cartera -> el efectivo de Caja sería 52000, pero
     # la venta bruta del día debe seguir mostrando los 72000 completos
     db.session.add(
-        FacturaCartera(salida_id=salida.id, cliente="Tienda X", fecha=date(2026, 8, 2), monto=20000)
+        FacturaCartera(salida_id=salida.id, cliente_id=tienda_x.id, fecha=date(2026, 8, 2), monto=20000)
     )
     db.session.commit()
 

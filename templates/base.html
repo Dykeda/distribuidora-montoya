@@ -47,11 +47,12 @@
             </ul>
           </li>
           <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle {{ 'active' if request.blueprint in ('descuentos', 'cartera', 'caja', 'gastos', 'reportes') }}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <a class="nav-link dropdown-toggle {{ 'active' if request.blueprint in ('descuentos', 'clientes', 'cartera', 'caja', 'gastos', 'reportes') }}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
               <i class="bi bi-cash-coin"></i> Finanzas
             </a>
             <ul class="dropdown-menu">
               <li><a class="dropdown-item {{ 'active' if request.blueprint == 'descuentos' }}" href="{{ url_for('descuentos.listar') }}"><i class="bi bi-percent"></i> Descuentos</a></li>
+              <li><a class="dropdown-item {{ 'active' if request.blueprint == 'clientes' }}" href="{{ url_for('clientes.listar') }}"><i class="bi bi-people"></i> Clientes</a></li>
               <li><a class="dropdown-item {{ 'active' if request.blueprint == 'cartera' }}" href="{{ url_for('cartera.listar') }}"><i class="bi bi-credit-card"></i> Cartera</a></li>
               <li><a class="dropdown-item {{ 'active' if request.blueprint == 'caja' }}" href="{{ url_for('caja.listar') }}"><i class="bi bi-cash-stack"></i> Caja</a></li>
               <li><a class="dropdown-item {{ 'active' if request.blueprint == 'gastos' }}" href="{{ url_for('gastos.listar') }}"><i class="bi bi-dash-circle"></i> Salidas de dinero</a></li>

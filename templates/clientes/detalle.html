@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}{{ cliente.nombre }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">{{ cliente.nombre }}</h1>
+  <a href="{{ url_for('clientes.editar', cliente_id=cliente.id) }}" class="btn btn-outline-primary">Editar</a>
+</div>
+{% if cliente.notas %}<p class="text-muted">{{ cliente.notas }}</p>{% endif %}
+
+<div class="card card-metric mb-4" style="max-width: 320px;">
+  <div class="card-body">
+    <div class="text-muted small">Pendiente por cobrar (hoy)</div>
+    <div class="fs-3 fw-bold">${{ "{:,}".format(total_pendiente) }}</div>
+  </div>
+</div>
+
+<h2 class="h5">Facturas ({{ facturas | length }})</h2>
+<div class="table-responsive">
+<table class="table table-striped align-middle">
+  <thead>
+    <tr>
+      <th>Fecha</th>
+      <th>Ruta (salida)</th>
+      <th class="text-end">Monto</th>
+      <th>Estado</th>
+      <th>Notas</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for f in facturas %}
+    <tr>
+      <td>{{ f.fecha.strftime("%Y-%m-%d") }}</td>
+      <td>
+        {% if f.salida %}
+        <a href="{{ url_for('camion.detalle', salida_id=f.salida_id) }}">{{ f.salida.fecha.strftime("%Y-%m-%d") }}</a>
+        {% else %}
+        <span class="text-muted">Deuda anterior</span>
+        {% endif %}
+      </td>
+      <td class="text-end">${{ "{:,}".format(f.monto) }}</td>
+      <td>
+        {% if f.estado == 'pagada' %}
+          <span class="badge bg-success">Pagada</span>
+        {% else %}
+          <span class="badge bg-warning text-dark">Pendiente</span>
+        {% endif %}
+      </td>
+      <td>{{ f.notas or "-" }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" class="text-center text-muted">Este cliente no tiene facturas todavía.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+<a href="{{ url_for('clientes.listar') }}" class="btn btn-link">&larr; Volver a Clientes</a>
+{% endblock %}

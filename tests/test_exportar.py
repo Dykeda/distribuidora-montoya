@@ -13,6 +13,7 @@ from models import (
     RetornoCamion,
     RetornoCamionDetalle,
     FacturaCartera,
+    Cliente,
 )
 from services.exportar import construir_workbook
 
@@ -59,7 +60,10 @@ def test_construir_workbook_incluye_todas_las_hojas_y_resumen_calculado(db):
     db.session.commit()
     # vendido = 30 - 6 = 24 unidades * 3000 = 72000
 
-    db.session.add(FacturaCartera(cliente="Tienda X", fecha=date(2026, 8, 2), monto=20000))
+    tienda_x = Cliente(nombre="Tienda X")
+    db.session.add(tienda_x)
+    db.session.flush()
+    db.session.add(FacturaCartera(cliente_id=tienda_x.id, fecha=date(2026, 8, 2), monto=20000))
     db.session.commit()
 
     wb = construir_workbook()

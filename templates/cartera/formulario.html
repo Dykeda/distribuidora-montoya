@@ -6,8 +6,16 @@
 <form method="post" class="col-lg-6">
   <div class="mb-3">
     <label class="form-label">Cliente</label>
-    <input type="text" name="cliente" class="form-control" required
-           value="{{ form.cliente if form else '' }}">
+    <div class="d-flex gap-2">
+      {% set cliente_preseleccion = (form.cliente_id if form else cliente_preseleccionado) | string %}
+      <select name="cliente_id" class="form-select" required>
+        <option value="">-- elegir --</option>
+        {% for c in clientes %}
+        <option value="{{ c.id }}" {% if c.id | string == cliente_preseleccion %}selected{% endif %}>{{ c.nombre }}</option>
+        {% endfor %}
+      </select>
+      <a href="{{ url_for('clientes.nuevo', next=url_for('cartera.nueva')) }}" class="btn btn-outline-secondary text-nowrap">+ Nuevo cliente</a>
+    </div>
   </div>
   {% set preseleccion = (form.salida_id if form else salida_preseleccionada) | string %}
   <div class="mb-3">

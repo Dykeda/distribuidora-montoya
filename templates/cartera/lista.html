@@ -47,7 +47,7 @@
     {% for fila in facturas %}
     {% set f = fila.factura %}
     <tr>
-      <td>{{ f.cliente }}</td>
+      <td><a href="{{ url_for('clientes.detalle', cliente_id=f.cliente.id) }}">{{ f.cliente.nombre }}</a></td>
       <td>{{ f.fecha.strftime("%Y-%m-%d") }}</td>
       <td>
         {% if f.salida %}
@@ -78,7 +78,7 @@
         </form>
         {% endif %}
         <form method="post" action="{{ url_for('cartera.eliminar', factura_id=f.id) }}" class="d-inline"
-              onsubmit="return confirm('¿Eliminar la factura de {{ f.cliente }} por ${{ '{:,}'.format(f.monto) }}? Esto no se puede deshacer.');">
+              onsubmit="return confirm('¿Eliminar la factura de {{ f.cliente.nombre }} por ${{ '{:,}'.format(f.monto) }}? Esto no se puede deshacer.');">
           <button type="submit" class="btn btn-sm btn-outline-danger">Eliminar</button>
         </form>
       </td>

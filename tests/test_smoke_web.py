@@ -155,18 +155,31 @@ def test_flujo_completo(client):
     assert client.get("/camion/").status_code == 200
     assert client.get(f"/camion/{salida.id}").status_code == 200
 
+    # Clientes: se crean desde el catálogo antes de poder facturarles
+    assert client.get("/clientes/").status_code == 200
+    r = client.post("/clientes/nuevo", data={"nombre": "Tienda El Ahorro", "notas": ""}, follow_redirects=True)
+    assert r.status_code == 200
+    r = client.post("/clientes/nuevo", data={"nombre": "Tienda Vieja", "notas": ""}, follow_redirects=True)
+    assert r.status_code == 200
+
+    from models import Cliente
+
+    ahorro = Cliente.query.filter_by(nombre="Tienda El Ahorro").first()
+    vieja = Cliente.query.filter_by(nombre="Tienda Vieja").first()
+    assert ahorro is not None and vieja is not None
+
     # Cartera: factura pendiente ligada a esa misma ruta
     assert client.get("/cartera/nueva").status_code == 200
     r = client.post(
         "/cartera/nueva",
-        data={"cliente": "Tienda El Ahorro", "salida_id": str(salida.id), "fecha": HOY, "monto": "40000", "notas": ""},
+        data={"cliente_id": str(ahorro.id), "salida_id": str(salida.id), "fecha": HOY, "monto": "40000", "notas": ""},
         follow_redirects=True,
     )
     assert r.status_code == 200
 
     from models import FacturaCartera
 
-    factura = FacturaCartera.query.filter_by(cliente="Tienda El Ahorro").first()
+    factura = FacturaCartera.query.filter_by(cliente_id=ahorro.id).first()
     assert factura is not None and factura.estado == "pendiente"
 
     from services.cartera import total_pendiente
@@ -183,12 +196,12 @@ def test_flujo_completo(client):
     # Cartera: deuda anterior al sistema, sin ruta ligada
     r = client.post(
         "/cartera/nueva",
-        data={"cliente": "Tienda Vieja", "salida_id": "", "fecha": "2026-05-01", "monto": "120000", "notas": ""},
+        data={"cliente_id": str(vieja.id), "salida_id": "", "fecha": "2026-05-01", "monto": "120000", "notas": ""},
         follow_redirects=True,
     )
     assert r.status_code == 200
 
-    factura_vieja = FacturaCartera.query.filter_by(cliente="Tienda Vieja").first()
+    factura_vieja = FacturaCartera.query.filter_by(cliente_id=vieja.id).first()
     assert factura_vieja is not None and factura_vieja.salida_id is None
     assert total_pendiente() == 120000
     assert "Deuda anterior" in client.get("/cartera/").get_data(as_text=True)

@@ -89,13 +89,18 @@ sube solo a la nube — así no se pierde nada aunque el computador falle.
   te entrega producto a cambio de ese crédito. El botón "Ajustar saldo" sirve para cargar
   el crédito que ya tenías acumulado antes de empezar a usar el sistema (o para corregir
   el saldo si algo quedó mal).
-- **Cartera**: registra las facturas que los clientes te deben, y márcalas como pagadas
-  cuando te paguen. Si la deuda es de una ruta del camión ya registrada, elígela en el
-  formulario; si es una deuda de antes de usar el sistema, deja esa parte en blanco. Aquí
-  también ves cuánto dinero tienes pendiente por cobrar en total, agrupado por
-  antigüedad (0-15, 16-30, 31-60 y más de 60 días) y con los días pendientes de cada
-  factura, para que sea fácil ver qué deudas llevan más tiempo sin cobrarse. Cada factura
-  tiene botón "Eliminar" por si se registró mal.
+- **Clientes**: catálogo de clientes, para no reescribir el nombre cada vez que
+  registras una factura. Muestra cuántas facturas tiene cada uno y cuánto le queda
+  pendiente por cobrar — entra al detalle de un cliente para ver todo su historial
+  (pagadas y pendientes).
+- **Cartera**: registra las facturas que los clientes te deben (eliges el cliente de la
+  lista, o creas uno nuevo al vuelo con el botón "+ Nuevo cliente" sin perder lo que ya
+  llevabas escrito), y márcalas como pagadas cuando te paguen. Si la deuda es de una ruta
+  del camión ya registrada, elígela en el formulario; si es una deuda de antes de usar el
+  sistema, deja esa parte en blanco. Aquí también ves cuánto dinero tienes pendiente por
+  cobrar en total, agrupado por antigüedad (0-15, 16-30, 31-60 y más de 60 días) y con
+  los días pendientes de cada factura, para que sea fácil ver qué deudas llevan más
+  tiempo sin cobrarse. Cada factura tiene botón "Eliminar" por si se registró mal.
 - **Caja**: el saldo de efectivo día a día — se calcula solo (venta del camión menos lo
   que quedó en cartera sin cobrar, más venta directa en bodega, menos las salidas de
   dinero), no hay que registrar entradas aparte.
@@ -188,6 +193,24 @@ sube solo a la nube — así no se pierde nada aunque el computador falle.
   registrada en el sistema se liga a esa `salida_camion` (aparece en el detalle de esa
   ruta); si es una deuda de antes de usar el sistema, se deja en blanco. Ver
   `services/cartera.py`.
+- `Cliente` (`models.py`) es el catálogo de clientes — `FacturaCartera.cliente` **ya no
+  es texto libre**, es la relación a `Cliente` (`cliente_id` FK, mismo patrón que
+  `salida_id`/`salida` en el mismo modelo). Si se toca código viejo que asumía
+  `factura.cliente` como string, hay que cambiarlo a `factura.cliente.nombre`. Esto
+  revirtió una decisión explícita de v1 ("cliente en texto libre, sin catálogo") a pedido
+  del dueño. `services/clientes.py::resumen_clientes()` reusa
+  `services/cartera.py::total_pendiente(cliente_id=...)` para el total pendiente por
+  cliente. El campo `cliente_id` en `routes/cartera.py::nueva()` se puede preseleccionar
+  por querystring (`?cliente_id=`) — lo usa el botón "+ Nuevo cliente" para volver al
+  formulario de factura con el cliente recién creado ya elegido, sin perder el resto de
+  lo que se había escrito.
+- **Migración de bases existentes**: como `factura_cartera.cliente` pasó de texto libre a
+  `cliente_id`, las bases de datos que ya existían (creadas antes de este cambio)
+  necesitaron una migración puntual (`ALTER TABLE ... ADD COLUMN` + backfill creando un
+  `Cliente` por cada nombre distinto que ya existiera + `ALTER TABLE ... DROP COLUMN`
+  — SQLite 3.35+ lo soporta). No queda un script permanente en el repo; si hace falta
+  repetir este tipo de migración en el futuro, el patrón está documentado aquí para no
+  tener que redescubrirlo.
 - Antigüedad de cartera (`services/cartera.py::facturas_con_antiguedad()` y
   `resumen_antiguedad()`): los días pendientes de una factura se calculan al vuelo
   (`fecha_referencia - factura.fecha`, hoy por defecto), no se guardan — no hay campo de

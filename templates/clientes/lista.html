@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Clientes{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Clientes</h1>
+  <a href="{{ url_for('clientes.nuevo') }}" class="btn btn-primary">+ Nuevo cliente</a>
+</div>
+<p class="text-muted">Cuántas facturas de cartera tiene cada cliente y cuánto le queda
+  pendiente por pagar — dale clic a un cliente para ver el detalle de todas sus
+  facturas.</p>
+
+<div class="table-responsive">
+<table class="table table-striped align-middle">
+  <thead>
+    <tr>
+      <th>Cliente</th>
+      <th class="text-end">Facturas</th>
+      <th class="text-end">Pendiente por cobrar</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for f in filas %}
+    <tr>
+      <td><a href="{{ url_for('clientes.detalle', cliente_id=f.cliente.id) }}">{{ f.cliente.nombre }}</a></td>
+      <td class="text-end">{{ f.cantidad_facturas }}</td>
+      <td class="text-end {{ 'text-danger fw-bold' if f.total_pendiente > 0 }}">${{ "{:,}".format(f.total_pendiente) }}</td>
+      <td class="text-end">
+        <a href="{{ url_for('clientes.editar', cliente_id=f.cliente.id) }}" class="btn btn-sm btn-outline-primary">Editar</a>
+        <form method="post" action="{{ url_for('clientes.desactivar', cliente_id=f.cliente.id) }}" class="d-inline"
+              onsubmit="return confirm('¿Desactivar {{ f.cliente.nombre }}?');">
+          <button type="submit" class="btn btn-sm btn-outline-danger">Desactivar</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="4" class="text-center text-muted">No hay clientes registrados todavía.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}
