@@ -47,12 +47,23 @@ def calcular_stock(producto_id):
 
 
 def listar_stock_todos(solo_activos=True):
-    """Devuelve una lista de dicts {producto, stock_unidades} para todos los productos."""
+    """Devuelve una lista de dicts {producto, stock_unidades, cajas, unidades_sueltas}
+    para todos los productos — cajas/unidades_sueltas es como el negocio piensa el stock,
+    no en unidades sueltas totales."""
     query = Producto.query
     if solo_activos:
         query = query.filter_by(activo=True)
     productos = query.order_by(Producto.nombre).all()
-    return [{"producto": p, "stock_unidades": calcular_stock(p.id)} for p in productos]
+    filas = []
+    for p in productos:
+        stock = calcular_stock(p.id)
+        filas.append({
+            "producto": p,
+            "stock_unidades": stock,
+            "cajas": stock // p.unidades_por_caja,
+            "unidades_sueltas": stock % p.unidades_por_caja,
+        })
+    return filas
 
 
 def stock_en_camion(salida_id):

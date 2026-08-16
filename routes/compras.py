@@ -15,17 +15,22 @@ def listar():
     for c in compras:
         costo_total = sum(d.costo_linea for d in c.detalles)
         credito_total = sum(d.credito_generado for d in c.detalles)
-        unidades_total = sum(d.cantidad_comprada_unidades for d in c.detalles)
-        filas.append(
-            {"compra": c, "costo_total": costo_total, "credito_total": credito_total, "unidades_total": unidades_total}
-        )
+        filas.append({"compra": c, "costo_total": costo_total, "credito_total": credito_total})
     return render_template("compras/lista.html", filas=filas)
 
 
 @bp.route("/<int:compra_id>")
 def detalle(compra_id):
     compra = Compra.query.get_or_404(compra_id)
-    return render_template("compras/detalle.html", compra=compra)
+    filas = [
+        {
+            "detalle": d,
+            "cajas": d.cantidad_comprada_unidades // d.producto.unidades_por_caja,
+            "unidades_sueltas": d.cantidad_comprada_unidades % d.producto.unidades_por_caja,
+        }
+        for d in compra.detalles
+    ]
+    return render_template("compras/detalle.html", compra=compra, filas=filas)
 
 
 @bp.route("/<int:compra_id>/eliminar", methods=["POST"])

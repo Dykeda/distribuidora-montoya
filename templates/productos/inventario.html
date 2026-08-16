@@ -13,8 +13,8 @@
     <tr>
       <th>Producto</th>
       <th>Categoría</th>
-      <th class="text-end">Stock (unidades)</th>
-      <th class="text-end">Stock (cajas)</th>
+      <th class="text-end">Cajas</th>
+      <th class="text-end">Unidades sueltas</th>
     </tr>
   </thead>
   <tbody>
@@ -22,12 +22,8 @@
     <tr class="{{ 'table-warning' if fila.stock_unidades < fila.producto.unidades_por_caja else '' }}">
       <td>{{ fila.producto.nombre }}</td>
       <td>{{ fila.producto.categoria or "-" }}</td>
-      <td class="text-end">{{ fila.stock_unidades }}</td>
-      <td class="text-end">
-        {% if fila.producto.unidades_por_caja %}
-          {{ "%.1f"|format(fila.stock_unidades / fila.producto.unidades_por_caja) }}
-        {% else %}-{% endif %}
-      </td>
+      <td class="text-end">{{ fila.cajas }}</td>
+      <td class="text-end">{{ fila.unidades_sueltas }}</td>
     </tr>
     {% else %}
     <tr><td colspan="4" class="text-center text-muted">No hay productos todavía.</td></tr>

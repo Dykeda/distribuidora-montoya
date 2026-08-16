@@ -72,3 +72,30 @@ def test_nueva_compra_combina_cajas_y_unidades_sueltas(db, client):
     )
     assert r.status_code == 200
     assert calcular_stock(coca.id) == 15  # 2*6 + 3
+
+
+def test_lista_y_detalle_de_compra_muestran_cajas_y_unidades_por_separado(db, client):
+    coca = crear_producto(db)  # 6 unidades por caja
+    compra = Compra(fecha=date(2026, 8, 5))
+    db.session.add(compra)
+    db.session.flush()
+    db.session.add(
+        CompraDetalle(
+            compra_id=compra.id, producto_id=coca.id, cantidad_comprada_unidades=15,
+            costo_linea=45000, tasa_descuento_aplicada=0.0,
+        )
+    )
+    db.session.commit()
+
+    r = client.get("/compras/")
+    body = r.get_data(as_text=True)
+    assert r.status_code == 200
+    assert "Unidades compradas" not in body
+
+    r = client.get(f"/compras/{compra.id}")
+    body = r.get_data(as_text=True)
+    assert r.status_code == 200
+    assert "Cajas" in body and "Unidades sueltas" in body
+    # 15 unidades = 2 cajas + 3 sueltas (6 u/caja)
+    assert ">2<" in body
+    assert ">3<" in body

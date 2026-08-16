@@ -102,3 +102,30 @@ def test_eliminar_producto_con_movimientos_se_bloquea(client, db):
     assert r.status_code == 200
     # sigue existiendo -- no se pudo eliminar por tener movimientos
     assert Producto.query.get(producto_id) is not None
+
+
+def test_inventario_muestra_cajas_y_unidades_sueltas_no_total(client, db):
+    crear_producto(client, unidades_por_caja="6")
+    from datetime import date
+    from models import Producto, Compra, CompraDetalle
+
+    p = Producto.query.filter_by(nombre="Coca-Cola 1.5L").first()
+    compra = Compra(fecha=date(2026, 8, 1))
+    db.session.add(compra)
+    db.session.flush()
+    db.session.add(
+        CompraDetalle(
+            compra_id=compra.id, producto_id=p.id, cantidad_comprada_unidades=15,
+            costo_linea=45000, tasa_descuento_aplicada=0.0,
+        )
+    )
+    db.session.commit()
+
+    r = client.get("/productos/inventario")
+    body = r.get_data(as_text=True)
+    assert r.status_code == 200
+    assert "Cajas" in body and "Unidades sueltas" in body
+    assert "Stock (unidades)" not in body
+    # 15 unidades = 2 cajas + 3 sueltas (6 u/caja)
+    assert ">2<" in body
+    assert ">3<" in body

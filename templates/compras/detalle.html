@@ -15,27 +15,29 @@
   <thead>
     <tr>
       <th>Producto</th>
-      <th class="text-end">Cantidad (unidades)</th>
+      <th class="text-end">Cajas</th>
+      <th class="text-end">Unidades sueltas</th>
       <th class="text-end">Costo</th>
       <th class="text-end">Tasa descuento</th>
       <th class="text-end">Crédito generado</th>
     </tr>
   </thead>
   <tbody>
-    {% for d in compra.detalles %}
+    {% for f in filas %}
     <tr>
-      <td>{{ d.producto.nombre }}</td>
-      <td class="text-end">{{ d.cantidad_comprada_unidades }}</td>
-      <td class="text-end">${{ "{:,}".format(d.costo_linea) }}</td>
-      <td class="text-end">{{ d.tasa_descuento_aplicada }}%</td>
-      <td class="text-end">${{ "{:,}".format(d.credito_generado) }}</td>
+      <td>{{ f.detalle.producto.nombre }}</td>
+      <td class="text-end">{{ f.cajas }}</td>
+      <td class="text-end">{{ f.unidades_sueltas }}</td>
+      <td class="text-end">${{ "{:,}".format(f.detalle.costo_linea) }}</td>
+      <td class="text-end">{{ f.detalle.tasa_descuento_aplicada }}%</td>
+      <td class="text-end">${{ "{:,}".format(f.detalle.credito_generado) }}</td>
     </tr>
     {% endfor %}
   </tbody>
   <tfoot>
     <tr class="fw-bold">
       <td>Total</td>
-      <td class="text-end">{{ compra.detalles | sum(attribute="cantidad_comprada_unidades") }}</td>
+      <td class="text-end" colspan="2"></td>
       <td class="text-end">${{ "{:,}".format(compra.detalles | sum(attribute="costo_linea")) }}</td>
       <td></td>
       <td class="text-end">${{ "{:,}".format(compra.detalles | sum(attribute="credito_generado")) }}</td>
