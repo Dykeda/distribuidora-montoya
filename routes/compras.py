@@ -4,6 +4,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 
 from extensions import db
 from models import Producto, Compra, CompraDetalle
+from services.inventario import cajas_y_unidades
 
 bp = Blueprint("compras", __name__, url_prefix="/compras")
 
@@ -22,14 +23,10 @@ def listar():
 @bp.route("/<int:compra_id>")
 def detalle(compra_id):
     compra = Compra.query.get_or_404(compra_id)
-    filas = [
-        {
-            "detalle": d,
-            "cajas": d.cantidad_comprada_unidades // d.producto.unidades_por_caja,
-            "unidades_sueltas": d.cantidad_comprada_unidades % d.producto.unidades_por_caja,
-        }
-        for d in compra.detalles
-    ]
+    filas = []
+    for d in compra.detalles:
+        cajas, unidades_sueltas = cajas_y_unidades(d.producto, d.cantidad_comprada_unidades)
+        filas.append({"detalle": d, "cajas": cajas, "unidades_sueltas": unidades_sueltas})
     return render_template("compras/detalle.html", compra=compra, filas=filas)
 
 

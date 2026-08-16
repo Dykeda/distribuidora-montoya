@@ -46,6 +46,16 @@ def calcular_stock(producto_id):
     return comprado - salido - recargado + regresado + canjeado - vendido_bodega
 
 
+def cajas_y_unidades(producto, stock):
+    """Desglosa un stock en unidades en (cajas, unidades_sueltas), respetando si el
+    producto realmente se maneja por cajas. Un producto con maneja_cajas=False (ej. bolsas
+    de agua sueltas) no se empaca en cajas, así que todo el stock va como unidades sueltas
+    aunque unidades_por_caja sea 1 — de lo contrario se vería como "cajas" por error."""
+    if not producto.maneja_cajas:
+        return 0, stock
+    return stock // producto.unidades_por_caja, stock % producto.unidades_por_caja
+
+
 def listar_stock_todos(solo_activos=True):
     """Devuelve una lista de dicts {producto, stock_unidades, cajas, unidades_sueltas}
     para todos los productos — cajas/unidades_sueltas es como el negocio piensa el stock,
@@ -57,11 +67,12 @@ def listar_stock_todos(solo_activos=True):
     filas = []
     for p in productos:
         stock = calcular_stock(p.id)
+        cajas, unidades_sueltas = cajas_y_unidades(p, stock)
         filas.append({
             "producto": p,
             "stock_unidades": stock,
-            "cajas": stock // p.unidades_por_caja,
-            "unidades_sueltas": stock % p.unidades_por_caja,
+            "cajas": cajas,
+            "unidades_sueltas": unidades_sueltas,
         })
     return filas
 

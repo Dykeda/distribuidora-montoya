@@ -99,3 +99,28 @@ def test_lista_y_detalle_de_compra_muestran_cajas_y_unidades_por_separado(db, cl
     # 15 unidades = 2 cajas + 3 sueltas (6 u/caja)
     assert ">2<" in body
     assert ">3<" in body
+
+
+def test_detalle_de_compra_producto_sin_cajas_muestra_todo_como_unidades_sueltas(db, client):
+    agua = Producto(nombre="Agua Bolsa 6 Lts", unidades_por_caja=1, maneja_cajas=False, maneja_unidades=True)
+    db.session.add(agua)
+    db.session.flush()
+    db.session.add(ProductoPrecio(producto_id=agua.id, precio_venta_unidad=1000, precio_venta_caja=1000, vigente_desde=date(2026, 1, 1)))
+    db.session.commit()
+
+    compra = Compra(fecha=date(2026, 8, 16))
+    db.session.add(compra)
+    db.session.flush()
+    db.session.add(
+        CompraDetalle(compra_id=compra.id, producto_id=agua.id, cantidad_comprada_unidades=8, costo_linea=8000, tasa_descuento_aplicada=0.0)
+    )
+    db.session.commit()
+
+    r = client.get(f"/compras/{compra.id}")
+    body = r.get_data(as_text=True)
+    assert r.status_code == 200
+    # 8 unidades sueltas, 0 cajas -- no debe verse "8" en la columna de Cajas
+    filas = body.split("<tr>")
+    fila_agua = next(f for f in filas if "Agua Bolsa 6 Lts" in f)
+    assert ">0<" in fila_agua
+    assert ">8<" in fila_agua

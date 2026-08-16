@@ -19,7 +19,7 @@
   </thead>
   <tbody>
     {% for fila in filas %}
-    <tr class="{{ 'table-warning' if fila.stock_unidades < fila.producto.unidades_por_caja else '' }}">
+    <tr class="{{ 'table-warning' if fila.producto.maneja_cajas and fila.stock_unidades < fila.producto.unidades_por_caja else '' }}">
       <td>{{ fila.producto.nombre }}</td>
       <td>{{ fila.producto.categoria or "-" }}</td>
       <td class="text-end">{{ fila.cajas }}</td>
