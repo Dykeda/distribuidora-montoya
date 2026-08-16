@@ -50,12 +50,13 @@
       <select name="producto_id[]" class="form-select" required>
         <option value="">-- elegir --</option>
         {% for p in productos %}
-        <option value="{{ p.id }}" data-tasa="{{ p.tasa_descuento_referencia }}">{{ p.nombre }}</option>
+        <option value="{{ p.id }}" data-tasa="{{ p.tasa_descuento_referencia }}"
+                data-precio-caja="{{ p.precio_caja_actual() or 0 }}" data-precio-unidad="{{ p.precio_actual() or 0 }}">{{ p.nombre }}</option>
         {% endfor %}
       </select>
     </td>
-    <td><input type="number" step="1" min="0" name="cajas[]" class="form-control" value="0"></td>
-    <td><input type="number" step="1" min="0" name="unidades[]" class="form-control" value="0"></td>
+    <td><input type="number" step="1" min="0" name="cajas[]" class="form-control cajas-input" value="0"></td>
+    <td><input type="number" step="1" min="0" name="unidades[]" class="form-control unidades-input" value="0"></td>
     <td><input type="number" min="0" name="costo_linea[]" class="form-control" required></td>
     <td><input type="number" step="0.1" min="0" name="tasa_descuento[]" class="form-control" value="0"></td>
     <td><button type="button" class="btn btn-sm btn-outline-danger btn-quitar-linea">&times;</button></td>
@@ -66,16 +67,31 @@
   const cuerpo = document.getElementById("cuerpo-lineas");
   const plantilla = document.getElementById("plantilla-linea");
 
+  function recalcularCosto(fila) {
+    const opcion = fila.querySelector('select[name="producto_id[]"]').selectedOptions[0];
+    const costoInput = fila.querySelector('input[name="costo_linea[]"]');
+    if (!opcion || !opcion.value) return;
+    const cajas = parseFloat(fila.querySelector(".cajas-input").value) || 0;
+    const unidades = parseFloat(fila.querySelector(".unidades-input").value) || 0;
+    const precioCaja = parseFloat(opcion.dataset.precioCaja) || 0;
+    const precioUnidad = parseFloat(opcion.dataset.precioUnidad) || 0;
+    costoInput.value = Math.round(cajas * precioCaja + unidades * precioUnidad);
+  }
+
   function agregarLinea() {
     const nodo = plantilla.content.cloneNode(true);
     nodo.querySelector(".btn-quitar-linea").addEventListener("click", (e) => {
       e.target.closest("tr").remove();
     });
-    nodo.querySelector('select[name="producto_id[]"]').addEventListener("change", (e) => {
+    const fila = nodo.querySelector("tr");
+    fila.querySelector('select[name="producto_id[]"]').addEventListener("change", (e) => {
       const opcion = e.target.selectedOptions[0];
-      const tasaInput = e.target.closest("tr").querySelector('input[name="tasa_descuento[]"]');
+      const tasaInput = fila.querySelector('input[name="tasa_descuento[]"]');
       tasaInput.value = opcion ? (opcion.dataset.tasa || 0) : 0;
+      recalcularCosto(fila);
     });
+    fila.querySelector(".cajas-input").addEventListener("input", () => recalcularCosto(fila));
+    fila.querySelector(".unidades-input").addEventListener("input", () => recalcularCosto(fila));
     cuerpo.appendChild(nodo);
   }
 
