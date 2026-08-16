@@ -51,3 +51,24 @@ def test_eliminar_compra_borra_sus_lineas_y_recalcula_credito_e_inventario(db, c
 
 def test_eliminar_compra_inexistente_da_404(client):
     assert client.post("/compras/999/eliminar").status_code == 404
+
+
+def test_nueva_compra_combina_cajas_y_unidades_sueltas(db, client):
+    coca = crear_producto(db)  # 6 unidades por caja
+
+    r = client.post(
+        "/compras/nueva",
+        data={
+            "fecha": "2026-08-16",
+            "numero_factura": "",
+            "notas": "",
+            "producto_id[]": [str(coca.id)],
+            "cajas[]": ["2"],
+            "unidades[]": ["3"],
+            "costo_linea[]": ["45000"],
+            "tasa_descuento[]": ["0"],
+        },
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+    assert calcular_stock(coca.id) == 15  # 2*6 + 3

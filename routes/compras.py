@@ -49,8 +49,8 @@ def nueva():
             fecha = date.today()
 
         producto_ids = request.form.getlist("producto_id[]")
-        cantidades = request.form.getlist("cantidad[]")
-        tipos = request.form.getlist("tipo_cantidad[]")
+        cajas_lista = request.form.getlist("cajas[]")
+        unidades_lista = request.form.getlist("unidades[]")
         costos = request.form.getlist("costo_linea[]")
         tasas = request.form.getlist("tasa_descuento[]")
 
@@ -61,8 +61,8 @@ def nueva():
                 continue
             try:
                 producto = db.session.get(Producto, int(pid))
-                cantidad = float(cantidades[i])
-                tipo = tipos[i]
+                cajas = float(cajas_lista[i] or 0)
+                unidades = float(unidades_lista[i] or 0)
                 costo = int(costos[i])
                 tasa = float(tasas[i] or 0)
             except (ValueError, IndexError, TypeError):
@@ -73,8 +73,7 @@ def nueva():
                 errores.append(f"Línea {i + 1}: producto no encontrado.")
                 continue
 
-            factor = producto.unidades_por_caja if tipo == "caja" else 1
-            cantidad_unidades = round(cantidad * factor)
+            cantidad_unidades = round(cajas * producto.unidades_por_caja + unidades)
             if cantidad_unidades <= 0:
                 errores.append(f"Línea {i + 1}: la cantidad debe ser mayor a cero.")
                 continue
