@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Canje {{ canje.fecha }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Canje del {{ canje.fecha.strftime("%Y-%m-%d") }}</h1>
+  <form method="post" action="{{ url_for('descuentos.canje_eliminar', canje_id=canje.id) }}"
+        onsubmit="return confirm('¿Eliminar este canje completo? Esto también reduce el inventario y devuelve el crédito usado, y no se puede deshacer.');">
+    <button type="submit" class="btn btn-outline-danger btn-sm">Eliminar canje completo</button>
+  </form>
+</div>
+{% if canje.notas %}<p class="text-muted">{{ canje.notas }}</p>{% endif %}
+
+<div class="table-responsive">
+<table class="table table-striped align-middle">
+  <thead>
+    <tr>
+      <th>Producto</th>
+      <th class="text-end">Cajas</th>
+      <th class="text-end">Unidades sueltas</th>
+      <th class="text-end">Valor usado</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for f in filas %}
+    <tr>
+      <td>{{ f.detalle.producto.nombre }}</td>
+      <td class="text-end">{{ f.cajas }}</td>
+      <td class="text-end">{{ f.unidades_sueltas }}</td>
+      <td class="text-end">${{ "{:,}".format(f.detalle.valor_usado) }}</td>
+      <td class="text-end">
+        <a href="{{ url_for('descuentos.canje_linea_editar', canje_id=canje.id, detalle_id=f.detalle.id) }}" class="btn btn-sm btn-outline-secondary">Editar</a>
+        <form method="post" action="{{ url_for('descuentos.canje_linea_eliminar', canje_id=canje.id, detalle_id=f.detalle.id) }}" class="d-inline"
+              onsubmit="return confirm('¿Quitar {{ f.detalle.producto.nombre }} de este canje?');">
+          <button type="submit" class="btn btn-sm btn-outline-danger">Eliminar</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+  <tfoot>
+    <tr class="fw-bold">
+      <td colspan="3">Total</td>
+      <td class="text-end">${{ "{:,}".format(canje.detalles | sum(attribute="valor_usado")) }}</td>
+      <td></td>
+    </tr>
+  </tfoot>
+</table>
+</div>
+<a href="{{ url_for('descuentos.listar') }}" class="btn btn-link">&larr; Volver</a>
+{% endblock %}

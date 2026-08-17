@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Editar producto del canje{% endblock %}
+{% block content %}
+<h1 class="h3 mb-1">Editar producto del canje</h1>
+<p class="text-muted">{{ canje.fecha.strftime("%Y-%m-%d") }} &mdash; {{ producto.nombre }}</p>
+
+<form method="post">
+  <div class="row col-lg-6 mb-3">
+    <div class="col-md-6">
+      <label class="form-label">Cajas</label>
+      <input type="number" step="1" min="0" name="cajas" class="form-control" value="{{ cajas_actual }}">
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">Unidades sueltas</label>
+      <input type="number" step="1" min="0" name="unidades" class="form-control" value="{{ unidades_actual }}">
+    </div>
+  </div>
+  <button type="submit" class="btn btn-primary">Guardar cambios</button>
+  <a href="{{ url_for('descuentos.canje_detalle', canje_id=canje.id) }}" class="btn btn-link">Cancelar</a>
+</form>
+{% endblock %}

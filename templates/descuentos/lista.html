@@ -19,16 +19,17 @@
 <h2 class="h5">Historial de canjes</h2>
 <div class="table-responsive">
 <table class="table table-striped align-middle">
-  <thead><tr><th>Fecha</th><th>Notas</th><th class="text-end">Valor canjeado</th></tr></thead>
+  <thead><tr><th>Fecha</th><th>Notas</th><th class="text-end">Valor canjeado</th><th></th></tr></thead>
   <tbody>
     {% for f in filas %}
     <tr>
       <td>{{ f.canje.fecha.strftime("%Y-%m-%d") }}</td>
       <td>{{ f.canje.notas or "-" }}</td>
       <td class="text-end">${{ "{:,}".format(f.valor_total) }}</td>
+      <td class="text-end"><a href="{{ url_for('descuentos.canje_detalle', canje_id=f.canje.id) }}" class="btn btn-sm btn-outline-primary">Ver detalle</a></td>
     </tr>
     {% else %}
-    <tr><td colspan="3" class="text-center text-muted">No hay canjes registrados todavía.</td></tr>
+    <tr><td colspan="4" class="text-center text-muted">No hay canjes registrados todavía.</td></tr>
     {% endfor %}
   </tbody>
 </table>
