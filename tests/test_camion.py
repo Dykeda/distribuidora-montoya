@@ -73,3 +73,50 @@ def test_retorno_no_permite_mas_de_lo_cargado(db, client):
     from models import RetornoCamion
 
     assert RetornoCamion.query.filter_by(salida_id=salida.id).first() is None
+
+
+def test_salida_combina_cajas_y_unidades_sueltas(db, client):
+    coca = crear_producto(db, unidades_por_caja=6)
+
+    r = client.post(
+        "/camion/salida/nueva",
+        data={
+            "fecha": HOY, "notas": "",
+            "producto_id[]": [str(coca.id)],
+            "cajas[]": ["4"],
+            "unidades[]": ["2"],
+        },
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+    # 4 cajas * 6 + 2 sueltas = 26 unidades cargadas
+    assert calcular_stock(coca.id) == -26
+
+
+def test_detalle_de_ruta_muestra_cajas_y_unidades_de_carga_y_venta(db, client):
+    coca = crear_producto(db, unidades_por_caja=6, precio=3000)
+    salida = SalidaCamion(fecha=date(2026, 8, 1))
+    db.session.add(salida)
+    db.session.flush()
+    # 26 unidades cargadas = 4 cajas + 2 sueltas
+    db.session.add(SalidaCamionDetalle(salida_id=salida.id, producto_id=coca.id, cantidad_unidades=26))
+    db.session.commit()
+
+    r = client.get(f"/camion/{salida.id}")
+    body = r.get_data(as_text=True)
+    assert r.status_code == 200
+    assert ">4<" in body and ">2<" in body  # carga: 4 cajas + 2 sueltas
+
+    # se vende todo (retorno en 0)
+    r = client.post(
+        f"/camion/retorno/nueva/{salida.id}",
+        data={"fecha": HOY, "notas": "", f"regreso_cajas_{coca.id}": "0", f"regreso_unidades_{coca.id}": "0"},
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+
+    r = client.get(f"/camion/{salida.id}")
+    body = r.get_data(as_text=True)
+    assert r.status_code == 200
+    assert "Cajas" in body and "Unidades sueltas" in body
+    assert ">78,000<" in body or "78,000" in body  # 26 * 3000

@@ -105,8 +105,8 @@ def test_flujo_completo(client):
             "fecha": HOY,
             "notas": "",
             "producto_id[]": [str(coca.id)],
-            "cantidad[]": ["5"],
-            "tipo_cantidad[]": ["caja"],
+            "cajas[]": ["5"],
+            "unidades[]": ["0"],
         },
         follow_redirects=True,
     )
@@ -230,8 +230,8 @@ def test_flujo_completo(client):
             "fecha": HOY,
             "notas": "Ruta Sur",
             "producto_id[]": [str(coca.id)],
-            "cantidad[]": ["2"],
-            "tipo_cantidad[]": ["caja"],
+            "cajas[]": ["2"],
+            "unidades[]": ["0"],
         },
         follow_redirects=True,
     )
@@ -248,8 +248,8 @@ def test_flujo_completo(client):
             "fecha": HOY,
             "notas": "",
             "producto_id[]": [str(coca.id)],
-            "cantidad[]": ["1"],
-            "tipo_cantidad[]": ["caja"],
+            "cajas[]": ["1"],
+            "unidades[]": ["0"],
         },
         follow_redirects=True,
     )

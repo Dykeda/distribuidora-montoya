@@ -14,6 +14,7 @@ from models import (
     RecargaCamionDetalle,
 )
 from services.ventas import venta_por_salida, rutas_en_transito, cargado_por_producto
+from services.inventario import cajas_y_unidades
 from services.fechas import MESES_ES
 
 bp = Blueprint("camion", __name__, url_prefix="/camion")
@@ -29,8 +30,8 @@ def _parsear_fecha(nombre_campo):
 
 def _parsear_lineas(producto_por_id):
     producto_ids = request.form.getlist("producto_id[]")
-    cantidades = request.form.getlist("cantidad[]")
-    tipos = request.form.getlist("tipo_cantidad[]")
+    cajas_lista = request.form.getlist("cajas[]")
+    unidades_lista = request.form.getlist("unidades[]")
 
     lineas, errores = [], []
     for i, pid in enumerate(producto_ids):
@@ -38,16 +39,15 @@ def _parsear_lineas(producto_por_id):
             continue
         try:
             producto = producto_por_id.get(int(pid))
-            cantidad = float(cantidades[i])
-            tipo = tipos[i]
+            cajas = float(cajas_lista[i] or 0)
+            unidades = float(unidades_lista[i] or 0)
         except (ValueError, IndexError, TypeError):
             errores.append(f"Línea {i + 1}: datos inválidos.")
             continue
         if producto is None:
             errores.append(f"Línea {i + 1}: producto no encontrado.")
             continue
-        factor = producto.unidades_por_caja if tipo == "caja" else 1
-        cantidad_unidades = round(cantidad * factor)
+        cantidad_unidades = round(cajas * producto.unidades_por_caja + unidades)
         if cantidad_unidades <= 0:
             errores.append(f"Línea {i + 1}: la cantidad debe ser mayor a cero.")
             continue
@@ -80,11 +80,34 @@ def listar():
     return render_template("camion/lista.html", filas=filas, anio=anio, mes=mes, meses=MESES_ES)
 
 
+def _con_cajas_y_unidades(items, cantidad_attr):
+    filas = []
+    for item in items:
+        cajas, unidades_sueltas = cajas_y_unidades(item["producto"], item[cantidad_attr])
+        filas.append({**item, "cajas": cajas, "unidades_sueltas": unidades_sueltas})
+    return filas
+
+
 @bp.route("/<int:salida_id>")
 def detalle(salida_id):
     salida = SalidaCamion.query.get_or_404(salida_id)
+
+    carga = []
+    for d in salida.detalles:
+        cajas, unidades_sueltas = cajas_y_unidades(d.producto, d.cantidad_unidades)
+        carga.append({"detalle": d, "cajas": cajas, "unidades_sueltas": unidades_sueltas})
+
+    recargas = []
+    for r in salida.recargas:
+        for d in r.detalles:
+            cajas, unidades_sueltas = cajas_y_unidades(d.producto, d.cantidad_unidades)
+            recargas.append({"recarga": r, "detalle": d, "cajas": cajas, "unidades_sueltas": unidades_sueltas})
+
     venta = venta_por_salida(salida_id)
-    return render_template("camion/detalle.html", salida=salida, venta=venta)
+    if venta is not None:
+        venta = _con_cajas_y_unidades(venta, "cantidad_vendida")
+
+    return render_template("camion/detalle.html", salida=salida, carga=carga, recargas=recargas, venta=venta)
 
 
 @bp.route("/salida/nueva", methods=["GET", "POST"])
@@ -131,11 +154,12 @@ def retorno_nueva(salida_id):
     filas = []
     for pid, cant in cargado.items():
         producto = db.session.get(Producto, pid)
+        cajas_cargadas, unidades_sueltas_cargadas = cajas_y_unidades(producto, cant)
         filas.append({
             "producto": producto,
             "cantidad_cargada": cant,
-            "cajas_cargadas": cant // producto.unidades_por_caja,
-            "unidades_sueltas_cargadas": cant % producto.unidades_por_caja,
+            "cajas_cargadas": cajas_cargadas,
+            "unidades_sueltas_cargadas": unidades_sueltas_cargadas,
         })
 
     if request.method == "POST":
