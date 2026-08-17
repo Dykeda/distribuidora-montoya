@@ -25,12 +25,18 @@
   </thead>
   <tbody>
     {% for f in filas %}
-    <tr>
+    {% set faltante = (f.detalle.producto.tasa_descuento_referencia - f.detalle.tasa_descuento_aplicada) | round(1) %}
+    <tr class="{{ 'table-danger' if faltante > 0 else '' }}">
       <td>{{ f.detalle.producto.nombre }}</td>
       <td class="text-end">{{ f.cajas }}</td>
       <td class="text-end">{{ f.unidades_sueltas }}</td>
       <td class="text-end">${{ "{:,}".format(f.detalle.costo_linea) }}</td>
-      <td class="text-end">{{ f.detalle.tasa_descuento_aplicada }}%</td>
+      <td class="text-end">
+        {{ f.detalle.tasa_descuento_aplicada }}%
+        {% if faltante > 0 %}
+          <span class="text-danger d-block small">faltó, esperado {{ f.detalle.producto.tasa_descuento_referencia }}%</span>
+        {% endif %}
+      </td>
       <td class="text-end">${{ "{:,}".format(f.detalle.credito_generado) }}</td>
       <td class="text-end">
         <a href="{{ url_for('compras.linea_editar', compra_id=compra.id, detalle_id=f.detalle.id) }}" class="btn btn-sm btn-outline-secondary">Editar</a>

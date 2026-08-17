@@ -46,6 +46,7 @@ def create_app(config_overrides=None):
     from routes.gastos import bp as gastos_bp
     from routes.venta_diaria import bp as venta_diaria_bp
     from routes.reportes import bp as reportes_bp
+    from routes.postobon import bp as postobon_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
@@ -60,6 +61,7 @@ def create_app(config_overrides=None):
     app.register_blueprint(gastos_bp)
     app.register_blueprint(venta_diaria_bp)
     app.register_blueprint(reportes_bp)
+    app.register_blueprint(postobon_bp)
 
     @app.before_request
     def exigir_login():
