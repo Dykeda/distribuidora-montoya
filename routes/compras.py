@@ -26,7 +26,15 @@ def detalle(compra_id):
     for d in compra.detalles:
         cajas, unidades_sueltas = cajas_y_unidades(d.producto, d.cantidad_comprada_unidades)
         filas.append({"detalle": d, "cajas": cajas, "unidades_sueltas": unidades_sueltas})
-    return render_template("compras/detalle.html", compra=compra, filas=filas)
+
+    costo_total = sum(d.costo_linea for d in compra.detalles)
+    descuento_total = sum(d.costo_linea for d in compra.detalles if d.es_descuento)
+    total = costo_total - descuento_total
+
+    return render_template(
+        "compras/detalle.html", compra=compra, filas=filas,
+        costo_total=costo_total, descuento_total=descuento_total, total=total,
+    )
 
 
 @bp.route("/<int:compra_id>/eliminar", methods=["POST"])

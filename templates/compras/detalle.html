@@ -51,12 +51,28 @@
   </tbody>
   <tfoot>
     <tr class="fw-bold">
-      <td>Total</td>
+      <td>Costo total</td>
       <td class="text-end" colspan="2"></td>
-      <td class="text-end">${{ "{:,}".format(compra.detalles | sum(attribute="costo_linea")) }}</td>
+      <td class="text-end">${{ "{:,}".format(costo_total) }}</td>
       <td></td>
       <td></td>
     </tr>
+    {% if descuento_total %}
+    <tr>
+      <td>Descuento (líneas marcadas)</td>
+      <td class="text-end" colspan="2"></td>
+      <td class="text-end text-danger">−${{ "{:,}".format(descuento_total) }}</td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr class="fw-bold border-top">
+      <td>Total</td>
+      <td class="text-end" colspan="2"></td>
+      <td class="text-end">${{ "{:,}".format(total) }}</td>
+      <td></td>
+      <td></td>
+    </tr>
+    {% endif %}
   </tfoot>
 </table>
 </div>
