@@ -127,15 +127,20 @@ def test_flujo_completo(client):
     assert r.status_code == 200
     assert calcular_stock(coca.id) == 36
 
-    # Canje de descuento: 3 unidades de Agua Cristal (9000 COP exacto)
+    # Compra marcada como descuento: 3 unidades de Agua Cristal (9000 COP), la parte de
+    # descuento en producto de una factura -- no se "canjea" aparte, se marca al cargarla
     r = client.post(
-        "/descuentos/canje/nuevo",
+        "/compras/nueva",
         data={
             "fecha": HOY,
+            "numero_factura": "F-002",
             "notas": "",
             "producto_id[]": [str(agua.id)],
-            "cantidad[]": ["3"],
-            "tipo_cantidad[]": ["unidad"],
+            "cajas[]": ["0"],
+            "unidades[]": ["3"],
+            "costo_linea[]": ["9000"],
+            "tasa_descuento[]": ["0"],
+            "es_descuento[]": ["1"],
         },
         follow_redirects=True,
     )
@@ -148,8 +153,8 @@ def test_flujo_completo(client):
     r = client.get(f"/reportes/?anio={hoy.year}&mes={hoy.month}")
     assert r.status_code == 200
     body = r.get_data(as_text=True)
-    assert "180,000" in body  # compra total
-    assert "9,000" in body  # credito generado / canjeado
+    assert "189,000" in body  # compra total (180,000 Coca-Cola + 9,000 Agua marcada como descuento)
+    assert "9,000" in body  # descuento contabilizado
     assert "72,000" in body  # venta total
 
     assert client.get("/camion/").status_code == 200
@@ -220,7 +225,7 @@ def test_flujo_completo(client):
         follow_redirects=True,
     )
     assert r.status_code == 200
-    assert calcular_stock(agua.id) == 1  # tenía 3 por el canje, vendió 2 en bodega
+    assert calcular_stock(agua.id) == 1  # tenía 3 por la compra marcada descuento, vendió 2 en bodega
     assert client.get("/bodega/").status_code == 200
 
     # Recarga a camión: segunda salida, sin cerrar, para probar el flujo completo

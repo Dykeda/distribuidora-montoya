@@ -16,6 +16,7 @@ def listar_faltantes(fecha_inicio, fecha_fin):
         .join(Producto)
         .filter(Compra.fecha >= fecha_inicio, Compra.fecha <= fecha_fin)
         .filter(Compra.numero_factura.isnot(None))
+        .filter(CompraDetalle.es_descuento.is_(False))
         .order_by(Compra.fecha.desc())
         .all()
     )

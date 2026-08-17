@@ -3,7 +3,7 @@ from datetime import date
 import pytest
 
 from models import Producto, ProductoPrecio, Compra, CompraDetalle
-from services.descuentos import credito_generado_periodo
+from services.descuentos import total_descuento_periodo
 from services.inventario import calcular_stock
 
 
@@ -23,7 +23,7 @@ def crear_producto(db, nombre="Coca-Cola 1.5L", precio=3000):
     return p
 
 
-def test_eliminar_compra_borra_sus_lineas_y_recalcula_credito_e_inventario(db, client):
+def test_eliminar_compra_borra_sus_lineas_y_recalcula_descuento_e_inventario(db, client):
     coca = crear_producto(db)
     compra = Compra(fecha=date(2026, 8, 5), numero_factura="F-001")
     db.session.add(compra)
@@ -31,13 +31,13 @@ def test_eliminar_compra_borra_sus_lineas_y_recalcula_credito_e_inventario(db, c
     db.session.add(
         CompraDetalle(
             compra_id=compra.id, producto_id=coca.id, cantidad_comprada_unidades=60,
-            costo_linea=180000, tasa_descuento_aplicada=5.0,
+            costo_linea=180000, tasa_descuento_aplicada=5.0, es_descuento=True,
         )
     )
     db.session.commit()
     compra_id = compra.id
 
-    assert credito_generado_periodo(date(2026, 8, 1), date(2026, 8, 31)) == 9000
+    assert total_descuento_periodo(date(2026, 8, 1), date(2026, 8, 31)) == 180000
     assert calcular_stock(coca.id) == 60
 
     r = client.post(f"/compras/{compra_id}/eliminar", follow_redirects=True)
@@ -45,7 +45,7 @@ def test_eliminar_compra_borra_sus_lineas_y_recalcula_credito_e_inventario(db, c
 
     assert Compra.query.get(compra_id) is None
     assert CompraDetalle.query.filter_by(compra_id=compra_id).count() == 0
-    assert credito_generado_periodo(date(2026, 8, 1), date(2026, 8, 31)) == 0
+    assert total_descuento_periodo(date(2026, 8, 1), date(2026, 8, 31)) == 0
     assert calcular_stock(coca.id) == 0
 
 

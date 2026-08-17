@@ -3,10 +3,10 @@ dato. Usado tanto por la descarga directa desde la web (routes/reportes.py) como
 script de respaldo local (respaldo_local/generar_excel.py) — ahí es la única fuente de
 esta lógica, para no mantenerla dos veces.
 
-Además de las tablas en bruto, incluye una hoja "Resumen" y "Rendimiento por producto"
-con los mismos cálculos que ya existen en la app (saldo de crédito, cartera pendiente,
-saldo de caja, % de descuento ponderado, venta implícita en dinero) — así el Excel sirve
-de verdad como respaldo legible, no solo como un volcado de tablas."""
+Además de las tablas en bruto, incluye una hoja "Resumen" y "Descuento por producto"
+con los mismos cálculos que ya existen en la app (descuento contabilizado, cartera
+pendiente, saldo de caja, venta implícita en dinero) — así el Excel sirve de verdad como
+respaldo legible, no solo como un volcado de tablas."""
 from datetime import date
 
 from openpyxl import Workbook
@@ -15,17 +15,16 @@ from openpyxl.styles import Font
 from models import (
     Producto,
     Compra,
+    CompraDetalle,
     SalidaCamion,
     FacturaCartera,
     Gasto,
-    CanjeDescuentoDetalle,
-    AjusteCredito,
     VentaBodegaDetalle,
 )
 from services.ventas import cargado_por_producto, venta_por_salida, ventas_en_periodo
 from services.descuentos import (
-    saldo_acumulado as saldo_credito_acumulado,
-    credito_generado_periodo,
+    total_descuento_periodo,
+    total_descuento_total_hasta,
     rendimiento_por_producto,
 )
 from services.cartera import total_pendiente
@@ -59,16 +58,15 @@ def construir_workbook():
 
     compra_historica = compra_total_periodo(DESDE_SIEMPRE, hoy)
     venta_historica = ventas_en_periodo(DESDE_SIEMPRE, hoy)
-    credito_generado_historico = credito_generado_periodo(DESDE_SIEMPRE, hoy)
-    credito_acumulado = saldo_credito_acumulado(hoy)
+    descuento_contabilizado_historico = total_descuento_total_hasta(hoy)
     cartera = total_pendiente(hoy)
     caja = saldo_caja_acumulado(hoy)
     pct_descuento = (
-        round(credito_generado_historico / compra_historica["dinero"] * 100, 1)
+        round(descuento_contabilizado_historico / compra_historica["dinero"] * 100, 1)
         if compra_historica["dinero"] > 0 else 0.0
     )
     gastos_negocio_historico = total_gastos_periodo(None, hoy, tipo="negocio")
-    ganancia_neta_historica = credito_generado_historico - gastos_negocio_historico
+    ganancia_neta_historica = descuento_contabilizado_historico - gastos_negocio_historico
 
     _hoja(
         wb, "Resumen",
@@ -77,19 +75,19 @@ def construir_workbook():
             ["Fecha de este resumen", hoy],
             ["Compra total (histórico)", compra_historica["dinero"]],
             ["Venta total (histórico)", venta_historica["total"]],
-            ["Saldo de crédito acumulado", credito_acumulado],
+            ["Descuento contabilizado (histórico)", descuento_contabilizado_historico],
             ["Cartera pendiente por cobrar", cartera],
             ["Saldo de caja acumulado", caja],
-            ["% de descuento promedio (ponderado, histórico)", pct_descuento],
+            ["% de descuento promedio (histórico)", pct_descuento],
             ["Ganancia neta del negocio (histórico)", ganancia_neta_historica],
         ],
     )
 
     _hoja(
-        wb, "Rendimiento por producto",
-        ["Producto", "Comprado (histórico)", "Crédito generado (histórico)", "% promedio"],
+        wb, "Descuento por producto",
+        ["Producto", "Descuento contabilizado (histórico)"],
         [
-            [r["producto"], r["dinero_comprado"], r["credito_generado"], r["tasa_promedio"]]
+            [r["producto"], r["descuento_contabilizado"]]
             for r in rendimiento_por_producto(DESDE_SIEMPRE, hoy)
         ],
     )
@@ -111,11 +109,11 @@ def construir_workbook():
             filas_compras.append([
                 c.fecha, c.numero_factura or "", d.producto.nombre,
                 d.cantidad_comprada_unidades, d.costo_linea, d.tasa_descuento_aplicada,
-                d.credito_generado,
+                "Sí" if d.es_descuento else "No",
             ])
     _hoja(
         wb, "Compras",
-        ["Fecha", "Factura", "Producto", "Cantidad (unid.)", "Costo", "Tasa descuento %", "Crédito generado"],
+        ["Fecha", "Factura", "Producto", "Cantidad (unid.)", "Costo", "Tasa descuento %", "Es descuento"],
         filas_compras,
     )
 
@@ -156,18 +154,20 @@ def construir_workbook():
         [[g.fecha, g.categoria.nombre, g.categoria.tipo, g.monto, g.notas or ""] for g in gastos],
     )
 
-    canjes = CanjeDescuentoDetalle.query.all()
-    _hoja(
-        wb, "Descuentos Canjes",
-        ["Fecha", "Producto", "Cantidad (unid.)", "Valor usado"],
-        [[c.canje.fecha, c.producto.nombre, c.cantidad_unidades, c.valor_usado] for c in canjes],
+    descuentos = (
+        CompraDetalle.query.join(Compra)
+        .filter(CompraDetalle.es_descuento.is_(True))
+        .order_by(Compra.fecha.desc())
+        .all()
     )
-
-    ajustes = AjusteCredito.query.order_by(AjusteCredito.fecha.desc()).all()
     _hoja(
-        wb, "Descuentos Ajustes",
-        ["Fecha", "Monto", "Notas"],
-        [[a.fecha, a.monto, a.notas or ""] for a in ajustes],
+        wb, "Descuentos",
+        ["Fecha", "Factura", "Producto", "Cantidad (unid.)", "Costo"],
+        [
+            [d.compra.fecha, d.compra.numero_factura or "", d.producto.nombre,
+             d.cantidad_comprada_unidades, d.costo_linea]
+            for d in descuentos
+        ],
     )
 
     ventas_bodega = VentaBodegaDetalle.query.all()

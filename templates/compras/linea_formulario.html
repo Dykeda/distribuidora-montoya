@@ -23,6 +23,10 @@
       <input type="number" step="0.1" min="0" name="tasa_descuento" class="form-control" value="{{ detalle.tasa_descuento_aplicada }}">
     </div>
   </div>
+  <div class="form-check mb-3">
+    <input type="checkbox" name="es_descuento" value="1" class="form-check-input" id="es_descuento" {% if es_descuento_actual %}checked{% endif %}>
+    <label class="form-check-label" for="es_descuento">Esta línea es la parte de "descuento en producto" de la factura</label>
+  </div>
   <button type="submit" class="btn btn-primary">Guardar cambios</button>
   <a href="{{ url_for('compras.detalle', compra_id=compra.id) }}" class="btn btn-link">Cancelar</a>
 </form>

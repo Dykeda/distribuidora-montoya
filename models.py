@@ -93,13 +93,14 @@ class CompraDetalle(db.Model):
     cantidad_comprada_unidades = db.Column(db.Integer, nullable=False)
     costo_linea = db.Column(db.Integer, nullable=False)
     tasa_descuento_aplicada = db.Column(db.Float, nullable=False, default=0.0)
+    # Marca esta línea como la parte de "descuento en producto" de la factura (Postobón
+    # a veces factura el mismo producto en dos líneas: una a precio con descuento, otra
+    # a precio base) -- para llevar la cuenta de esto aparte, sin que se confunda con un
+    # faltante real de descuento en services/postobon.py.
+    es_descuento = db.Column(db.Boolean, nullable=False, default=False)
 
     compra = db.relationship("Compra", back_populates="detalles")
     producto = db.relationship("Producto")
-
-    @property
-    def credito_generado(self):
-        return round(self.costo_linea * (self.tasa_descuento_aplicada / 100.0))
 
 
 class SalidaCamion(db.Model):
@@ -163,31 +164,6 @@ class RetornoCamionDetalle(db.Model):
     producto = db.relationship("Producto")
 
 
-class CanjeDescuento(db.Model):
-    __tablename__ = "canje_descuento"
-
-    id = db.Column(db.Integer, primary_key=True)
-    fecha = db.Column(db.Date, nullable=False, default=date.today)
-    notas = db.Column(db.String(255), nullable=True)
-
-    detalles = db.relationship(
-        "CanjeDescuentoDetalle", back_populates="canje", cascade="all, delete-orphan"
-    )
-
-
-class CanjeDescuentoDetalle(db.Model):
-    __tablename__ = "canje_descuento_detalle"
-
-    id = db.Column(db.Integer, primary_key=True)
-    canje_id = db.Column(db.Integer, db.ForeignKey("canje_descuento.id"), nullable=False)
-    producto_id = db.Column(db.Integer, db.ForeignKey("producto.id"), nullable=False)
-    cantidad_unidades = db.Column(db.Integer, nullable=False)
-    valor_usado = db.Column(db.Integer, nullable=False)
-
-    canje = db.relationship("CanjeDescuento", back_populates="detalles")
-    producto = db.relationship("Producto")
-
-
 class Cliente(db.Model):
     """Catálogo de clientes, para no tener que reescribir el nombre en cada factura de
     cartera y poder ver de un vistazo todas las facturas de un mismo cliente."""
@@ -217,19 +193,6 @@ class FacturaCartera(db.Model):
 
     salida = db.relationship("SalidaCamion", back_populates="facturas")
     cliente = db.relationship("Cliente", back_populates="facturas")
-
-
-class AjusteCredito(db.Model):
-    """Corrección manual al saldo de crédito acumulado — sobre todo para cargar el
-    crédito que ya se tenía acumulado con Postobón antes de empezar a usar el sistema.
-    monto positivo suma al saldo, negativo lo resta (por si hay que corregir un error)."""
-
-    __tablename__ = "ajuste_credito"
-
-    id = db.Column(db.Integer, primary_key=True)
-    fecha = db.Column(db.Date, nullable=False, default=date.today)
-    monto = db.Column(db.Integer, nullable=False)
-    notas = db.Column(db.String(255), nullable=True)
 
 
 class RecargaCamion(db.Model):

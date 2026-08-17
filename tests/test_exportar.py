@@ -37,13 +37,19 @@ def crear_producto(db, nombre="Coca-Cola 1.5L", precio=3000):
 def test_construir_workbook_incluye_todas_las_hojas_y_resumen_calculado(db):
     coca = crear_producto(db)
 
-    compra = Compra(fecha=date(2026, 8, 1))
+    compra = Compra(fecha=date(2026, 8, 1), numero_factura="AS001")
     db.session.add(compra)
     db.session.flush()
     db.session.add(
         CompraDetalle(
             compra_id=compra.id, producto_id=coca.id, cantidad_comprada_unidades=60,
             costo_linea=180000, tasa_descuento_aplicada=5.0,
+        )
+    )
+    db.session.add(
+        CompraDetalle(
+            compra_id=compra.id, producto_id=coca.id, cantidad_comprada_unidades=1,
+            costo_linea=9000, tasa_descuento_aplicada=0.0, es_descuento=True,
         )
     )
     db.session.commit()
@@ -69,23 +75,23 @@ def test_construir_workbook_incluye_todas_las_hojas_y_resumen_calculado(db):
     wb = construir_workbook()
 
     assert set(wb.sheetnames) == {
-        "Resumen", "Rendimiento por producto", "Productos", "Compras",
+        "Resumen", "Descuento por producto", "Productos", "Compras",
         "Camion Salidas", "Camion Ventas", "Cartera", "Gastos",
-        "Descuentos Canjes", "Descuentos Ajustes", "Venta Bodega",
+        "Descuentos", "Venta Bodega",
     }
 
     resumen = {fila[0]: fila[1] for fila in wb["Resumen"].iter_rows(min_row=2, values_only=True)}
-    assert resumen["Compra total (histórico)"] == 180000
+    assert resumen["Compra total (histórico)"] == 189000
     assert resumen["Venta total (histórico)"] == 72000
-    assert resumen["Saldo de crédito acumulado"] == 9000
+    assert resumen["Descuento contabilizado (histórico)"] == 9000
     assert resumen["Cartera pendiente por cobrar"] == 20000
     assert resumen["Saldo de caja acumulado"] == 72000  # la factura no está ligada a esta salida
-    assert resumen["% de descuento promedio (ponderado, histórico)"] == 5.0
-    assert resumen["Ganancia neta del negocio (histórico)"] == 9000  # credito generado, sin gastos
+    assert resumen["% de descuento promedio (histórico)"] == round(9000 / 189000 * 100, 1)
+    assert resumen["Ganancia neta del negocio (histórico)"] == 9000  # descuento contabilizado, sin gastos
 
-    rendimiento = wb["Rendimiento por producto"]
+    rendimiento = wb["Descuento por producto"]
     assert rendimiento.cell(row=2, column=1).value == "Coca-Cola 1.5L"
-    assert rendimiento.cell(row=2, column=3).value == 9000  # credito generado
+    assert rendimiento.cell(row=2, column=2).value == 9000  # descuento contabilizado
 
     ventas_camion = wb["Camion Ventas"]
     assert ventas_camion.max_row == 2
@@ -97,8 +103,12 @@ def test_construir_workbook_incluye_todas_las_hojas_y_resumen_calculado(db):
     assert productos.cell(row=2, column=1).value == "Coca-Cola 1.5L"
 
     compras = wb["Compras"]
-    assert compras.max_row == 2
-    assert compras.cell(row=2, column=7).value == 9000  # credito generado
+    assert compras.max_row == 3
+    assert compras.cell(row=3, column=7).value == "Sí"  # es_descuento
+
+    descuentos = wb["Descuentos"]
+    assert descuentos.max_row == 2
+    assert descuentos.cell(row=2, column=5).value == 9000
 
     cartera = wb["Cartera"]
     assert cartera.max_row == 2
@@ -111,7 +121,7 @@ def test_construir_workbook_sin_datos_no_falla(db):
     assert wb["Productos"].max_row == 1  # solo encabezado
     resumen = {fila[0]: fila[1] for fila in wb["Resumen"].iter_rows(min_row=2, values_only=True)}
     assert resumen["Compra total (histórico)"] == 0
-    assert resumen["% de descuento promedio (ponderado, histórico)"] == 0.0
+    assert resumen["% de descuento promedio (histórico)"] == 0.0
     assert resumen["Ganancia neta del negocio (histórico)"] == 0
 
 

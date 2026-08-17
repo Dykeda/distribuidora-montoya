@@ -5,7 +5,6 @@ from models import (
     CompraDetalle,
     SalidaCamionDetalle,
     RetornoCamionDetalle,
-    CanjeDescuentoDetalle,
     RecargaCamionDetalle,
     VentaBodegaDetalle,
     Producto,
@@ -21,15 +20,14 @@ def _sumar(modelo, columna_cantidad, producto_id):
 
 
 def tiene_movimientos(producto_id):
-    """True si el producto ya aparece en alguna compra, salida, recarga, retorno, canje o
-    venta de bodega. Un producto con movimientos reales no se puede eliminar (borrarlo
+    """True si el producto ya aparece en alguna compra, salida, recarga, retorno o venta
+    de bodega. Un producto con movimientos reales no se puede eliminar (borrarlo
     corrompería el historial de esas transacciones) — solo desactivar. Uno sin ningún
     movimiento (ej. se creó por error) sí se puede eliminar de verdad."""
     modelos = [
         CompraDetalle,
         SalidaCamionDetalle,
         RetornoCamionDetalle,
-        CanjeDescuentoDetalle,
         RecargaCamionDetalle,
         VentaBodegaDetalle,
     ]
@@ -41,9 +39,8 @@ def calcular_stock(producto_id):
     salido = _sumar(SalidaCamionDetalle, SalidaCamionDetalle.cantidad_unidades, producto_id)
     recargado = _sumar(RecargaCamionDetalle, RecargaCamionDetalle.cantidad_unidades, producto_id)
     regresado = _sumar(RetornoCamionDetalle, RetornoCamionDetalle.cantidad_unidades, producto_id)
-    canjeado = _sumar(CanjeDescuentoDetalle, CanjeDescuentoDetalle.cantidad_unidades, producto_id)
     vendido_bodega = _sumar(VentaBodegaDetalle, VentaBodegaDetalle.cantidad_unidades, producto_id)
-    return comprado - salido - recargado + regresado + canjeado - vendido_bodega
+    return comprado - salido - recargado + regresado - vendido_bodega
 
 
 def cajas_y_unidades(producto, stock):

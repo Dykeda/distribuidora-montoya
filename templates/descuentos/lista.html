@@ -3,53 +3,67 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h1 class="h3 mb-0">Descuentos de Postobón</h1>
-  <div class="d-flex gap-2">
-    <a href="{{ url_for('descuentos.ajuste_nuevo') }}" class="btn btn-outline-secondary">Ajustar saldo</a>
-    <a href="{{ url_for('descuentos.canje_nuevo') }}" class="btn btn-primary">+ Canjear descuento</a>
-  </div>
+  <a href="{{ url_for('descuentos.exportar_excel', anio=anio, mes=mes) }}" class="btn btn-outline-secondary">Descargar Excel</a>
 </div>
+<p class="text-muted">Líneas de compra marcadas como "es descuento" — la parte de cada factura que representa el descuento en producto, agrupada por factura.</p>
+
+<form method="get" class="row col-lg-6 mb-3">
+  <div class="col-6">
+    <label class="form-label">Mes</label>
+    <select name="mes" class="form-select" onchange="this.form.submit()">
+      {% for nombre in meses %}
+      <option value="{{ loop.index }}" {% if loop.index == mes %}selected{% endif %}>{{ nombre }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-6">
+    <label class="form-label">Año</label>
+    <input type="number" name="anio" class="form-control" value="{{ anio }}" onchange="this.form.submit()">
+  </div>
+</form>
 
 <div class="card card-metric mb-4" style="max-width: 320px;">
   <div class="card-body">
-    <div class="text-muted small">Saldo de crédito acumulado (hoy)</div>
-    <div class="fs-3 fw-bold">${{ "{:,}".format(saldo) }}</div>
+    <div class="text-muted small">Descuento contabilizado del mes</div>
+    <div class="fs-3 fw-bold">${{ "{:,}".format(total) }}</div>
   </div>
 </div>
 
-<h2 class="h5">Historial de canjes</h2>
-<div class="table-responsive">
-<table class="table table-striped align-middle">
-  <thead><tr><th>Fecha</th><th>Notas</th><th class="text-end">Valor canjeado</th><th></th></tr></thead>
-  <tbody>
-    {% for f in filas %}
-    <tr>
-      <td>{{ f.canje.fecha.strftime("%Y-%m-%d") }}</td>
-      <td>{{ f.canje.notas or "-" }}</td>
-      <td class="text-end">${{ "{:,}".format(f.valor_total) }}</td>
-      <td class="text-end"><a href="{{ url_for('descuentos.canje_detalle', canje_id=f.canje.id) }}" class="btn btn-sm btn-outline-primary">Ver detalle</a></td>
-    </tr>
-    {% else %}
-    <tr><td colspan="4" class="text-center text-muted">No hay canjes registrados todavía.</td></tr>
-    {% endfor %}
-  </tbody>
-</table>
-</div>
-
-<h2 class="h5 mt-4">Ajustes de saldo</h2>
-<div class="table-responsive">
-<table class="table table-striped align-middle">
-  <thead><tr><th>Fecha</th><th>Notas</th><th class="text-end">Monto</th></tr></thead>
-  <tbody>
-    {% for a in ajustes %}
-    <tr>
-      <td>{{ a.fecha.strftime("%Y-%m-%d") }}</td>
-      <td>{{ a.notas or "-" }}</td>
-      <td class="text-end {{ 'text-danger' if a.monto < 0 }}">${{ "{:,}".format(a.monto) }}</td>
-    </tr>
-    {% else %}
-    <tr><td colspan="3" class="text-center text-muted">No hay ajustes registrados.</td></tr>
-    {% endfor %}
-  </tbody>
-</table>
-</div>
+{% if grupos %}
+  {% for g in grupos %}
+  <div class="mb-4">
+    <h2 class="h6 mb-2">Factura {{ g.compra.numero_factura or "-" }} — {{ g.compra.fecha.strftime("%Y-%m-%d") }}
+      <a href="{{ url_for('compras.detalle', compra_id=g.compra.id) }}" class="btn btn-sm btn-outline-primary ms-2">Ver compra</a>
+    </h2>
+    <div class="table-responsive">
+    <table class="table table-sm table-striped mb-0">
+      <thead>
+        <tr>
+          <th>Producto</th>
+          <th class="text-end">Cantidad</th>
+          <th class="text-end">Costo</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in g.lineas %}
+        <tr>
+          <td>{{ f.producto.nombre }}</td>
+          <td class="text-end">{{ f.detalle.cantidad_comprada_unidades }}</td>
+          <td class="text-end">${{ "{:,}".format(f.detalle.costo_linea) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr class="fw-bold">
+          <td colspan="2">Subtotal factura</td>
+          <td class="text-end">${{ "{:,}".format(g.subtotal) }}</td>
+        </tr>
+      </tfoot>
+    </table>
+    </div>
+  </div>
+  {% endfor %}
+{% else %}
+<div class="alert alert-secondary">No hay descuentos contabilizados en este mes.</div>
+{% endif %}
 {% endblock %}

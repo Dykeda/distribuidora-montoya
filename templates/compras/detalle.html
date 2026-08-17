@@ -4,7 +4,7 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h1 class="h3 mb-0">Compra del {{ compra.fecha.strftime("%Y-%m-%d") }}</h1>
   <form method="post" action="{{ url_for('compras.eliminar', compra_id=compra.id) }}"
-        onsubmit="return confirm('¿Eliminar esta compra? Esto también reduce el crédito de descuento e inventario que generó, y no se puede deshacer.');">
+        onsubmit="return confirm('¿Eliminar esta compra? Esto también reduce el inventario que generó, y no se puede deshacer.');">
     <button type="submit" class="btn btn-outline-danger btn-sm">Eliminar compra</button>
   </form>
 </div>
@@ -19,25 +19,26 @@
       <th class="text-end">Unidades sueltas</th>
       <th class="text-end">Costo</th>
       <th class="text-end">Tasa descuento</th>
-      <th class="text-end">Crédito generado</th>
       <th></th>
     </tr>
   </thead>
   <tbody>
     {% for f in filas %}
-    {% set faltante = (f.detalle.producto.tasa_descuento_referencia - f.detalle.tasa_descuento_aplicada) | round(1) %}
-    <tr class="{{ 'table-danger' if faltante > 0 else '' }}">
-      <td>{{ f.detalle.producto.nombre }}</td>
+    {% set es_faltante = (not f.detalle.es_descuento) and ((f.detalle.producto.tasa_descuento_referencia - f.detalle.tasa_descuento_aplicada) | round(1) > 0) %}
+    <tr class="{{ 'table-danger' if es_faltante else '' }}">
+      <td>
+        {{ f.detalle.producto.nombre }}
+        {% if f.detalle.es_descuento %}<span class="badge bg-secondary">Descuento</span>{% endif %}
+      </td>
       <td class="text-end">{{ f.cajas }}</td>
       <td class="text-end">{{ f.unidades_sueltas }}</td>
       <td class="text-end">${{ "{:,}".format(f.detalle.costo_linea) }}</td>
       <td class="text-end">
         {{ f.detalle.tasa_descuento_aplicada }}%
-        {% if faltante > 0 %}
+        {% if es_faltante %}
           <span class="text-danger d-block small">faltó, esperado {{ f.detalle.producto.tasa_descuento_referencia }}%</span>
         {% endif %}
       </td>
-      <td class="text-end">${{ "{:,}".format(f.detalle.credito_generado) }}</td>
       <td class="text-end">
         <a href="{{ url_for('compras.linea_editar', compra_id=compra.id, detalle_id=f.detalle.id) }}" class="btn btn-sm btn-outline-secondary">Editar</a>
         <form method="post" action="{{ url_for('compras.linea_eliminar', compra_id=compra.id, detalle_id=f.detalle.id) }}" class="d-inline"
@@ -54,7 +55,6 @@
       <td class="text-end" colspan="2"></td>
       <td class="text-end">${{ "{:,}".format(compra.detalles | sum(attribute="costo_linea")) }}</td>
       <td></td>
-      <td class="text-end">${{ "{:,}".format(compra.detalles | sum(attribute="credito_generado")) }}</td>
       <td></td>
     </tr>
   </tfoot>

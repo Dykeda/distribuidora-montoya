@@ -2,22 +2,13 @@ from datetime import date
 
 import pytest
 
-from models import (
-    Producto,
-    ProductoPrecio,
-    Compra,
-    CompraDetalle,
-    CanjeDescuento,
-    CanjeDescuentoDetalle,
-    AjusteCredito,
-)
+from models import Producto, ProductoPrecio, Compra, CompraDetalle
 from services.descuentos import (
-    credito_generado_periodo,
-    credito_canjeado_periodo,
-    saldo_acumulado,
+    total_descuento_periodo,
+    total_descuento_total_hasta,
+    listar_descuentos_agrupados,
     rendimiento_por_producto,
 )
-from services.inventario import calcular_stock
 
 
 @pytest.fixture
@@ -36,202 +27,106 @@ def crear_producto(db, nombre, precio):
     return p
 
 
-def test_credito_generado_por_compra(db):
-    coca = crear_producto(db, "Coca-Cola 1.5L", 3000)
-    compra = Compra(fecha=date(2026, 8, 1))
+def crear_compra_detalle(db, producto, fecha, costo_linea, cantidad=60, es_descuento=True, numero_factura="AS001"):
+    compra = Compra(fecha=fecha, numero_factura=numero_factura)
     db.session.add(compra)
     db.session.flush()
-    db.session.add(
-        CompraDetalle(
-            compra_id=compra.id, producto_id=coca.id, cantidad_comprada_unidades=60,
-            costo_linea=180000, tasa_descuento_aplicada=5.0,
-        )
+    detalle = CompraDetalle(
+        compra_id=compra.id, producto_id=producto.id, cantidad_comprada_unidades=cantidad,
+        costo_linea=costo_linea, tasa_descuento_aplicada=0.0, es_descuento=es_descuento,
     )
+    db.session.add(detalle)
     db.session.commit()
+    return compra, detalle
 
-    assert credito_generado_periodo(date(2026, 8, 1), date(2026, 8, 31)) == 9000
 
-
-def test_canje_reduce_saldo_y_sube_stock_de_otro_producto(db):
+def test_total_descuento_periodo_suma_solo_lineas_marcadas(db):
     coca = crear_producto(db, "Coca-Cola 1.5L", 3000)
-    agua = crear_producto(db, "Agua Cristal", 3000)
+    crear_compra_detalle(db, coca, date(2026, 8, 17), costo_linea=100000, es_descuento=True)
+    crear_compra_detalle(db, coca, date(2026, 8, 17), costo_linea=50000, es_descuento=False)
 
-    compra = Compra(fecha=date(2026, 8, 1))
-    db.session.add(compra)
-    db.session.flush()
-    db.session.add(
-        CompraDetalle(
-            compra_id=compra.id, producto_id=coca.id, cantidad_comprada_unidades=60,
-            costo_linea=180000, tasa_descuento_aplicada=5.0,
-        )
-    )
-    db.session.commit()
-
-    assert saldo_acumulado(date(2026, 8, 31)) == 9000
-
-    canje = CanjeDescuento(fecha=date(2026, 8, 5))
-    db.session.add(canje)
-    db.session.flush()
-    db.session.add(
-        CanjeDescuentoDetalle(canje_id=canje.id, producto_id=agua.id, cantidad_unidades=3, valor_usado=9000)
-    )
-    db.session.commit()
-
-    assert credito_canjeado_periodo(date(2026, 8, 1), date(2026, 8, 31)) == 9000
-    assert saldo_acumulado(date(2026, 8, 31)) == 0
-    assert calcular_stock(agua.id) == 3
+    assert total_descuento_periodo(date(2026, 8, 1), date(2026, 8, 31)) == 100000
 
 
-def test_ajuste_suma_al_saldo_acumulado(db):
+def test_total_descuento_total_hasta_es_historico(db):
     coca = crear_producto(db, "Coca-Cola 1.5L", 3000)
-    compra = Compra(fecha=date(2026, 8, 1))
-    db.session.add(compra)
+    crear_compra_detalle(db, coca, date(2026, 5, 1), costo_linea=40000, es_descuento=True)
+    crear_compra_detalle(db, coca, date(2026, 8, 17), costo_linea=60000, es_descuento=True)
+
+    assert total_descuento_total_hasta(date(2026, 8, 31)) == 100000
+    assert total_descuento_total_hasta(date(2026, 6, 30)) == 40000
+
+
+def test_listar_descuentos_agrupados_por_factura_con_subtotal(db):
+    coca = crear_producto(db, "Coca-Cola 1.5L", 3000)
+    agua = crear_producto(db, "Agua Cristal", 2000)
+
+    compra1 = Compra(fecha=date(2026, 8, 17), numero_factura="AS001")
+    db.session.add(compra1)
     db.session.flush()
-    db.session.add(
-        CompraDetalle(
-            compra_id=compra.id, producto_id=coca.id, cantidad_comprada_unidades=60,
-            costo_linea=180000, tasa_descuento_aplicada=5.0,
-        )
-    )
-    db.session.add(
-        AjusteCredito(fecha=date(2026, 7, 1), monto=50000, notas="Saldo acumulado antes del sistema")
-    )
+    db.session.add(CompraDetalle(compra_id=compra1.id, producto_id=coca.id, cantidad_comprada_unidades=60, costo_linea=100000, tasa_descuento_aplicada=0.0, es_descuento=True))
+    db.session.add(CompraDetalle(compra_id=compra1.id, producto_id=agua.id, cantidad_comprada_unidades=60, costo_linea=50000, tasa_descuento_aplicada=0.0, es_descuento=True))
     db.session.commit()
 
-    # 9000 generado por la compra + 50000 del ajuste inicial
-    assert saldo_acumulado(date(2026, 8, 31)) == 59000
+    compra2, _ = crear_compra_detalle(db, coca, date(2026, 8, 18), costo_linea=200000, numero_factura="AS002")
+
+    grupos = listar_descuentos_agrupados(date(2026, 8, 1), date(2026, 8, 31))
+
+    assert len(grupos) == 2
+    assert grupos[0]["compra"].numero_factura == "AS002"
+    assert grupos[0]["subtotal"] == 200000
+    assert grupos[1]["compra"].numero_factura == "AS001"
+    assert len(grupos[1]["lineas"]) == 2
+    assert grupos[1]["subtotal"] == 150000
 
 
-def test_ajuste_negativo_resta_del_saldo(db):
-    db.session.add(AjusteCredito(fecha=date(2026, 7, 1), monto=50000))
-    db.session.add(AjusteCredito(fecha=date(2026, 7, 15), monto=-20000, notas="Corrección"))
-    db.session.commit()
-
-    assert saldo_acumulado(date(2026, 8, 31)) == 30000
-
-
-def test_rendimiento_por_producto_ordena_por_credito_generado(db):
+def test_rendimiento_por_producto_ordena_por_descuento_contabilizado(db):
     coca = crear_producto(db, "Coca-Cola 1.5L", 3000)
     agua = crear_producto(db, "Agua Cristal", 3000)
 
-    compra = Compra(fecha=date(2026, 8, 1))
-    db.session.add(compra)
-    db.session.flush()
-    db.session.add(
-        CompraDetalle(
-            compra_id=compra.id, producto_id=coca.id, cantidad_comprada_unidades=60,
-            costo_linea=180000, tasa_descuento_aplicada=5.0,
-        )
-    )
-    db.session.add(
-        CompraDetalle(
-            compra_id=compra.id, producto_id=agua.id, cantidad_comprada_unidades=60,
-            costo_linea=100000, tasa_descuento_aplicada=15.0,
-        )
-    )
-    db.session.commit()
+    crear_compra_detalle(db, coca, date(2026, 8, 1), costo_linea=90000, es_descuento=True)
+    crear_compra_detalle(db, agua, date(2026, 8, 1), costo_linea=150000, es_descuento=True)
 
     filas = rendimiento_por_producto(date(2026, 8, 1), date(2026, 8, 31))
 
     assert len(filas) == 2
-    # agua generó 15000 de crédito, coca solo 9000 -> agua primero aunque se compró menos
     assert filas[0]["producto"] == "Agua Cristal"
-    assert filas[0]["credito_generado"] == 15000
-    assert filas[0]["tasa_promedio"] == 15.0
+    assert filas[0]["descuento_contabilizado"] == 150000
     assert filas[1]["producto"] == "Coca-Cola 1.5L"
-    assert filas[1]["credito_generado"] == 9000
+    assert filas[1]["descuento_contabilizado"] == 90000
 
 
 def test_rendimiento_por_producto_fuera_del_periodo_no_aparece(db):
     coca = crear_producto(db, "Coca-Cola 1.5L", 3000)
-    compra = Compra(fecha=date(2026, 5, 1))
-    db.session.add(compra)
-    db.session.flush()
-    db.session.add(
-        CompraDetalle(
-            compra_id=compra.id, producto_id=coca.id, cantidad_comprada_unidades=60,
-            costo_linea=180000, tasa_descuento_aplicada=5.0,
-        )
-    )
-    db.session.commit()
+    crear_compra_detalle(db, coca, date(2026, 5, 1), costo_linea=90000, es_descuento=True)
 
     assert rendimiento_por_producto(date(2026, 8, 1), date(2026, 8, 31)) == []
 
 
-def _crear_canje_con_dos_productos(db):
+def test_pagina_descuentos_muestra_grupo_y_total(db, client):
     coca = crear_producto(db, "Coca-Cola 1.5L", 3000)
-    agua = crear_producto(db, "Agua Cristal", 2000)
-    canje = CanjeDescuento(fecha=date(2026, 8, 5), notas="Canje de prueba")
-    db.session.add(canje)
-    db.session.flush()
-    db.session.add(CanjeDescuentoDetalle(canje_id=canje.id, producto_id=coca.id, cantidad_unidades=6, valor_usado=18000))
-    db.session.add(CanjeDescuentoDetalle(canje_id=canje.id, producto_id=agua.id, cantidad_unidades=3, valor_usado=6000))
-    db.session.commit()
-    return canje, coca, agua
+    crear_compra_detalle(db, coca, date(2026, 8, 17), costo_linea=100000, es_descuento=True)
 
-
-def test_canje_detalle_muestra_los_productos_con_cajas_y_unidades(db, client):
-    canje, coca, agua = _crear_canje_con_dos_productos(db)
-
-    r = client.get(f"/descuentos/canje/{canje.id}")
+    r = client.get("/descuentos/?anio=2026&mes=8")
     body = r.get_data(as_text=True)
     assert r.status_code == 200
-    assert "Coca-Cola 1.5L" in body and "Agua Cristal" in body
-    assert ">1<" in body  # coca: 6 unidades / 6 por caja = 1 caja
+    assert "Coca-Cola 1.5L" in body
+    assert "AS001" in body
+    assert "100,000" in body
 
 
-def test_editar_linea_de_canje_recalcula_valor_usado(db, client):
-    canje, coca, agua = _crear_canje_con_dos_productos(db)
-    detalle_coca = next(d for d in canje.detalles if d.producto_id == coca.id)
-
-    # cambia de 6 unidades (1 caja) a 2 cajas + 1 unidad = 13 unidades
-    r = client.post(
-        f"/descuentos/canje/{canje.id}/linea/{detalle_coca.id}/editar",
-        data={"cajas": "2", "unidades": "1"},
-        follow_redirects=True,
-    )
+def test_pagina_descuentos_vacia_cuando_no_hay_nada(client):
+    r = client.get("/descuentos/?anio=2026&mes=8")
+    body = r.get_data(as_text=True)
     assert r.status_code == 200
-
-    from models import CanjeDescuentoDetalle as CDD
-
-    actualizado = CDD.query.get(detalle_coca.id)
-    assert actualizado.cantidad_unidades == 13
-    assert actualizado.valor_usado == 13 * 3000
-    assert calcular_stock(coca.id) == 13
+    assert "No hay descuentos" in body
 
 
-def test_eliminar_linea_de_canje_deja_el_resto_intacto(db, client):
-    canje, coca, agua = _crear_canje_con_dos_productos(db)
-    detalle_coca = next(d for d in canje.detalles if d.producto_id == coca.id)
-
-    r = client.post(f"/descuentos/canje/{canje.id}/linea/{detalle_coca.id}/eliminar", follow_redirects=True)
-    assert r.status_code == 200
-
-    assert CanjeDescuento.query.get(canje.id) is not None
-    assert len(CanjeDescuento.query.get(canje.id).detalles) == 1
-    assert calcular_stock(coca.id) == 0
-    assert calcular_stock(agua.id) == 3
-
-
-def test_eliminar_ultima_linea_borra_el_canje_completo(db, client):
+def test_exportar_excel_descarga_archivo(db, client):
     coca = crear_producto(db, "Coca-Cola 1.5L", 3000)
-    canje = CanjeDescuento(fecha=date(2026, 8, 5))
-    db.session.add(canje)
-    db.session.flush()
-    db.session.add(CanjeDescuentoDetalle(canje_id=canje.id, producto_id=coca.id, cantidad_unidades=6, valor_usado=18000))
-    db.session.commit()
-    detalle = canje.detalles[0]
+    crear_compra_detalle(db, coca, date(2026, 8, 17), costo_linea=100000, es_descuento=True)
 
-    r = client.post(f"/descuentos/canje/{canje.id}/linea/{detalle.id}/eliminar", follow_redirects=True)
+    r = client.get("/descuentos/exportar-excel?anio=2026&mes=8")
     assert r.status_code == 200
-    assert CanjeDescuento.query.get(canje.id) is None
-
-
-def test_eliminar_canje_completo(db, client):
-    canje, coca, agua = _crear_canje_con_dos_productos(db)
-
-    r = client.post(f"/descuentos/canje/{canje.id}/eliminar", follow_redirects=True)
-    assert r.status_code == 200
-    assert CanjeDescuento.query.get(canje.id) is None
-    assert calcular_stock(coca.id) == 0
-    assert calcular_stock(agua.id) == 0
+    assert r.mimetype == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    assert "attachment" in r.headers.get("Content-Disposition", "")

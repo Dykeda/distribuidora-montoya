@@ -22,17 +22,26 @@ def crear_producto(db, nombre="Coca-Cola 1.5L", precio=3000, tasa_referencia=10.
     return p
 
 
-def crear_compra_detalle(db, producto, fecha, costo_linea, tasa_aplicada, cantidad=60, numero_factura="F-001"):
+def crear_compra_detalle(db, producto, fecha, costo_linea, tasa_aplicada, cantidad=60, numero_factura="F-001", es_descuento=False):
     compra = Compra(fecha=fecha, numero_factura=numero_factura)
     db.session.add(compra)
     db.session.flush()
     detalle = CompraDetalle(
         compra_id=compra.id, producto_id=producto.id, cantidad_comprada_unidades=cantidad,
-        costo_linea=costo_linea, tasa_descuento_aplicada=tasa_aplicada,
+        costo_linea=costo_linea, tasa_descuento_aplicada=tasa_aplicada, es_descuento=es_descuento,
     )
     db.session.add(detalle)
     db.session.commit()
     return compra, detalle
+
+
+def test_listar_faltantes_ignora_lineas_marcadas_como_descuento(db):
+    # una linea marcada "es_descuento" con 0% no es un error de Postobon, es la parte
+    # de descuento en producto de la factura -- no debe verse como faltante
+    coca = crear_producto(db, tasa_referencia=15.0)
+    crear_compra_detalle(db, coca, date(2026, 8, 17), costo_linea=100000, tasa_aplicada=0.0, es_descuento=True)
+
+    assert listar_faltantes(date(2026, 8, 1), date(2026, 8, 31)) == []
 
 
 def test_listar_faltantes_detecta_tasa_aplicada_menor_a_la_esperada(db):

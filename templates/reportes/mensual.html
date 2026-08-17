@@ -44,27 +44,16 @@
   </div>
   <div class="col-md-4">
     <div class="card card-metric h-100"><div class="card-body">
-      <div class="text-muted small">Crédito generado este mes</div>
-      <div class="fs-4 fw-bold">${{ "{:,}".format(resumen.credito_generado) }}</div>
+      <div class="text-muted small">Descuento contabilizado este mes</div>
+      <div class="fs-4 fw-bold">${{ "{:,}".format(resumen.descuento_contabilizado) }}</div>
+      <a href="{{ url_for('descuentos.listar', anio=anio, mes=mes) }}" class="small">Ver descuentos &rarr;</a>
     </div></div>
   </div>
   <div class="col-md-4">
     <div class="card card-metric h-100"><div class="card-body">
       <div class="text-muted small">% de descuento promedio del mes</div>
       <div class="fs-4 fw-bold">{{ resumen.pct_descuento_promedio }}%</div>
-      <div class="text-muted small">crédito generado ÷ compra total</div>
-    </div></div>
-  </div>
-  <div class="col-md-4">
-    <div class="card card-metric h-100"><div class="card-body">
-      <div class="text-muted small">Crédito canjeado este mes</div>
-      <div class="fs-4 fw-bold">${{ "{:,}".format(resumen.credito_canjeado) }}</div>
-    </div></div>
-  </div>
-  <div class="col-md-4">
-    <div class="card card-metric h-100 border-primary"><div class="card-body">
-      <div class="text-muted small">Saldo de crédito acumulado (a fin de este período)</div>
-      <div class="fs-4 fw-bold">${{ "{:,}".format(resumen.saldo_acumulado) }}</div>
+      <div class="text-muted small">descuento contabilizado ÷ compra total</div>
     </div></div>
   </div>
   <div class="col-md-4">
@@ -95,7 +84,7 @@
     <div class="card card-metric h-100"><div class="card-body">
       <div class="text-muted small">Ganancia neta del negocio (este período)</div>
       <div class="fs-4 fw-bold">${{ "{:,}".format(resumen.ganancia_neta_periodo) }}</div>
-      <div class="text-muted small">crédito generado − gastos de negocio (sin hogar)</div>
+      <div class="text-muted small">descuento contabilizado − gastos de negocio (sin hogar)</div>
     </div></div>
   </div>
   <div class="col-md-4">
@@ -107,27 +96,22 @@
 </div>
 
 {% if resumen.rendimiento_por_producto %}
-<h2 class="h5">Rendimiento por producto (crédito generado este mes)</h2>
-<p class="text-muted">Como la ganancia real es el crédito de descuento y no un margen de
-  venta, esta tabla muestra qué productos son los que más te convienen — ordenados de
-  mayor a menor crédito generado, sin importar cuánto se vendió de cada uno.</p>
+<h2 class="h5">Descuento contabilizado por producto (este mes)</h2>
+<p class="text-muted">Qué productos concentran más descuento contabilizado este mes,
+  de mayor a menor.</p>
 <div class="table-responsive">
-<table class="table table-sm table-striped" style="max-width:700px;">
+<table class="table table-sm table-striped" style="max-width:500px;">
   <thead>
     <tr>
       <th>Producto</th>
-      <th class="text-end">Comprado</th>
-      <th class="text-end">Crédito generado</th>
-      <th class="text-end">% promedio</th>
+      <th class="text-end">Descuento contabilizado</th>
     </tr>
   </thead>
   <tbody>
     {% for f in resumen.rendimiento_por_producto %}
     <tr>
       <td>{{ f.producto }}</td>
-      <td class="text-end">${{ "{:,}".format(f.dinero_comprado) }}</td>
-      <td class="text-end fw-bold">${{ "{:,}".format(f.credito_generado) }}</td>
-      <td class="text-end">{{ f.tasa_promedio }}%</td>
+      <td class="text-end fw-bold">${{ "{:,}".format(f.descuento_contabilizado) }}</td>
     </tr>
     {% endfor %}
   </tbody>
