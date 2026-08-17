@@ -39,6 +39,61 @@ def eliminar(compra_id):
     return redirect(url_for("compras.listar"))
 
 
+@bp.route("/<int:compra_id>/linea/<int:detalle_id>/eliminar", methods=["POST"])
+def linea_eliminar(compra_id, detalle_id):
+    compra = Compra.query.get_or_404(compra_id)
+    detalle = CompraDetalle.query.filter_by(id=detalle_id, compra_id=compra_id).first_or_404()
+    db.session.delete(detalle)
+    db.session.commit()
+
+    if not compra.detalles:
+        db.session.delete(compra)
+        db.session.commit()
+        flash("Producto eliminado. La compra se quedó sin productos, así que se eliminó por completo.", "success")
+        return redirect(url_for("compras.listar"))
+
+    flash("Producto eliminado de la compra.", "success")
+    return redirect(url_for("compras.detalle", compra_id=compra_id))
+
+
+@bp.route("/<int:compra_id>/linea/<int:detalle_id>/editar", methods=["GET", "POST"])
+def linea_editar(compra_id, detalle_id):
+    compra = Compra.query.get_or_404(compra_id)
+    detalle = CompraDetalle.query.filter_by(id=detalle_id, compra_id=compra_id).first_or_404()
+    producto = detalle.producto
+
+    if request.method == "POST":
+        try:
+            cajas = float(request.form.get("cajas") or 0)
+            unidades = float(request.form.get("unidades") or 0)
+            costo = int(request.form.get("costo_linea") or 0)
+            tasa = float(request.form.get("tasa_descuento") or 0)
+        except ValueError:
+            cajas = unidades = costo = tasa = 0
+
+        cantidad_unidades = round(cajas * producto.unidades_por_caja + unidades)
+        if cantidad_unidades <= 0:
+            flash("La cantidad debe ser mayor a cero.", "error")
+        else:
+            detalle.cantidad_comprada_unidades = cantidad_unidades
+            detalle.costo_linea = costo
+            detalle.tasa_descuento_aplicada = tasa
+            db.session.commit()
+            flash("Producto de la compra actualizado.", "success")
+            return redirect(url_for("compras.detalle", compra_id=compra_id))
+
+        return render_template(
+            "compras/linea_formulario.html", compra=compra, detalle=detalle, producto=producto,
+            cajas_actual=cajas, unidades_actual=unidades,
+        )
+
+    cajas_actual, unidades_actual = cajas_y_unidades(producto, detalle.cantidad_comprada_unidades)
+    return render_template(
+        "compras/linea_formulario.html", compra=compra, detalle=detalle, producto=producto,
+        cajas_actual=cajas_actual, unidades_actual=unidades_actual,
+    )
+
+
 @bp.route("/nueva", methods=["GET", "POST"])
 def nueva():
     productos = Producto.query.filter_by(activo=True).order_by(Producto.nombre).all()

@@ -20,6 +20,7 @@
       <th class="text-end">Costo</th>
       <th class="text-end">Tasa descuento</th>
       <th class="text-end">Crédito generado</th>
+      <th></th>
     </tr>
   </thead>
   <tbody>
@@ -31,6 +32,13 @@
       <td class="text-end">${{ "{:,}".format(f.detalle.costo_linea) }}</td>
       <td class="text-end">{{ f.detalle.tasa_descuento_aplicada }}%</td>
       <td class="text-end">${{ "{:,}".format(f.detalle.credito_generado) }}</td>
+      <td class="text-end">
+        <a href="{{ url_for('compras.linea_editar', compra_id=compra.id, detalle_id=f.detalle.id) }}" class="btn btn-sm btn-outline-secondary">Editar</a>
+        <form method="post" action="{{ url_for('compras.linea_eliminar', compra_id=compra.id, detalle_id=f.detalle.id) }}" class="d-inline"
+              onsubmit="return confirm('¿Quitar {{ f.detalle.producto.nombre }} de esta compra?');">
+          <button type="submit" class="btn btn-sm btn-outline-danger">Eliminar</button>
+        </form>
+      </td>
     </tr>
     {% endfor %}
   </tbody>
@@ -41,6 +49,7 @@
       <td class="text-end">${{ "{:,}".format(compra.detalles | sum(attribute="costo_linea")) }}</td>
       <td></td>
       <td class="text-end">${{ "{:,}".format(compra.detalles | sum(attribute="credito_generado")) }}</td>
+      <td></td>
     </tr>
   </tfoot>
 </table>

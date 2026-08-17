@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Editar producto de la compra{% endblock %}
+{% block content %}
+<h1 class="h3 mb-1">Editar producto de la compra</h1>
+<p class="text-muted">{{ compra.fecha.strftime("%Y-%m-%d") }} &mdash; {{ producto.nombre }}</p>
+
+<form method="post">
+  <div class="row col-lg-8 mb-3">
+    <div class="col-md-3">
+      <label class="form-label">Cajas</label>
+      <input type="number" step="1" min="0" id="cajas" name="cajas" class="form-control" value="{{ cajas_actual }}">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Unidades sueltas</label>
+      <input type="number" step="1" min="0" id="unidades" name="unidades" class="form-control" value="{{ unidades_actual }}">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Costo ($)</label>
+      <input type="number" min="0" id="costo_linea" name="costo_linea" class="form-control" value="{{ detalle.costo_linea }}" required>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Descuento %</label>
+      <input type="number" step="0.1" min="0" name="tasa_descuento" class="form-control" value="{{ detalle.tasa_descuento_aplicada }}">
+    </div>
+  </div>
+  <button type="submit" class="btn btn-primary">Guardar cambios</button>
+  <a href="{{ url_for('compras.detalle', compra_id=compra.id) }}" class="btn btn-link">Cancelar</a>
+</form>
+
+<script>
+  const precioCaja = {{ producto.precio_caja_actual() or 0 }};
+  const precioUnidad = {{ producto.precio_actual() or 0 }};
+
+  function recalcularCosto() {
+    const cajas = parseFloat(document.getElementById("cajas").value) || 0;
+    const unidades = parseFloat(document.getElementById("unidades").value) || 0;
+    document.getElementById("costo_linea").value = Math.round(cajas * precioCaja + unidades * precioUnidad);
+  }
+
+  document.getElementById("cajas").addEventListener("input", recalcularCosto);
+  document.getElementById("unidades").addEventListener("input", recalcularCosto);
+</script>
+{% endblock %}

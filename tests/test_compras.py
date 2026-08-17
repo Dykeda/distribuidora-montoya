@@ -124,3 +124,67 @@ def test_detalle_de_compra_producto_sin_cajas_muestra_todo_como_unidades_sueltas
     fila_agua = next(f for f in filas if "Agua Bolsa 6 Lts" in f)
     assert ">0<" in fila_agua
     assert ">8<" in fila_agua
+
+
+def _crear_compra_con_dos_productos(db):
+    coca = crear_producto(db, "Coca-Cola 1.5L", 3000)
+    agua = crear_producto(db, "Agua Cristal", 2000)
+    compra = Compra(fecha=date(2026, 8, 5), numero_factura="F-001")
+    db.session.add(compra)
+    db.session.flush()
+    db.session.add(
+        CompraDetalle(compra_id=compra.id, producto_id=coca.id, cantidad_comprada_unidades=60, costo_linea=180000, tasa_descuento_aplicada=5.0)
+    )
+    db.session.add(
+        CompraDetalle(compra_id=compra.id, producto_id=agua.id, cantidad_comprada_unidades=12, costo_linea=24000, tasa_descuento_aplicada=10.0)
+    )
+    db.session.commit()
+    return compra, coca, agua
+
+
+def test_editar_linea_de_compra_actualiza_cantidad_costo_y_tasa(db, client):
+    compra, coca, agua = _crear_compra_con_dos_productos(db)
+    detalle_coca = next(d for d in compra.detalles if d.producto_id == coca.id)
+
+    # de 60 unidades (10 cajas) a 8 cajas + 2 unidades = 50, costo y tasa distintos
+    r = client.post(
+        f"/compras/{compra.id}/linea/{detalle_coca.id}/editar",
+        data={"cajas": "8", "unidades": "2", "costo_linea": "150000", "tasa_descuento": "7.5"},
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+
+    actualizado = CompraDetalle.query.get(detalle_coca.id)
+    assert actualizado.cantidad_comprada_unidades == 50
+    assert actualizado.costo_linea == 150000
+    assert actualizado.tasa_descuento_aplicada == 7.5
+    assert calcular_stock(coca.id) == 50
+
+
+def test_eliminar_linea_de_compra_deja_el_resto_intacto(db, client):
+    compra, coca, agua = _crear_compra_con_dos_productos(db)
+    detalle_coca = next(d for d in compra.detalles if d.producto_id == coca.id)
+
+    r = client.post(f"/compras/{compra.id}/linea/{detalle_coca.id}/eliminar", follow_redirects=True)
+    assert r.status_code == 200
+
+    assert Compra.query.get(compra.id) is not None
+    assert len(Compra.query.get(compra.id).detalles) == 1
+    assert calcular_stock(coca.id) == 0
+    assert calcular_stock(agua.id) == 12
+
+
+def test_eliminar_ultima_linea_de_compra_borra_la_compra_completa(db, client):
+    coca = crear_producto(db, "Coca-Cola 1.5L", 3000)
+    compra = Compra(fecha=date(2026, 8, 5))
+    db.session.add(compra)
+    db.session.flush()
+    db.session.add(
+        CompraDetalle(compra_id=compra.id, producto_id=coca.id, cantidad_comprada_unidades=60, costo_linea=180000, tasa_descuento_aplicada=5.0)
+    )
+    db.session.commit()
+    detalle = compra.detalles[0]
+
+    r = client.post(f"/compras/{compra.id}/linea/{detalle.id}/eliminar", follow_redirects=True)
+    assert r.status_code == 200
+    assert Compra.query.get(compra.id) is None
