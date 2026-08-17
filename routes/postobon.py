@@ -4,7 +4,7 @@ from io import BytesIO
 
 from flask import Blueprint, render_template, request, send_file
 
-from services.postobon import listar_faltantes, construir_workbook_faltantes
+from services.postobon import listar_faltantes_agrupados, construir_workbook_faltantes
 from services.fechas import MESES_ES
 
 bp = Blueprint("postobon", __name__, url_prefix="/postobon")
@@ -22,11 +22,11 @@ def index():
     mes = int(request.args.get("mes", hoy.month))
 
     fecha_inicio, fecha_fin = _rango_mes(anio, mes)
-    filas = listar_faltantes(fecha_inicio, fecha_fin)
-    total_faltante = sum(f["monto_faltante"] for f in filas)
+    grupos = listar_faltantes_agrupados(fecha_inicio, fecha_fin)
+    total_faltante = sum(g["subtotal"] for g in grupos)
 
     return render_template(
-        "postobon/informe.html", filas=filas, total_faltante=total_faltante,
+        "postobon/informe.html", grupos=grupos, total_faltante=total_faltante,
         anio=anio, mes=mes, meses=MESES_ES,
     )
 

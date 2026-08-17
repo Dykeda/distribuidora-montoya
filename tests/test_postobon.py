@@ -3,7 +3,7 @@ from datetime import date
 import pytest
 
 from models import Producto, ProductoPrecio, Compra, CompraDetalle
-from services.postobon import listar_faltantes
+from services.postobon import listar_faltantes, listar_faltantes_agrupados
 
 
 @pytest.fixture
@@ -22,8 +22,8 @@ def crear_producto(db, nombre="Coca-Cola 1.5L", precio=3000, tasa_referencia=10.
     return p
 
 
-def crear_compra_detalle(db, producto, fecha, costo_linea, tasa_aplicada, cantidad=60):
-    compra = Compra(fecha=fecha)
+def crear_compra_detalle(db, producto, fecha, costo_linea, tasa_aplicada, cantidad=60, numero_factura="F-001"):
+    compra = Compra(fecha=fecha, numero_factura=numero_factura)
     db.session.add(compra)
     db.session.flush()
     detalle = CompraDetalle(
@@ -70,14 +70,47 @@ def test_listar_faltantes_ignora_fuera_del_periodo(db):
     assert listar_faltantes(date(2026, 8, 1), date(2026, 8, 31)) == []
 
 
-def test_pagina_informe_muestra_faltante_y_total(db, client):
+def test_listar_faltantes_ignora_compra_sin_numero_de_factura(db):
+    # ej. carga de inventario físico de bodega, no una factura real de Postobón
     coca = crear_producto(db, tasa_referencia=15.0)
-    crear_compra_detalle(db, coca, date(2026, 8, 17), costo_linea=100000, tasa_aplicada=10.0)
+    crear_compra_detalle(db, coca, date(2026, 8, 16), costo_linea=100000, tasa_aplicada=0.0, numero_factura=None)
+
+    assert listar_faltantes(date(2026, 8, 1), date(2026, 8, 31)) == []
+
+
+def test_listar_faltantes_agrupados_agrupa_por_factura_con_subtotal(db):
+    coca = crear_producto(db, "Coca-Cola 1.5L", tasa_referencia=15.0)
+    agua = crear_producto(db, "Agua Cristal", tasa_referencia=10.0)
+
+    compra1 = Compra(fecha=date(2026, 8, 17), numero_factura="AS001")
+    db.session.add(compra1)
+    db.session.flush()
+    db.session.add(CompraDetalle(compra_id=compra1.id, producto_id=coca.id, cantidad_comprada_unidades=60, costo_linea=100000, tasa_descuento_aplicada=10.0))
+    db.session.add(CompraDetalle(compra_id=compra1.id, producto_id=agua.id, cantidad_comprada_unidades=60, costo_linea=50000, tasa_descuento_aplicada=5.0))
+    db.session.commit()
+
+    compra2, _ = crear_compra_detalle(db, coca, date(2026, 8, 18), costo_linea=200000, tasa_aplicada=5.0, numero_factura="AS002")
+
+    grupos = listar_faltantes_agrupados(date(2026, 8, 1), date(2026, 8, 31))
+
+    assert len(grupos) == 2
+    # ordenado por fecha descendente -> AS002 primero
+    assert grupos[0]["compra"].numero_factura == "AS002"
+    assert grupos[0]["subtotal"] == 20000  # 200000 * 10%
+    assert grupos[1]["compra"].numero_factura == "AS001"
+    assert len(grupos[1]["lineas"]) == 2
+    assert grupos[1]["subtotal"] == 5000 + 2500  # coca: 100000*5%, agua: 50000*5%
+
+
+def test_pagina_informe_muestra_faltante_agrupado_y_total(db, client):
+    coca = crear_producto(db, tasa_referencia=15.0)
+    crear_compra_detalle(db, coca, date(2026, 8, 17), costo_linea=100000, tasa_aplicada=10.0, numero_factura="AS07196376")
 
     r = client.get("/postobon/?anio=2026&mes=8")
     body = r.get_data(as_text=True)
     assert r.status_code == 200
     assert "Coca-Cola 1.5L" in body
+    assert "AS07196376" in body
     assert "5,000" in body  # monto faltante
 
 

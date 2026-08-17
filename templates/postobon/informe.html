@@ -5,9 +5,9 @@
   <h1 class="h3 mb-0">Faltantes de descuento — Postobón</h1>
   <a href="{{ url_for('postobon.exportar_excel', anio=anio, mes=mes) }}" class="btn btn-outline-secondary">Descargar Excel</a>
 </div>
-<p class="text-muted">Productos donde Postobón aplicó menos % de descuento del acordado — para reclamar.</p>
+<p class="text-muted">Facturas reales de Postobón donde alguno de sus productos aplicó menos % de descuento del acordado — para reclamar. Solo se consideran compras con número de factura.</p>
 
-<form method="get" class="row col-lg-6 mb-4">
+<form method="get" class="row col-lg-6 mb-3">
   <div class="col-6">
     <label class="form-label">Mes</label>
     <select name="mes" class="form-select" onchange="this.form.submit()">
@@ -22,44 +22,53 @@
   </div>
 </form>
 
-{% if filas %}
-<div class="table-responsive">
-<table class="table table-striped align-middle">
-  <thead>
-    <tr>
-      <th>Fecha compra</th>
-      <th>Producto</th>
-      <th class="text-end">Costo</th>
-      <th class="text-end">% esperado</th>
-      <th class="text-end">% aplicado</th>
-      <th class="text-end">Diferencia</th>
-      <th class="text-end">Monto faltante</th>
-      <th></th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for f in filas %}
-    <tr class="table-danger">
-      <td>{{ f.compra.fecha.strftime("%Y-%m-%d") }}</td>
-      <td>{{ f.producto.nombre }}</td>
-      <td class="text-end">${{ "{:,}".format(f.detalle.costo_linea) }}</td>
-      <td class="text-end">{{ f.tasa_esperada }}%</td>
-      <td class="text-end">{{ f.tasa_aplicada }}%</td>
-      <td class="text-end">{{ f.diferencia_pct }}%</td>
-      <td class="text-end">${{ "{:,}".format(f.monto_faltante) }}</td>
-      <td class="text-end"><a href="{{ url_for('compras.detalle', compra_id=f.compra.id) }}" class="btn btn-sm btn-outline-primary">Ver compra</a></td>
-    </tr>
-    {% endfor %}
-  </tbody>
-  <tfoot>
-    <tr class="fw-bold">
-      <td colspan="6">Total del mes</td>
-      <td class="text-end">${{ "{:,}".format(total_faltante) }}</td>
-      <td></td>
-    </tr>
-  </tfoot>
-</table>
+<div class="card card-metric mb-4" style="max-width: 320px;">
+  <div class="card-body">
+    <div class="text-muted small">Total faltante del mes</div>
+    <div class="fs-3 fw-bold text-danger">${{ "{:,}".format(total_faltante) }}</div>
+  </div>
 </div>
+
+{% if grupos %}
+  {% for g in grupos %}
+  <div class="mb-4">
+    <h2 class="h6 mb-2">Factura {{ g.compra.numero_factura }} — {{ g.compra.fecha.strftime("%Y-%m-%d") }}
+      <a href="{{ url_for('compras.detalle', compra_id=g.compra.id) }}" class="btn btn-sm btn-outline-primary ms-2">Ver compra</a>
+    </h2>
+    <div class="table-responsive">
+    <table class="table table-sm table-danger mb-0">
+      <thead>
+        <tr>
+          <th>Producto</th>
+          <th class="text-end">Costo</th>
+          <th class="text-end">% esperado</th>
+          <th class="text-end">% aplicado</th>
+          <th class="text-end">Diferencia</th>
+          <th class="text-end">Monto faltante</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in g.lineas %}
+        <tr>
+          <td>{{ f.producto.nombre }}</td>
+          <td class="text-end">${{ "{:,}".format(f.detalle.costo_linea) }}</td>
+          <td class="text-end">{{ f.tasa_esperada }}%</td>
+          <td class="text-end">{{ f.tasa_aplicada }}%</td>
+          <td class="text-end">{{ f.diferencia_pct }}%</td>
+          <td class="text-end">${{ "{:,}".format(f.monto_faltante) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr class="fw-bold">
+          <td colspan="5">Subtotal factura</td>
+          <td class="text-end">${{ "{:,}".format(g.subtotal) }}</td>
+        </tr>
+      </tfoot>
+    </table>
+    </div>
+  </div>
+  {% endfor %}
 {% else %}
 <div class="alert alert-success">No hay faltantes de descuento en este mes.</div>
 {% endif %}
