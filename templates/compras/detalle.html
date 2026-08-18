@@ -73,12 +73,17 @@
     {% endif %}
     {% if descuento_total or iva_total %}
     <tr class="fw-bold border-top">
-      <td>Total (costo − descuento + IVA)</td>
+      <td>Total (sin la parte de descuento)</td>
       <td class="text-end" colspan="2"></td>
       <td class="text-end">${{ "{:,}".format(total) }}</td>
       <td class="text-end" colspan="3"></td>
       <td></td>
     </tr>
+    {% if descuento_total %}
+    <tr>
+      <td colspan="8" class="text-muted small fw-normal">Este total ya no incluye los ${{ "{:,}".format(descuento_total) }} marcados como "Descuento" — no es lo que realmente se pagó en la factura, es el costo sin contar esa parte.</td>
+    </tr>
+    {% endif %}
     {% endif %}
   </tfoot>
 </table>
