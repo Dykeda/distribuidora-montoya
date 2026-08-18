@@ -98,6 +98,13 @@ class CompraDetalle(db.Model):
     # a precio base) -- para llevar la cuenta de esto aparte, sin que se confunda con un
     # faltante real de descuento en services/postobon.py.
     es_descuento = db.Column(db.Boolean, nullable=False, default=False)
+    # costo_linea ya es el valor neto (después del descuento de precio); el IVA se suma
+    # aparte para armar el total real de la factura, no hace parte del costo del producto.
+    porcentaje_iva = db.Column(db.Float, nullable=False, default=0.0)
+
+    @property
+    def valor_iva(self):
+        return round(self.costo_linea * (self.porcentaje_iva / 100.0))
 
     compra = db.relationship("Compra", back_populates="detalles")
     producto = db.relationship("Producto")

@@ -29,11 +29,12 @@ def detalle(compra_id):
 
     costo_total = sum(d.costo_linea for d in compra.detalles)
     descuento_total = sum(d.costo_linea for d in compra.detalles if d.es_descuento)
-    total = costo_total - descuento_total
+    iva_total = sum(d.valor_iva for d in compra.detalles)
+    total = costo_total - descuento_total + iva_total
 
     return render_template(
         "compras/detalle.html", compra=compra, filas=filas,
-        costo_total=costo_total, descuento_total=descuento_total, total=total,
+        costo_total=costo_total, descuento_total=descuento_total, iva_total=iva_total, total=total,
     )
 
 
@@ -75,8 +76,9 @@ def linea_editar(compra_id, detalle_id):
             unidades = float(request.form.get("unidades") or 0)
             costo = int(request.form.get("costo_linea") or 0)
             tasa = float(request.form.get("tasa_descuento") or 0)
+            iva = float(request.form.get("porcentaje_iva") or 0)
         except ValueError:
-            cajas = unidades = costo = tasa = 0
+            cajas = unidades = costo = tasa = iva = 0
         es_descuento = bool(request.form.get("es_descuento"))
 
         cantidad_unidades = round(cajas * producto.unidades_por_caja + unidades)
@@ -87,19 +89,21 @@ def linea_editar(compra_id, detalle_id):
             detalle.costo_linea = costo
             detalle.tasa_descuento_aplicada = tasa
             detalle.es_descuento = es_descuento
+            detalle.porcentaje_iva = iva
             db.session.commit()
             flash("Producto de la compra actualizado.", "success")
             return redirect(url_for("compras.detalle", compra_id=compra_id))
 
         return render_template(
             "compras/linea_formulario.html", compra=compra, detalle=detalle, producto=producto,
-            cajas_actual=cajas, unidades_actual=unidades, es_descuento_actual=es_descuento,
+            cajas_actual=cajas, unidades_actual=unidades, es_descuento_actual=es_descuento, iva_actual=iva,
         )
 
     cajas_actual, unidades_actual = cajas_y_unidades(producto, detalle.cantidad_comprada_unidades)
     return render_template(
         "compras/linea_formulario.html", compra=compra, detalle=detalle, producto=producto,
         cajas_actual=cajas_actual, unidades_actual=unidades_actual, es_descuento_actual=detalle.es_descuento,
+        iva_actual=detalle.porcentaje_iva,
     )
 
 
@@ -120,6 +124,7 @@ def nueva():
         costos = request.form.getlist("costo_linea[]")
         tasas = request.form.getlist("tasa_descuento[]")
         es_descuentos = request.form.getlist("es_descuento[]")
+        ivas = request.form.getlist("porcentaje_iva[]")
 
         lineas_validas = []
         errores = []
@@ -132,6 +137,7 @@ def nueva():
                 unidades = float(unidades_lista[i] or 0)
                 costo = int(costos[i])
                 tasa = float(tasas[i] or 0)
+                iva = float(ivas[i] or 0) if i < len(ivas) else 0.0
             except (ValueError, IndexError, TypeError):
                 errores.append(f"Línea {i + 1}: datos inválidos.")
                 continue
@@ -153,6 +159,7 @@ def nueva():
                     costo_linea=costo,
                     tasa_descuento_aplicada=tasa,
                     es_descuento=es_descuento,
+                    porcentaje_iva=iva,
                 )
             )
 

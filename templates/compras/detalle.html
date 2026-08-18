@@ -19,6 +19,8 @@
       <th class="text-end">Unidades sueltas</th>
       <th class="text-end">Costo</th>
       <th class="text-end">Tasa descuento</th>
+      <th class="text-end">% IVA</th>
+      <th class="text-end">Valor IVA</th>
       <th></th>
     </tr>
   </thead>
@@ -39,6 +41,8 @@
           <span class="text-danger d-block small">faltó, esperado {{ f.detalle.producto.tasa_descuento_referencia }}%</span>
         {% endif %}
       </td>
+      <td class="text-end">{{ f.detalle.porcentaje_iva }}%</td>
+      <td class="text-end">${{ "{:,}".format(f.detalle.valor_iva) }}</td>
       <td class="text-end">
         <a href="{{ url_for('compras.linea_editar', compra_id=compra.id, detalle_id=f.detalle.id) }}" class="btn btn-sm btn-outline-secondary">Editar</a>
         <form method="post" action="{{ url_for('compras.linea_eliminar', compra_id=compra.id, detalle_id=f.detalle.id) }}" class="d-inline"
@@ -55,6 +59,7 @@
       <td class="text-end" colspan="2"></td>
       <td class="text-end">${{ "{:,}".format(costo_total) }}</td>
       <td></td>
+      <td class="text-end" colspan="2">{% if iva_total %}IVA: ${{ "{:,}".format(iva_total) }}{% endif %}</td>
       <td></td>
     </tr>
     {% if descuento_total %}
@@ -62,14 +67,16 @@
       <td>Descuento (líneas marcadas)</td>
       <td class="text-end" colspan="2"></td>
       <td class="text-end text-danger">−${{ "{:,}".format(descuento_total) }}</td>
-      <td></td>
+      <td class="text-end" colspan="3"></td>
       <td></td>
     </tr>
+    {% endif %}
+    {% if descuento_total or iva_total %}
     <tr class="fw-bold border-top">
-      <td>Total</td>
+      <td>Total (costo − descuento + IVA)</td>
       <td class="text-end" colspan="2"></td>
       <td class="text-end">${{ "{:,}".format(total) }}</td>
-      <td></td>
+      <td class="text-end" colspan="3"></td>
       <td></td>
     </tr>
     {% endif %}

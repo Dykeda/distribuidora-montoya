@@ -32,6 +32,7 @@
         <th style="width:130px">Unidades sueltas</th>
         <th style="width:140px">Costo ($)</th>
         <th style="width:110px">Descuento %</th>
+        <th style="width:100px">% IVA</th>
         <th style="width:100px">Es descuento</th>
         <th></th>
       </tr>
@@ -60,6 +61,7 @@
     <td><input type="number" step="1" min="0" name="unidades[]" class="form-control unidades-input" value="0"></td>
     <td><input type="number" min="0" name="costo_linea[]" class="form-control" required></td>
     <td><input type="number" step="0.1" min="0" name="tasa_descuento[]" class="form-control" value="0"></td>
+    <td><input type="number" step="0.1" min="0" name="porcentaje_iva[]" class="form-control" value="19"></td>
     <td class="text-center">
       <input type="hidden" name="es_descuento[]" value="0" class="es-descuento-oculto">
       <input type="checkbox" class="form-check-input es-descuento-check">
