@@ -190,7 +190,7 @@ def test_eliminar_ultima_linea_de_compra_borra_la_compra_completa(db, client):
     assert Compra.query.get(compra.id) is None
 
 
-def test_detalle_de_compra_muestra_costo_total_descuento_y_total(db, client):
+def test_detalle_de_compra_muestra_costo_total_y_descuento(db, client):
     coca = crear_producto(db, "Coca-Cola 1.5L", 3000)
     agua = crear_producto(db, "Agua Cristal", 2000)
     compra = Compra(fecha=date(2026, 8, 17), numero_factura="AS001")
@@ -208,8 +208,8 @@ def test_detalle_de_compra_muestra_costo_total_descuento_y_total(db, client):
     body = r.get_data(as_text=True)
     assert r.status_code == 200
     assert "189,000" in body  # costo total (180000 + 9000)
-    assert "9,000" in body  # descuento
-    assert "180,000" in body  # total = 189000 - 9000
+    assert "9,000" in body  # descuento (líneas marcadas), informativo, ya no se resta de nada
+    assert "Total a pagar" not in body  # sin IVA en ninguna línea, no hay total distinto que mostrar
 
 
 def test_detalle_de_compra_sin_lineas_marcadas_no_muestra_fila_de_descuento(db, client):
@@ -281,3 +281,33 @@ def test_editar_linea_de_compra_guarda_porcentaje_iva(db, client):
     actualizado = CompraDetalle.query.get(detalle.id)
     assert actualizado.porcentaje_iva == 19.0
     assert actualizado.valor_iva == 19000
+
+
+def test_total_a_pagar_es_costo_mas_iva_sin_restar_el_descuento(db, client):
+    coca = crear_producto(db, "Coca-Cola 1.5L", 3000)
+    agua = crear_producto(db, "Agua Cristal", 2000)
+    compra = Compra(fecha=date(2026, 8, 17), numero_factura="AS001")
+    db.session.add(compra)
+    db.session.flush()
+    db.session.add(
+        CompraDetalle(
+            compra_id=compra.id, producto_id=coca.id, cantidad_comprada_unidades=60,
+            costo_linea=100000, tasa_descuento_aplicada=10.0, porcentaje_iva=19.0,
+        )
+    )
+    db.session.add(
+        CompraDetalle(
+            compra_id=compra.id, producto_id=agua.id, cantidad_comprada_unidades=30,
+            costo_linea=50000, tasa_descuento_aplicada=0.0, porcentaje_iva=0.0, es_descuento=True,
+        )
+    )
+    db.session.commit()
+
+    r = client.get(f"/compras/{compra.id}")
+    body = r.get_data(as_text=True)
+    assert r.status_code == 200
+    # costo total = 150000, IVA = 19000, total a pagar = 169000 (NO se resta el descuento de 50000)
+    assert "150,000" in body  # costo total
+    assert "50,000" in body  # descuento (líneas marcadas), informativo
+    assert "169,000" in body  # total a pagar = costo total + IVA
+    assert "Total (sin la parte de descuento)" not in body

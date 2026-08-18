@@ -30,11 +30,12 @@ def detalle(compra_id):
     costo_total = sum(d.costo_linea for d in compra.detalles)
     descuento_total = sum(d.costo_linea for d in compra.detalles if d.es_descuento)
     iva_total = sum(d.valor_iva for d in compra.detalles)
-    total = costo_total - descuento_total + iva_total
+    total_a_pagar = costo_total + iva_total
 
     return render_template(
         "compras/detalle.html", compra=compra, filas=filas,
-        costo_total=costo_total, descuento_total=descuento_total, iva_total=iva_total, total=total,
+        costo_total=costo_total, descuento_total=descuento_total, iva_total=iva_total,
+        total_a_pagar=total_a_pagar,
     )
 
 
