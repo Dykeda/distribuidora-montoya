@@ -24,7 +24,7 @@ class Config:
     # como variables de entorno (ver DEPLOY.md). Estos valores por defecto solo son para
     # uso local con iniciar.bat, donde el único acceso al sistema es ese mismo computador.
     SECRET_KEY = os.environ.get("SECRET_KEY", "distribuidora-montoya-local")
-    APP_PASSWORD = os.environ.get("APP_PASSWORD", "montoya2026")
+    APP_PASSWORD = os.environ.get("APP_PASSWORD", "Dykeda04")
     # Solo en true en el VPS (donde Certbot da HTTPS real) — con esto el navegador nunca
     # manda la cookie de sesión sin cifrar. Debe quedar en false para el uso local
     # (iniciar.bat/.exe corren en http://127.0.0.1, una cookie "Secure" ahí nunca se

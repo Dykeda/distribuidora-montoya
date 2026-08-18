@@ -18,7 +18,7 @@ Si recibiste un archivo `DistribuidoraMontoya.exe`, no necesitas instalar nada:
 2. Doble clic. La primera vez, Windows puede mostrar una advertencia azul ("Windows
    protegió su PC") porque el programa no tiene firma digital — es normal, dale clic en
    **"Más información"** y luego **"Ejecutar de todas formas"**.
-3. Se abre solo en tu navegador y pide la contraseña: `montoya2026` (a menos que te hayan
+3. Se abre solo en tu navegador y pide la contraseña: `Dykeda04` (a menos que te hayan
    dado una distinta).
 4. **No cierres la ventana negra** mientras lo uses. Ciérrala cuando termines.
 5. Todos tus datos quedan guardados en una carpeta `instance` que aparece junto al .exe —
@@ -42,7 +42,7 @@ necesita tener Python instalado, solo funciona con lo que trae Windows.
 ### Cada vez que quieras usar el sistema
 1. Doble clic en **`iniciar.bat`**.
 2. Se abrirá automáticamente en tu navegador (Chrome, Edge, etc.) y pedirá la contraseña
-   (por defecto `montoya2026` si nadie la cambió — ver nota de seguridad abajo).
+   (por defecto `Dykeda04` si nadie la cambió — ver nota de seguridad abajo).
 3. **No cierres la ventana negra** que se abre mientras estés usando el sistema — es la
    que mantiene el programa funcionando. Cuando termines, cierra esa ventana.
 
@@ -269,7 +269,7 @@ mismo, son scripts sueltos que se ejecutan por fuera.
 ### Contraseña y despliegue en línea
 - La app exige login en todas partes (`app.py`, función `exigir_login`). La contraseña
   vive en `Config.APP_PASSWORD`, leída de la variable de entorno `APP_PASSWORD` (con
-  `montoya2026` como valor por defecto SOLO para uso local). Lo mismo con `SECRET_KEY`
+  `Dykeda04` como valor por defecto SOLO para uso local). Lo mismo con `SECRET_KEY`
   (firma las cookies de sesión).
 - **Si se despliega en línea, hay que fijar `APP_PASSWORD` y `SECRET_KEY` propios como
   variables de entorno — nunca dejar los valores por defecto expuestos a internet.**
