@@ -7,6 +7,12 @@
 <div class="alert alert-warning">No hay productos activos todavía. <a href="{{ url_for('productos.nuevo') }}">Crea un producto primero</a>.</div>
 {% endif %}
 
+<datalist id="lista-productos">
+  {% for p in productos %}
+  <option value="{{ p.nombre }}">
+  {% endfor %}
+</datalist>
+
 <form method="post">
   <div class="row col-lg-8 mb-3">
     <div class="col-md-4">
@@ -49,13 +55,8 @@
 <template id="plantilla-linea">
   <tr>
     <td>
-      <select name="producto_id[]" class="form-select" required>
-        <option value="">-- elegir --</option>
-        {% for p in productos %}
-        <option value="{{ p.id }}" data-tasa="{{ p.tasa_descuento_referencia }}"
-                data-precio-caja="{{ p.precio_caja_actual() or 0 }}" data-precio-unidad="{{ p.precio_actual() or 0 }}">{{ p.nombre }}</option>
-        {% endfor %}
-      </select>
+      <input type="text" class="form-control producto-buscar" list="lista-productos" placeholder="Escribe para buscar..." autocomplete="off">
+      <input type="hidden" name="producto_id[]" class="producto-id-oculto">
     </td>
     <td><input type="number" step="1" min="0" name="cajas[]" class="form-control cajas-input" value="0"></td>
     <td><input type="number" step="1" min="0" name="unidades[]" class="form-control unidades-input" value="0"></td>
@@ -71,18 +72,27 @@
 </template>
 
 <script>
+  const PRODUCTOS = [
+    {% for p in productos %}
+    {id: {{ p.id }}, nombre: {{ p.nombre | tojson }}, tasa: {{ p.tasa_descuento_referencia }}, precioCaja: {{ p.precio_caja_actual() or 0 }}, precioUnidad: {{ p.precio_actual() or 0 }}},
+    {% endfor %}
+  ];
+
   const cuerpo = document.getElementById("cuerpo-lineas");
   const plantilla = document.getElementById("plantilla-linea");
 
+  function buscarProductoPorNombre(nombre) {
+    return PRODUCTOS.find((p) => p.nombre === nombre);
+  }
+
   function recalcularCosto(fila) {
-    const opcion = fila.querySelector('select[name="producto_id[]"]').selectedOptions[0];
+    const idInput = fila.querySelector(".producto-id-oculto");
     const costoInput = fila.querySelector('input[name="costo_linea[]"]');
-    if (!opcion || !opcion.value) return;
+    const prod = PRODUCTOS.find((p) => String(p.id) === idInput.value);
+    if (!prod) return;
     const cajas = parseFloat(fila.querySelector(".cajas-input").value) || 0;
     const unidades = parseFloat(fila.querySelector(".unidades-input").value) || 0;
-    const precioCaja = parseFloat(opcion.dataset.precioCaja) || 0;
-    const precioUnidad = parseFloat(opcion.dataset.precioUnidad) || 0;
-    costoInput.value = Math.round(cajas * precioCaja + unidades * precioUnidad);
+    costoInput.value = Math.round(cajas * prod.precioCaja + unidades * prod.precioUnidad);
   }
 
   function agregarLinea() {
@@ -91,10 +101,13 @@
       e.target.closest("tr").remove();
     });
     const fila = nodo.querySelector("tr");
-    fila.querySelector('select[name="producto_id[]"]').addEventListener("change", (e) => {
-      const opcion = e.target.selectedOptions[0];
+    const buscarInput = fila.querySelector(".producto-buscar");
+    const idInput = fila.querySelector(".producto-id-oculto");
+    buscarInput.addEventListener("input", () => {
+      const prod = buscarProductoPorNombre(buscarInput.value);
+      idInput.value = prod ? prod.id : "";
       const tasaInput = fila.querySelector('input[name="tasa_descuento[]"]');
-      tasaInput.value = opcion ? (opcion.dataset.tasa || 0) : 0;
+      tasaInput.value = prod ? (prod.tasa || 0) : 0;
       recalcularCosto(fila);
     });
     fila.querySelector(".cajas-input").addEventListener("input", () => recalcularCosto(fila));

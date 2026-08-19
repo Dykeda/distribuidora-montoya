@@ -28,8 +28,10 @@
     <p class="text-muted small mt-1 mb-0">Opcional — si los cuentas, te decimos al guardar si sobró o faltó dinero comparado con lo que debería haber traído la ruta.</p>
   </div>
 
+  <input type="text" id="buscar-producto-retorno" class="form-control mb-2" placeholder="Buscar producto...">
+
   <div class="table-responsive">
-  <table class="table">
+  <table class="table" id="tabla-retorno">
     <thead>
       <tr>
         <th>Producto</th>
@@ -40,7 +42,7 @@
     </thead>
     <tbody>
       {% for f in filas %}
-      <tr>
+      <tr data-nombre="{{ f.producto.nombre | lower }}">
         <td>{{ f.producto.nombre }}</td>
         <td class="text-end">
           {{ f.cajas_cargadas }} cajas
@@ -58,4 +60,13 @@
   <button type="submit" class="btn btn-primary">Guardar retorno</button>
   <a href="{{ url_for('camion.retorno_elegir') }}" class="btn btn-link">Cancelar</a>
 </form>
+
+<script>
+  document.getElementById("buscar-producto-retorno").addEventListener("input", (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll("#tabla-retorno tbody tr").forEach((tr) => {
+      tr.style.display = tr.dataset.nombre.includes(q) ? "" : "none";
+    });
+  });
+</script>
 {% endblock %}

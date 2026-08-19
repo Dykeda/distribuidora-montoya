@@ -8,6 +8,12 @@
 <div class="alert alert-warning">No hay productos activos todavía. <a href="{{ url_for('productos.nuevo') }}">Crea un producto primero</a>.</div>
 {% endif %}
 
+<datalist id="lista-productos">
+  {% for p in productos %}
+  <option value="{{ p.nombre }}">
+  {% endfor %}
+</datalist>
+
 <form method="post">
   <div class="row col-lg-8 mb-3">
     <div class="col-md-6">
@@ -42,12 +48,8 @@
 <template id="plantilla-linea">
   <tr>
     <td>
-      <select name="producto_id[]" class="form-select" required>
-        <option value="">-- elegir --</option>
-        {% for p in productos %}
-        <option value="{{ p.id }}">{{ p.nombre }}</option>
-        {% endfor %}
-      </select>
+      <input type="text" class="form-control producto-buscar" list="lista-productos" placeholder="Escribe para buscar..." autocomplete="off">
+      <input type="hidden" name="producto_id[]" class="producto-id-oculto">
     </td>
     <td><input type="number" step="1" min="0" name="cajas[]" class="form-control" value="0"></td>
     <td><input type="number" step="1" min="0" name="unidades[]" class="form-control" value="0"></td>
@@ -56,6 +58,12 @@
 </template>
 
 <script>
+  const PRODUCTOS = [
+    {% for p in productos %}
+    {id: {{ p.id }}, nombre: {{ p.nombre | tojson }}},
+    {% endfor %}
+  ];
+
   const cuerpo = document.getElementById("cuerpo-lineas");
   const plantilla = document.getElementById("plantilla-linea");
 
@@ -63,6 +71,11 @@
     const nodo = plantilla.content.cloneNode(true);
     nodo.querySelector(".btn-quitar-linea").addEventListener("click", (e) => {
       e.target.closest("tr").remove();
+    });
+    const fila = nodo.querySelector("tr");
+    fila.querySelector(".producto-buscar").addEventListener("input", (e) => {
+      const prod = PRODUCTOS.find((p) => p.nombre === e.target.value);
+      fila.querySelector(".producto-id-oculto").value = prod ? prod.id : "";
     });
     cuerpo.appendChild(nodo);
   }
