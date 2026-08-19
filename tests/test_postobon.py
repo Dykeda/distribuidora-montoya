@@ -140,6 +140,26 @@ def test_exportar_excel_descarga_archivo(db, client):
     assert "attachment" in r.headers.get("Content-Disposition", "")
 
 
+def test_exportar_excel_de_una_factura_descarga_archivo(db, client):
+    coca = crear_producto(db, tasa_referencia=15.0)
+    compra, _ = crear_compra_detalle(db, coca, date(2026, 8, 17), costo_linea=100000, tasa_aplicada=10.0, numero_factura="AS07196376")
+
+    r = client.get(f"/postobon/exportar-excel/{compra.id}")
+    assert r.status_code == 200
+    assert r.mimetype == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    assert "attachment" in r.headers.get("Content-Disposition", "")
+    assert "AS07196376" in r.headers.get("Content-Disposition", "")
+
+
+def test_informe_muestra_boton_de_excel_por_factura(db, client):
+    coca = crear_producto(db, tasa_referencia=15.0)
+    compra, _ = crear_compra_detalle(db, coca, date(2026, 8, 17), costo_linea=100000, tasa_aplicada=10.0, numero_factura="AS07196376")
+
+    r = client.get("/postobon/?anio=2026&mes=8")
+    body = r.get_data(as_text=True)
+    assert f"/postobon/exportar-excel/{compra.id}" in body
+
+
 def test_detalle_de_compra_resalta_fila_con_faltante(db, client):
     coca = crear_producto(db, tasa_referencia=15.0)
     compra, _ = crear_compra_detalle(db, coca, date(2026, 8, 17), costo_linea=100000, tasa_aplicada=10.0)

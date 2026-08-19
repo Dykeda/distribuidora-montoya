@@ -38,6 +38,34 @@ def listar_faltantes(fecha_inicio, fecha_fin):
     return filas
 
 
+def listar_faltantes_de_compra(compra_id):
+    """Igual que listar_faltantes(), pero para una sola compra (factura) puntual."""
+    detalles = (
+        CompraDetalle.query.join(Compra)
+        .join(Producto)
+        .filter(Compra.id == compra_id)
+        .filter(Compra.numero_factura.isnot(None))
+        .filter(CompraDetalle.es_descuento.is_(False))
+        .all()
+    )
+    filas = []
+    for d in detalles:
+        diferencia_pct = round(d.producto.tasa_descuento_referencia - d.tasa_descuento_aplicada, 1)
+        if diferencia_pct <= 0:
+            continue
+        monto_faltante = round(d.costo_linea * diferencia_pct / 100)
+        filas.append({
+            "compra": d.compra,
+            "detalle": d,
+            "producto": d.producto,
+            "tasa_esperada": d.producto.tasa_descuento_referencia,
+            "tasa_aplicada": d.tasa_descuento_aplicada,
+            "diferencia_pct": diferencia_pct,
+            "monto_faltante": monto_faltante,
+        })
+    return filas
+
+
 def listar_faltantes_agrupados(fecha_inicio, fecha_fin):
     """Igual que listar_faltantes(), pero agrupado por factura -- cada grupo trae su
     propia lista de líneas y su subtotal, para que el informe no se vea suelto."""
@@ -78,6 +106,38 @@ def construir_workbook_faltantes(fecha_inicio, fecha_fin):
         total_general += grupo["subtotal"]
 
     ws.append(["", "", "", "", "", "", "", "TOTAL", total_general])
+    for celda in ws[ws.max_row]:
+        celda.font = Font(bold=True)
+
+    for i, encabezado in enumerate(encabezados, start=1):
+        ancho = max(len(str(encabezado)), 12)
+        ws.column_dimensions[ws.cell(row=1, column=i).column_letter].width = ancho + 4
+
+    return wb
+
+
+def construir_workbook_faltantes_de_compra(compra_id):
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Faltantes de descuento"
+
+    encabezados = ["Factura", "Fecha", "Producto", "Cantidad", "Costo", "% esperado", "% aplicado", "Diferencia %", "Monto faltante"]
+    ws.append(encabezados)
+    for celda in ws[1]:
+        celda.font = Font(bold=True)
+
+    filas = listar_faltantes_de_compra(compra_id)
+    total = 0
+    for f in filas:
+        compra = f["compra"]
+        ws.append([
+            compra.numero_factura, compra.fecha, f["producto"].nombre,
+            f["detalle"].cantidad_comprada_unidades, f["detalle"].costo_linea,
+            f["tasa_esperada"], f["tasa_aplicada"], f["diferencia_pct"], f["monto_faltante"],
+        ])
+        total += f["monto_faltante"]
+
+    ws.append(["", "", "", "", "", "", "", "TOTAL", total])
     for celda in ws[ws.max_row]:
         celda.font = Font(bold=True)
 

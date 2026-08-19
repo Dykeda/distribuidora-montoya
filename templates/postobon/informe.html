@@ -34,6 +34,7 @@
   <div class="mb-4">
     <h2 class="h6 mb-2">Factura {{ g.compra.numero_factura }} — {{ g.compra.fecha.strftime("%Y-%m-%d") }}
       <a href="{{ url_for('compras.detalle', compra_id=g.compra.id) }}" class="btn btn-sm btn-outline-primary ms-2">Ver compra</a>
+      <a href="{{ url_for('postobon.exportar_excel_compra', compra_id=g.compra.id) }}" class="btn btn-sm btn-outline-secondary ms-1">Descargar Excel de esta factura</a>
     </h2>
     <div class="table-responsive">
     <table class="table table-sm table-danger mb-0">

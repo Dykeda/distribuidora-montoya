@@ -4,7 +4,9 @@ from io import BytesIO
 
 from flask import Blueprint, render_template, request, send_file
 
-from services.postobon import listar_faltantes_agrupados, construir_workbook_faltantes
+from models import Compra
+
+from services.postobon import listar_faltantes_agrupados, construir_workbook_faltantes, construir_workbook_faltantes_de_compra
 from services.fechas import MESES_ES
 
 bp = Blueprint("postobon", __name__, url_prefix="/postobon")
@@ -44,6 +46,24 @@ def exportar_excel():
     buffer.seek(0)
     marca = datetime.now().strftime("%Y-%m-%d_%H%M")
     nombre_archivo = f"faltantes_postobon_{anio}-{mes:02d}_{marca}.xlsx"
+    return send_file(
+        buffer,
+        as_attachment=True,
+        download_name=nombre_archivo,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
+@bp.route("/exportar-excel/<int:compra_id>")
+def exportar_excel_compra(compra_id):
+    compra = Compra.query.get_or_404(compra_id)
+    wb = construir_workbook_faltantes_de_compra(compra_id)
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    marca = datetime.now().strftime("%Y-%m-%d_%H%M")
+    factura = compra.numero_factura or f"compra{compra.id}"
+    nombre_archivo = f"faltantes_postobon_{factura}_{marca}.xlsx"
     return send_file(
         buffer,
         as_attachment=True,
