@@ -65,6 +65,49 @@ def linea_eliminar(compra_id, detalle_id):
     return redirect(url_for("compras.detalle", compra_id=compra_id))
 
 
+@bp.route("/<int:compra_id>/linea/nueva", methods=["GET", "POST"])
+def linea_nueva(compra_id):
+    compra = Compra.query.get_or_404(compra_id)
+    productos = Producto.query.filter_by(activo=True).order_by(Producto.nombre).all()
+
+    if request.method == "POST":
+        producto = db.session.get(Producto, int(request.form.get("producto_id") or 0))
+        try:
+            cajas = float(request.form.get("cajas") or 0)
+            unidades = float(request.form.get("unidades") or 0)
+            costo = int(request.form.get("costo_linea") or 0)
+            tasa = float(request.form.get("tasa_descuento") or 0)
+            iva = float(request.form.get("porcentaje_iva") or 0)
+        except ValueError:
+            producto = None
+        es_descuento = bool(request.form.get("es_descuento"))
+
+        if producto is None:
+            flash("Selecciona un producto válido.", "error")
+            return render_template("compras/linea_nueva_formulario.html", compra=compra, productos=productos, form=request.form)
+
+        cantidad_unidades = round(cajas * producto.unidades_por_caja + unidades)
+        if cantidad_unidades <= 0:
+            flash("La cantidad debe ser mayor a cero.", "error")
+            return render_template("compras/linea_nueva_formulario.html", compra=compra, productos=productos, form=request.form)
+
+        compra.detalles.append(
+            CompraDetalle(
+                producto_id=producto.id,
+                cantidad_comprada_unidades=cantidad_unidades,
+                costo_linea=costo,
+                tasa_descuento_aplicada=tasa,
+                es_descuento=es_descuento,
+                porcentaje_iva=iva,
+            )
+        )
+        db.session.commit()
+        flash("Producto agregado a la compra.", "success")
+        return redirect(url_for("compras.detalle", compra_id=compra.id))
+
+    return render_template("compras/linea_nueva_formulario.html", compra=compra, productos=productos, form=None)
+
+
 @bp.route("/<int:compra_id>/linea/<int:detalle_id>/editar", methods=["GET", "POST"])
 def linea_editar(compra_id, detalle_id):
     compra = Compra.query.get_or_404(compra_id)

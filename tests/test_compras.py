@@ -161,6 +161,42 @@ def test_editar_linea_de_compra_actualiza_cantidad_costo_y_tasa(db, client):
     assert calcular_stock(coca.id) == 50
 
 
+def test_agregar_linea_a_compra_existente(db, client):
+    compra, coca, agua = _crear_compra_con_dos_productos(db)
+    nuevo = crear_producto(db, nombre="Sprite 1.5L", precio=2500)
+
+    r = client.post(
+        f"/compras/{compra.id}/linea/nueva",
+        data={
+            "producto_id": str(nuevo.id), "cajas": "2", "unidades": "3",
+            "costo_linea": "20000", "tasa_descuento": "10.0", "porcentaje_iva": "19",
+        },
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+
+    actualizado = Compra.query.get(compra.id)
+    assert len(actualizado.detalles) == 3
+    nueva_linea = next(d for d in actualizado.detalles if d.producto_id == nuevo.id)
+    assert nueva_linea.cantidad_comprada_unidades == 15  # 2 cajas * 6 + 3 sueltas
+    assert nueva_linea.costo_linea == 20000
+    assert nueva_linea.tasa_descuento_aplicada == 10.0
+    assert nueva_linea.porcentaje_iva == 19.0
+    assert calcular_stock(nuevo.id) == 15
+
+
+def test_agregar_linea_sin_producto_no_agrega_nada(db, client):
+    compra, coca, agua = _crear_compra_con_dos_productos(db)
+
+    r = client.post(
+        f"/compras/{compra.id}/linea/nueva",
+        data={"producto_id": "", "cajas": "1", "unidades": "0", "costo_linea": "5000"},
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+    assert len(Compra.query.get(compra.id).detalles) == 2
+
+
 def test_eliminar_linea_de_compra_deja_el_resto_intacto(db, client):
     compra, coca, agua = _crear_compra_con_dos_productos(db)
     detalle_coca = next(d for d in compra.detalles if d.producto_id == coca.id)

@@ -83,5 +83,7 @@
   </tfoot>
 </table>
 </div>
+<a href="{{ url_for('compras.linea_nueva', compra_id=compra.id) }}" class="btn btn-outline-primary btn-sm mb-3">+ Agregar producto</a>
+<br>
 <a href="{{ url_for('compras.listar') }}" class="btn btn-link">&larr; Volver</a>
 {% endblock %}

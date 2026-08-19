@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Agregar producto a la compra{% endblock %}
+{% block content %}
+<h1 class="h3 mb-1">Agregar producto a la compra</h1>
+<p class="text-muted">{{ compra.fecha.strftime("%Y-%m-%d") }} &mdash; Factura {{ compra.numero_factura or "-" }}</p>
+
+{% if not productos %}
+<div class="alert alert-warning">No hay productos activos todavía. <a href="{{ url_for('productos.nuevo') }}">Crea un producto primero</a>.</div>
+{% endif %}
+
+<datalist id="lista-productos">
+  {% for p in productos %}
+  <option value="{{ p.nombre }}">
+  {% endfor %}
+</datalist>
+
+<form method="post">
+  <div class="row col-lg-8 mb-3">
+    <div class="col-md-6">
+      <label class="form-label">Producto</label>
+      <input type="text" id="producto-buscar" class="form-control" list="lista-productos" placeholder="Escribe para buscar..." autocomplete="off" value="{{ form.producto_nombre if form else '' }}">
+      <input type="hidden" id="producto_id" name="producto_id">
+    </div>
+  </div>
+  <div class="row col-lg-8 mb-3">
+    <div class="col-md-3">
+      <label class="form-label">Cajas</label>
+      <input type="number" step="1" min="0" id="cajas" name="cajas" class="form-control" value="{{ form.cajas if form else 0 }}">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Unidades sueltas</label>
+      <input type="number" step="1" min="0" id="unidades" name="unidades" class="form-control" value="{{ form.unidades if form else 0 }}">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Costo ($)</label>
+      <input type="number" min="0" id="costo_linea" name="costo_linea" class="form-control" value="{{ form.costo_linea if form else '' }}" required>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Descuento %</label>
+      <input type="number" step="0.1" min="0" id="tasa_descuento" name="tasa_descuento" class="form-control" value="{{ form.tasa_descuento if form else 0 }}">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">% IVA</label>
+      <input type="number" step="0.1" min="0" name="porcentaje_iva" class="form-control" value="{{ form.porcentaje_iva if form else 19 }}">
+    </div>
+  </div>
+  <div class="form-check mb-3">
+    <input type="checkbox" name="es_descuento" value="1" class="form-check-input" id="es_descuento" {% if form and form.get('es_descuento') %}checked{% endif %}>
+    <label class="form-check-label" for="es_descuento">Esta línea es la parte de "descuento en producto" de la factura</label>
+  </div>
+  <button type="submit" class="btn btn-primary">Agregar</button>
+  <a href="{{ url_for('compras.detalle', compra_id=compra.id) }}" class="btn btn-link">Cancelar</a>
+</form>
+
+<script>
+  const PRODUCTOS = [
+    {% for p in productos %}
+    {id: {{ p.id }}, nombre: {{ p.nombre | tojson }}, tasa: {{ p.tasa_descuento_referencia }}, precioCaja: {{ p.precio_caja_actual() or 0 }}, precioUnidad: {{ p.precio_actual() or 0 }}},
+    {% endfor %}
+  ];
+
+  const buscarInput = document.getElementById("producto-buscar");
+  const idInput = document.getElementById("producto_id");
+  const cajasInput = document.getElementById("cajas");
+  const unidadesInput = document.getElementById("unidades");
+  const costoInput = document.getElementById("costo_linea");
+  const tasaInput = document.getElementById("tasa_descuento");
+
+  function recalcularCosto() {
+    const prod = PRODUCTOS.find((p) => String(p.id) === idInput.value);
+    if (!prod) return;
+    const cajas = parseFloat(cajasInput.value) || 0;
+    const unidades = parseFloat(unidadesInput.value) || 0;
+    costoInput.value = Math.round(cajas * prod.precioCaja + unidades * prod.precioUnidad);
+  }
+
+  buscarInput.addEventListener("input", () => {
+    const prod = PRODUCTOS.find((p) => p.nombre === buscarInput.value);
+    idInput.value = prod ? prod.id : "";
+    tasaInput.value = prod ? (prod.tasa || 0) : 0;
+    recalcularCosto();
+  });
+  cajasInput.addEventListener("input", recalcularCosto);
+  unidadesInput.addEventListener("input", recalcularCosto);
+</script>
+{% endblock %}
