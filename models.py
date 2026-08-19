@@ -152,6 +152,9 @@ class RetornoCamion(db.Model):
     )
     fecha = db.Column(db.Date, nullable=False, default=date.today)
     notas = db.Column(db.String(255), nullable=True)
+    # Conteo físico de caja al cerrar la ruta -- nulo si no se contó (no es obligatorio).
+    efectivo_contado = db.Column(db.Integer, nullable=True)
+    monedas_contado = db.Column(db.Integer, nullable=True)
 
     salida = db.relationship("SalidaCamion", back_populates="retorno")
     detalles = db.relationship(

@@ -15,6 +15,7 @@ from models import (
 )
 from services.ventas import venta_por_salida, rutas_en_transito, cargado_por_producto
 from services.inventario import cajas_y_unidades
+from services.caja import efectivo_por_salida
 from services.fechas import MESES_ES
 
 bp = Blueprint("camion", __name__, url_prefix="/camion")
@@ -107,7 +108,19 @@ def detalle(salida_id):
     if venta is not None:
         venta = _con_cajas_y_unidades(venta, "cantidad_vendida")
 
-    return render_template("camion/detalle.html", salida=salida, carga=carga, recargas=recargas, venta=venta)
+    cuadre = None
+    if salida.retorno and salida.retorno.efectivo_contado is not None and salida.retorno.monedas_contado is not None:
+        efectivo_esperado = efectivo_por_salida(salida_id) or 0
+        efectivo_real = salida.retorno.efectivo_contado + salida.retorno.monedas_contado
+        cuadre = {
+            "esperado": efectivo_esperado,
+            "efectivo_contado": salida.retorno.efectivo_contado,
+            "monedas_contado": salida.retorno.monedas_contado,
+            "real": efectivo_real,
+            "diferencia": efectivo_real - efectivo_esperado,
+        }
+
+    return render_template("camion/detalle.html", salida=salida, carga=carga, recargas=recargas, venta=venta, cuadre=cuadre)
 
 
 @bp.route("/salida/nueva", methods=["GET", "POST"])
@@ -184,7 +197,19 @@ def retorno_nueva(salida_id):
                 return render_template("camion/retorno_formulario.html", salida=salida, filas=filas, form=request.form)
             detalles.append(RetornoCamionDetalle(producto_id=fila["producto"].id, cantidad_unidades=cantidad_unidades))
 
-        retorno = RetornoCamion(salida_id=salida.id, fecha=fecha, notas=request.form.get("notas") or None)
+        efectivo_contado = None
+        monedas_contado = None
+        if request.form.get("efectivo_contado") or request.form.get("monedas_contado"):
+            try:
+                efectivo_contado = int(request.form.get("efectivo_contado") or 0)
+                monedas_contado = int(request.form.get("monedas_contado") or 0)
+            except ValueError:
+                efectivo_contado = monedas_contado = None
+
+        retorno = RetornoCamion(
+            salida_id=salida.id, fecha=fecha, notas=request.form.get("notas") or None,
+            efectivo_contado=efectivo_contado, monedas_contado=monedas_contado,
+        )
         retorno.detalles = detalles
         db.session.add(retorno)
         db.session.commit()

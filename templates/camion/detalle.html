@@ -65,6 +65,35 @@
   </tfoot>
 </table>
 </div>
+
+{% if cuadre %}
+<h2 class="h5 mt-4">Cuadre de caja</h2>
+<div class="row g-3 mb-2">
+  <div class="col-md-3">
+    <div class="card card-metric h-100"><div class="card-body">
+      <div class="text-muted small">Efectivo esperado</div>
+      <div class="fs-5 fw-bold">${{ "{:,}".format(cuadre.esperado) }}</div>
+    </div></div>
+  </div>
+  <div class="col-md-3">
+    <div class="card card-metric h-100"><div class="card-body">
+      <div class="text-muted small">Contado (billetes + monedas)</div>
+      <div class="fs-5 fw-bold">${{ "{:,}".format(cuadre.real) }}</div>
+      <div class="text-muted small">${{ "{:,}".format(cuadre.efectivo_contado) }} + ${{ "{:,}".format(cuadre.monedas_contado) }}</div>
+    </div></div>
+  </div>
+  <div class="col-md-6">
+    {% if cuadre.diferencia == 0 %}
+    <div class="alert alert-success h-100 mb-0">Cuadra exacto — no sobró ni faltó nada.</div>
+    {% elif cuadre.diferencia > 0 %}
+    <div class="alert alert-info h-100 mb-0">Sobraron ${{ "{:,}".format(cuadre.diferencia) }}.</div>
+    {% else %}
+    <div class="alert alert-danger h-100 mb-0">Faltan ${{ "{:,}".format(-cuadre.diferencia) }}.</div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
 {% else %}
 <div class="alert alert-warning mt-4">Esta ruta sigue en tránsito, aún no tiene retorno registrado.
   <a href="{{ url_for('camion.retorno_nueva', salida_id=salida.id) }}">Registrar retorno ahora</a>

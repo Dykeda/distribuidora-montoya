@@ -16,6 +16,18 @@
     </div>
   </div>
 
+  <div class="row col-lg-6 mb-4">
+    <div class="col-md-6">
+      <label class="form-label">Efectivo contado (billetes)</label>
+      <input type="number" step="1" min="0" name="efectivo_contado" class="form-control" value="{{ form.efectivo_contado if form else '' }}" placeholder="Opcional">
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">Monedas contadas</label>
+      <input type="number" step="1" min="0" name="monedas_contado" class="form-control" value="{{ form.monedas_contado if form else '' }}" placeholder="Opcional">
+    </div>
+    <p class="text-muted small mt-1 mb-0">Opcional — si los cuentas, te decimos al guardar si sobró o faltó dinero comparado con lo que debería haber traído la ruta.</p>
+  </div>
+
   <div class="table-responsive">
   <table class="table">
     <thead>

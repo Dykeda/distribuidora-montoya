@@ -120,3 +120,84 @@ def test_detalle_de_ruta_muestra_cajas_y_unidades_de_carga_y_venta(db, client):
     assert r.status_code == 200
     assert "Cajas" in body and "Unidades sueltas" in body
     assert ">78,000<" in body or "78,000" in body  # 26 * 3000
+
+
+def test_retorno_sin_conteo_de_caja_no_muestra_cuadre(db, client):
+    coca = crear_producto(db, unidades_por_caja=6, precio=3000)
+    salida = SalidaCamion(fecha=date(2026, 8, 1))
+    db.session.add(salida)
+    db.session.flush()
+    db.session.add(SalidaCamionDetalle(salida_id=salida.id, producto_id=coca.id, cantidad_unidades=26))
+    db.session.commit()
+
+    r = client.post(
+        f"/camion/retorno/nueva/{salida.id}",
+        data={"fecha": HOY, "notas": "", f"regreso_cajas_{coca.id}": "0", f"regreso_unidades_{coca.id}": "0"},
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+
+    r = client.get(f"/camion/{salida.id}")
+    body = r.get_data(as_text=True)
+    assert "Cuadre de caja" not in body
+
+
+def test_retorno_con_conteo_de_caja_muestra_sobrante(db, client):
+    coca = crear_producto(db, unidades_por_caja=6, precio=3000)
+    salida = SalidaCamion(fecha=date(2026, 8, 1))
+    db.session.add(salida)
+    db.session.flush()
+    # 26 unidades cargadas, se vende todo (retorno 0) -> esperado = 26*3000 = 78000
+    db.session.add(SalidaCamionDetalle(salida_id=salida.id, producto_id=coca.id, cantidad_unidades=26))
+    db.session.commit()
+
+    r = client.post(
+        f"/camion/retorno/nueva/{salida.id}",
+        data={
+            "fecha": HOY, "notas": "",
+            f"regreso_cajas_{coca.id}": "0", f"regreso_unidades_{coca.id}": "0",
+            "efectivo_contado": "75000", "monedas_contado": "3500",
+        },
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+
+    from models import RetornoCamion
+
+    retorno = RetornoCamion.query.filter_by(salida_id=salida.id).first()
+    assert retorno.efectivo_contado == 75000
+    assert retorno.monedas_contado == 3500
+
+    r = client.get(f"/camion/{salida.id}")
+    body = r.get_data(as_text=True)
+    assert "Cuadre de caja" in body
+    # esperado 78000, contado 75000+3500=78500 -> sobraron 500
+    assert "Sobraron" in body
+    assert "500" in body
+
+
+def test_retorno_con_conteo_de_caja_muestra_faltante(db, client):
+    coca = crear_producto(db, unidades_por_caja=6, precio=3000)
+    salida = SalidaCamion(fecha=date(2026, 8, 1))
+    db.session.add(salida)
+    db.session.flush()
+    db.session.add(SalidaCamionDetalle(salida_id=salida.id, producto_id=coca.id, cantidad_unidades=26))
+    db.session.commit()
+
+    r = client.post(
+        f"/camion/retorno/nueva/{salida.id}",
+        data={
+            "fecha": HOY, "notas": "",
+            f"regreso_cajas_{coca.id}": "0", f"regreso_unidades_{coca.id}": "0",
+            "efectivo_contado": "70000", "monedas_contado": "0",
+        },
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+
+    r = client.get(f"/camion/{salida.id}")
+    body = r.get_data(as_text=True)
+    assert "Cuadre de caja" in body
+    # esperado 78000, contado 70000 -> faltan 8000
+    assert "Faltan" in body
+    assert "8,000" in body
