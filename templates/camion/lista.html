@@ -47,7 +47,14 @@
         {% endif %}
       </td>
       <td class="text-end">{% if f.cerrada %}${{ "{:,}".format(f.venta) }}{% else %}-{% endif %}</td>
-      <td class="text-end"><a href="{{ url_for('camion.detalle', salida_id=f.salida.id) }}" class="btn btn-sm btn-outline-primary">Ver detalle</a></td>
+      <td class="text-end">
+        <a href="{{ url_for('camion.detalle', salida_id=f.salida.id) }}" class="btn btn-sm btn-outline-primary">Ver detalle</a>
+        {% if f.cerrada %}
+        <a href="{{ url_for('camion.retorno_nueva', salida_id=f.salida.id) }}" class="btn btn-sm btn-outline-secondary">Editar cuadre de caja</a>
+        {% else %}
+        <a href="{{ url_for('camion.retorno_nueva', salida_id=f.salida.id) }}" class="btn btn-sm btn-outline-secondary">Registrar retorno</a>
+        {% endif %}
+      </td>
     </tr>
     {% else %}
     <tr><td colspan="4" class="text-center text-muted">No hay salidas registradas este mes.</td></tr>

@@ -373,3 +373,32 @@ def test_eliminar_linea_de_carga(db, client):
     assert r.status_code == 200
     assert calcular_stock(coca.id) == 0
     assert calcular_stock(agua.id) == -24
+
+
+def test_lista_de_camion_muestra_acceso_directo_al_cuadre_segun_estado(db, client):
+    coca = crear_producto(db, unidades_por_caja=6, precio=3000)
+
+    salida_abierta = SalidaCamion(fecha=date(2026, 8, 1))
+    db.session.add(salida_abierta)
+    db.session.flush()
+    db.session.add(SalidaCamionDetalle(salida_id=salida_abierta.id, producto_id=coca.id, cantidad_unidades=12))
+
+    salida_cerrada = SalidaCamion(fecha=date(2026, 8, 2))
+    db.session.add(salida_cerrada)
+    db.session.flush()
+    db.session.add(SalidaCamionDetalle(salida_id=salida_cerrada.id, producto_id=coca.id, cantidad_unidades=12))
+    db.session.commit()
+
+    client.post(
+        f"/camion/retorno/nueva/{salida_cerrada.id}",
+        data={"fecha": HOY, "notas": "", f"regreso_cajas_{coca.id}": "0", f"regreso_unidades_{coca.id}": "0"},
+        follow_redirects=True,
+    )
+
+    r = client.get("/camion/?anio=2026&mes=8")
+    body = r.get_data(as_text=True)
+    assert r.status_code == 200
+    assert f"/camion/retorno/nueva/{salida_abierta.id}" in body
+    assert f"/camion/retorno/nueva/{salida_cerrada.id}" in body
+    assert "Editar cuadre de caja" in body
+    assert "Registrar retorno" in body
