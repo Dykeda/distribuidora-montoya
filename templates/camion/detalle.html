@@ -6,24 +6,32 @@
 <h2 class="h5">Carga del camión</h2>
 <div class="table-responsive">
 <table class="table table-sm">
-  <thead><tr><th>Producto</th><th class="text-end">Cajas</th><th class="text-end">Unidades sueltas</th></tr></thead>
+  <thead><tr><th>Producto</th><th class="text-end">Cajas</th><th class="text-end">Unidades sueltas</th><th></th></tr></thead>
   <tbody>
     {% for f in carga %}
     <tr>
       <td>{{ f.detalle.producto.nombre }}</td>
       <td class="text-end">{{ f.cajas }}</td>
       <td class="text-end">{{ f.unidades_sueltas }}</td>
+      <td class="text-end">
+        <a href="{{ url_for('camion.carga_editar', salida_id=salida.id, detalle_id=f.detalle.id) }}" class="btn btn-sm btn-outline-secondary">Editar</a>
+        <form method="post" action="{{ url_for('camion.carga_eliminar', salida_id=salida.id, detalle_id=f.detalle.id) }}" class="d-inline"
+              onsubmit="return confirm('¿Quitar {{ f.detalle.producto.nombre }} de la carga?');">
+          <button type="submit" class="btn btn-sm btn-outline-danger">Eliminar</button>
+        </form>
+      </td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
 </div>
+<a href="{{ url_for('camion.carga_nueva', salida_id=salida.id) }}" class="btn btn-outline-primary btn-sm mb-3">+ Agregar producto a la carga</a>
 
 {% if recargas %}
 <h2 class="h5 mt-4">Recargas del día</h2>
 <div class="table-responsive">
 <table class="table table-sm">
-  <thead><tr><th>Fecha</th><th>Producto</th><th class="text-end">Cajas</th><th class="text-end">Unidades sueltas</th></tr></thead>
+  <thead><tr><th>Fecha</th><th>Producto</th><th class="text-end">Cajas</th><th class="text-end">Unidades sueltas</th><th></th></tr></thead>
   <tbody>
     {% for f in recargas %}
       <tr>
@@ -31,6 +39,12 @@
         <td>{{ f.detalle.producto.nombre }}</td>
         <td class="text-end">{{ f.cajas }}</td>
         <td class="text-end">{{ f.unidades_sueltas }}</td>
+        <td class="text-end">
+          <form method="post" action="{{ url_for('camion.recarga_eliminar', recarga_id=f.recarga.id) }}" class="d-inline"
+                onsubmit="return confirm('¿Eliminar esta recarga completa del {{ f.recarga.fecha }}?');">
+            <button type="submit" class="btn btn-sm btn-outline-danger">Eliminar recarga</button>
+          </form>
+        </td>
       </tr>
     {% endfor %}
   </tbody>
@@ -38,12 +52,12 @@
 </div>
 {% endif %}
 
-{% if not salida.retorno %}
 <a href="{{ url_for('camion.recarga_nueva', salida_id=salida.id) }}" class="btn btn-sm btn-outline-secondary mb-3">+ Recargar esta ruta</a>
-{% endif %}
 
 {% if salida.retorno %}
-<h2 class="h5 mt-4">Retorno del {{ salida.retorno.fecha.strftime("%Y-%m-%d") }}</h2>
+<h2 class="h5 mt-4">Retorno del {{ salida.retorno.fecha.strftime("%Y-%m-%d") }}
+  <a href="{{ url_for('camion.retorno_nueva', salida_id=salida.id) }}" class="btn btn-sm btn-outline-secondary ms-2">Editar retorno</a>
+</h2>
 <div class="table-responsive">
 <table class="table table-sm">
   <thead><tr><th>Producto</th><th class="text-end">Cajas</th><th class="text-end">Unidades sueltas</th><th class="text-end">Valor</th></tr></thead>

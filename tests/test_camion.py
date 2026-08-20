@@ -2,7 +2,16 @@ from datetime import date
 
 import pytest
 
-from models import Producto, ProductoPrecio, SalidaCamion, SalidaCamionDetalle
+from models import (
+    Producto,
+    ProductoPrecio,
+    SalidaCamion,
+    SalidaCamionDetalle,
+    RetornoCamion,
+    RetornoCamionDetalle,
+    RecargaCamion,
+    RecargaCamionDetalle,
+)
 from services.inventario import calcular_stock
 
 HOY = date.today().isoformat()
@@ -201,3 +210,166 @@ def test_retorno_con_conteo_de_caja_muestra_faltante(db, client):
     # esperado 78000, contado 70000 -> faltan 8000
     assert "Faltan" in body
     assert "8,000" in body
+
+
+def test_editar_retorno_ya_registrado_actualiza_cantidades_y_cuadre(db, client):
+    coca = crear_producto(db, unidades_por_caja=6, precio=3000)
+    salida = SalidaCamion(fecha=date(2026, 8, 1))
+    db.session.add(salida)
+    db.session.flush()
+    db.session.add(SalidaCamionDetalle(salida_id=salida.id, producto_id=coca.id, cantidad_unidades=60))
+    db.session.commit()
+
+    client.post(
+        f"/camion/retorno/nueva/{salida.id}",
+        data={"fecha": HOY, "notas": "", f"regreso_cajas_{coca.id}": "3", f"regreso_unidades_{coca.id}": "0"},
+        follow_redirects=True,
+    )
+    retorno = RetornoCamion.query.filter_by(salida_id=salida.id).first()
+    assert retorno.detalles[0].cantidad_unidades == 18  # 3 cajas * 6
+
+    # se dan cuenta que en realidad regresaron 5 cajas, no 3 -- corrigen sin borrar nada
+    r = client.post(
+        f"/camion/retorno/nueva/{salida.id}",
+        data={
+            "fecha": HOY, "notas": "corregido",
+            f"regreso_cajas_{coca.id}": "5", f"regreso_unidades_{coca.id}": "0",
+            "efectivo_contado": "10000", "monedas_contado": "500",
+        },
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+
+    retorno_actualizado = RetornoCamion.query.filter_by(salida_id=salida.id).first()
+    assert retorno_actualizado.id == retorno.id  # mismo retorno, no uno nuevo
+    assert len(retorno_actualizado.detalles) == 1
+    assert retorno_actualizado.detalles[0].cantidad_unidades == 30  # 5 cajas * 6
+    assert retorno_actualizado.efectivo_contado == 10000
+    assert retorno_actualizado.monedas_contado == 500
+    assert calcular_stock(coca.id) == -30  # -60 salio + 30 regreso
+
+
+def test_agregar_recarga_a_ruta_ya_cerrada_ya_no_se_bloquea(db, client):
+    coca = crear_producto(db, unidades_por_caja=6, precio=3000)
+    salida = SalidaCamion(fecha=date(2026, 8, 1))
+    db.session.add(salida)
+    db.session.flush()
+    db.session.add(SalidaCamionDetalle(salida_id=salida.id, producto_id=coca.id, cantidad_unidades=60))
+    db.session.commit()
+
+    client.post(
+        f"/camion/retorno/nueva/{salida.id}",
+        data={"fecha": HOY, "notas": "", f"regreso_cajas_{coca.id}": "0", f"regreso_unidades_{coca.id}": "0"},
+        follow_redirects=True,
+    )
+
+    r = client.post(
+        f"/camion/recarga/nueva/{salida.id}",
+        data={"fecha": HOY, "notas": "", "producto_id[]": [str(coca.id)], "cajas[]": ["1"], "unidades[]": ["0"]},
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+    assert "Recarga registrada" in r.get_data(as_text=True)
+
+
+def test_eliminar_recarga(db, client):
+    coca = crear_producto(db, unidades_por_caja=6, precio=3000)
+    salida = SalidaCamion(fecha=date(2026, 8, 1))
+    db.session.add(salida)
+    db.session.flush()
+    db.session.add(SalidaCamionDetalle(salida_id=salida.id, producto_id=coca.id, cantidad_unidades=60))
+    db.session.commit()
+
+    recarga = RecargaCamion(salida_id=salida.id, fecha=date(2026, 8, 1))
+    db.session.add(recarga)
+    db.session.flush()
+    db.session.add(RecargaCamionDetalle(recarga_id=recarga.id, producto_id=coca.id, cantidad_unidades=6))
+    db.session.commit()
+
+    assert calcular_stock(coca.id) == -66  # -60 salida - 6 recarga
+
+    r = client.post(f"/camion/recarga/{recarga.id}/eliminar", follow_redirects=True)
+    assert r.status_code == 200
+    assert RecargaCamion.query.get(recarga.id) is None
+    assert calcular_stock(coca.id) == -60
+
+
+def test_agregar_producto_a_la_carga(db, client):
+    coca = crear_producto(db, unidades_por_caja=6, precio=3000)
+    sprite = crear_producto(db, nombre="Sprite 1.5L", unidades_por_caja=6, precio=2500)
+    salida = SalidaCamion(fecha=date(2026, 8, 1))
+    db.session.add(salida)
+    db.session.flush()
+    db.session.add(SalidaCamionDetalle(salida_id=salida.id, producto_id=coca.id, cantidad_unidades=60))
+    db.session.commit()
+
+    r = client.post(
+        f"/camion/{salida.id}/carga/nueva",
+        data={"producto_id": str(sprite.id), "cajas": "2", "unidades": "0"},
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+    assert calcular_stock(sprite.id) == -12  # 2 cajas * 6 salieron
+
+
+def test_editar_linea_de_carga(db, client):
+    coca = crear_producto(db, unidades_por_caja=6, precio=3000)
+    salida = SalidaCamion(fecha=date(2026, 8, 1))
+    db.session.add(salida)
+    db.session.flush()
+    db.session.add(SalidaCamionDetalle(salida_id=salida.id, producto_id=coca.id, cantidad_unidades=60))
+    db.session.commit()
+    detalle = salida.detalles[0]
+
+    r = client.post(
+        f"/camion/{salida.id}/carga/{detalle.id}/editar",
+        data={"cajas": "8", "unidades": "0"},
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+    assert calcular_stock(coca.id) == -48  # 8 cajas * 6
+
+
+def test_editar_linea_de_carga_no_permite_menos_de_lo_ya_regresado(db, client):
+    coca = crear_producto(db, unidades_por_caja=6, precio=3000)
+    salida = SalidaCamion(fecha=date(2026, 8, 1))
+    db.session.add(salida)
+    db.session.flush()
+    db.session.add(SalidaCamionDetalle(salida_id=salida.id, producto_id=coca.id, cantidad_unidades=60))
+    db.session.commit()
+    detalle = salida.detalles[0]
+
+    client.post(
+        f"/camion/retorno/nueva/{salida.id}",
+        data={"fecha": HOY, "notas": "", f"regreso_cajas_{coca.id}": "5", f"regreso_unidades_{coca.id}": "0"},
+        follow_redirects=True,
+    )  # regresaron 30 (5 cajas)
+
+    # intentan bajar la carga a 3 cajas (18) -- menos de lo ya regresado (30) -> debe bloquear
+    r = client.post(
+        f"/camion/{salida.id}/carga/{detalle.id}/editar",
+        data={"cajas": "3", "unidades": "0"},
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+    assert "Corrige primero el retorno" in r.get_data(as_text=True)
+
+    actualizado = SalidaCamionDetalle.query.get(detalle.id)
+    assert actualizado.cantidad_unidades == 60  # no cambió
+
+
+def test_eliminar_linea_de_carga(db, client):
+    coca = crear_producto(db, unidades_por_caja=6, precio=3000)
+    agua = crear_producto(db, nombre="Agua Cristal", unidades_por_caja=12, precio=2000)
+    salida = SalidaCamion(fecha=date(2026, 8, 1))
+    db.session.add(salida)
+    db.session.flush()
+    db.session.add(SalidaCamionDetalle(salida_id=salida.id, producto_id=coca.id, cantidad_unidades=60))
+    db.session.add(SalidaCamionDetalle(salida_id=salida.id, producto_id=agua.id, cantidad_unidades=24))
+    db.session.commit()
+    detalle_coca = next(d for d in salida.detalles if d.producto_id == coca.id)
+
+    r = client.post(f"/camion/{salida.id}/carga/{detalle_coca.id}/eliminar", follow_redirects=True)
+    assert r.status_code == 200
+    assert calcular_stock(coca.id) == 0
+    assert calcular_stock(agua.id) == -24

@@ -1,29 +1,32 @@
 {% extends "base.html" %}
-{% block title %}Registrar retorno{% endblock %}
+{% block title %}{{ "Editar retorno" if retorno_existente else "Registrar retorno" }}{% endblock %}
 {% block content %}
-<h1 class="h3 mb-3">Registrar retorno &mdash; salida del {{ salida.fecha.strftime("%Y-%m-%d") }}</h1>
+<h1 class="h3 mb-3">{{ "Editar retorno" if retorno_existente else "Registrar retorno" }} &mdash; salida del {{ salida.fecha.strftime("%Y-%m-%d") }}</h1>
 <p class="text-muted">Indica cuánto sobró (no se vendió) de cada producto — cajas completas y unidades sueltas por separado, tal como regresa el camión.</p>
+{% if retorno_existente %}
+<div class="alert alert-info">Ya hay un retorno registrado para esta ruta. Guardar aquí lo reemplaza con los valores que escribas.</div>
+{% endif %}
 
 <form method="post">
   <div class="row col-lg-6 mb-3">
     <div class="col-md-6">
       <label class="form-label">Fecha de regreso</label>
-      <input type="date" name="fecha" class="form-control" value="{{ form.fecha if form else '' }}" required>
+      <input type="date" name="fecha" class="form-control" value="{{ form.fecha if form else (retorno_existente.fecha if retorno_existente else '') }}" required>
     </div>
     <div class="col-md-6">
       <label class="form-label">Notas (opcional)</label>
-      <input type="text" name="notas" class="form-control" value="{{ form.notas if form else '' }}">
+      <input type="text" name="notas" class="form-control" value="{{ form.notas if form else (retorno_existente.notas or '' if retorno_existente else '') }}">
     </div>
   </div>
 
   <div class="row col-lg-6 mb-4">
     <div class="col-md-6">
       <label class="form-label">Efectivo contado (billetes)</label>
-      <input type="number" step="1" min="0" name="efectivo_contado" class="form-control" value="{{ form.efectivo_contado if form else '' }}" placeholder="Opcional">
+      <input type="number" step="1" min="0" name="efectivo_contado" class="form-control" value="{{ form.efectivo_contado if form else (retorno_existente.efectivo_contado if retorno_existente and retorno_existente.efectivo_contado is not none else '') }}" placeholder="Opcional">
     </div>
     <div class="col-md-6">
       <label class="form-label">Monedas contadas</label>
-      <input type="number" step="1" min="0" name="monedas_contado" class="form-control" value="{{ form.monedas_contado if form else '' }}" placeholder="Opcional">
+      <input type="number" step="1" min="0" name="monedas_contado" class="form-control" value="{{ form.monedas_contado if form else (retorno_existente.monedas_contado if retorno_existente and retorno_existente.monedas_contado is not none else '') }}" placeholder="Opcional">
     </div>
     <p class="text-muted small mt-1 mb-0">Opcional — si los cuentas, te decimos al guardar si sobró o faltó dinero comparado con lo que debería haber traído la ruta.</p>
   </div>
@@ -49,16 +52,16 @@
           {% if f.unidades_sueltas_cargadas %}+ {{ f.unidades_sueltas_cargadas }} u.{% endif %}
           <span class="text-muted">({{ f.cantidad_cargada }} unidades)</span>
         </td>
-        <td><input type="number" step="1" min="0" name="regreso_cajas_{{ f.producto.id }}" class="form-control" value="0"></td>
-        <td><input type="number" step="1" min="0" name="regreso_unidades_{{ f.producto.id }}" class="form-control" value="0"></td>
+        <td><input type="number" step="1" min="0" name="regreso_cajas_{{ f.producto.id }}" class="form-control" value="{{ f.cajas_previas }}"></td>
+        <td><input type="number" step="1" min="0" name="regreso_unidades_{{ f.producto.id }}" class="form-control" value="{{ f.unidades_previas }}"></td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
   </div>
 
-  <button type="submit" class="btn btn-primary">Guardar retorno</button>
-  <a href="{{ url_for('camion.retorno_elegir') }}" class="btn btn-link">Cancelar</a>
+  <button type="submit" class="btn btn-primary">{{ "Guardar cambios" if retorno_existente else "Guardar retorno" }}</button>
+  <a href="{{ url_for('camion.detalle', salida_id=salida.id) }}" class="btn btn-link">Cancelar</a>
 </form>
 
 <script>

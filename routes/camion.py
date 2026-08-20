@@ -158,21 +158,26 @@ def retorno_elegir():
 
 @bp.route("/retorno/nueva/<int:salida_id>", methods=["GET", "POST"])
 def retorno_nueva(salida_id):
+    """Crea el retorno de una ruta, o lo actualiza si ya existe -- así siempre se puede
+    corregir un retorno ya registrado (cantidades, cuadre de caja) sin tener que borrar
+    nada a mano."""
     salida = SalidaCamion.query.get_or_404(salida_id)
-    if salida.retorno is not None:
-        flash("Esa salida ya tiene un retorno registrado.", "error")
-        return redirect(url_for("camion.detalle", salida_id=salida_id))
+    retorno_existente = salida.retorno
 
     cargado = cargado_por_producto(salida)  # incluye salida inicial + recargas del día
+    regresado_previo = {d.producto_id: d.cantidad_unidades for d in retorno_existente.detalles} if retorno_existente else {}
     filas = []
     for pid, cant in cargado.items():
         producto = db.session.get(Producto, pid)
         cajas_cargadas, unidades_sueltas_cargadas = cajas_y_unidades(producto, cant)
+        cajas_prev, unidades_prev = cajas_y_unidades(producto, regresado_previo.get(pid, 0))
         filas.append({
             "producto": producto,
             "cantidad_cargada": cant,
             "cajas_cargadas": cajas_cargadas,
             "unidades_sueltas_cargadas": unidades_sueltas_cargadas,
+            "cajas_previas": cajas_prev,
+            "unidades_previas": unidades_prev,
         })
 
     if request.method == "POST":
@@ -194,7 +199,7 @@ def retorno_nueva(salida_id):
                     f"{fila['producto'].nombre}: no puede regresar más de lo que salió/se le recargó ({fila['cantidad_cargada']}).",
                     "error",
                 )
-                return render_template("camion/retorno_formulario.html", salida=salida, filas=filas, form=request.form)
+                return render_template("camion/retorno_formulario.html", salida=salida, filas=filas, form=request.form, retorno_existente=retorno_existente)
             detalles.append(RetornoCamionDetalle(producto_id=fila["producto"].id, cantidad_unidades=cantidad_unidades))
 
         efectivo_contado = None
@@ -206,17 +211,26 @@ def retorno_nueva(salida_id):
             except ValueError:
                 efectivo_contado = monedas_contado = None
 
-        retorno = RetornoCamion(
-            salida_id=salida.id, fecha=fecha, notas=request.form.get("notas") or None,
-            efectivo_contado=efectivo_contado, monedas_contado=monedas_contado,
-        )
-        retorno.detalles = detalles
-        db.session.add(retorno)
-        db.session.commit()
-        flash("Retorno de camión registrado. Inventario actualizado.", "success")
+        if retorno_existente is not None:
+            retorno_existente.fecha = fecha
+            retorno_existente.notas = request.form.get("notas") or None
+            retorno_existente.efectivo_contado = efectivo_contado
+            retorno_existente.monedas_contado = monedas_contado
+            retorno_existente.detalles = detalles
+            db.session.commit()
+            flash("Retorno de camión actualizado. Inventario recalculado.", "success")
+        else:
+            retorno = RetornoCamion(
+                salida_id=salida.id, fecha=fecha, notas=request.form.get("notas") or None,
+                efectivo_contado=efectivo_contado, monedas_contado=monedas_contado,
+            )
+            retorno.detalles = detalles
+            db.session.add(retorno)
+            db.session.commit()
+            flash("Retorno de camión registrado. Inventario actualizado.", "success")
         return redirect(url_for("camion.detalle", salida_id=salida.id))
 
-    return render_template("camion/retorno_formulario.html", salida=salida, filas=filas, form=None)
+    return render_template("camion/retorno_formulario.html", salida=salida, filas=filas, form=None, retorno_existente=retorno_existente)
 
 
 @bp.route("/recarga/nueva")
@@ -228,10 +242,6 @@ def recarga_elegir():
 @bp.route("/recarga/nueva/<int:salida_id>", methods=["GET", "POST"])
 def recarga_nueva(salida_id):
     salida = SalidaCamion.query.get_or_404(salida_id)
-    if salida.retorno is not None:
-        flash("Esa salida ya está cerrada, no se le puede mandar más producto.", "error")
-        return redirect(url_for("camion.detalle", salida_id=salida_id))
-
     productos = Producto.query.filter_by(activo=True).order_by(Producto.nombre).all()
     producto_por_id = {p.id: p for p in productos}
 
@@ -257,3 +267,100 @@ def recarga_nueva(salida_id):
         return redirect(url_for("camion.detalle", salida_id=salida.id))
 
     return render_template("camion/recarga_formulario.html", salida=salida, productos=productos, form=None)
+
+
+@bp.route("/recarga/<int:recarga_id>/eliminar", methods=["POST"])
+def recarga_eliminar(recarga_id):
+    recarga = RecargaCamion.query.get_or_404(recarga_id)
+    salida_id = recarga.salida_id
+    db.session.delete(recarga)
+    db.session.commit()
+    flash("Recarga eliminada. El inventario se recalcula solo.", "success")
+    return redirect(url_for("camion.detalle", salida_id=salida_id))
+
+
+@bp.route("/<int:salida_id>/carga/nueva", methods=["GET", "POST"])
+def carga_nueva(salida_id):
+    salida = SalidaCamion.query.get_or_404(salida_id)
+    productos = Producto.query.filter_by(activo=True).order_by(Producto.nombre).all()
+
+    if request.method == "POST":
+        producto = db.session.get(Producto, int(request.form.get("producto_id") or 0))
+        try:
+            cajas = float(request.form.get("cajas") or 0)
+            unidades = float(request.form.get("unidades") or 0)
+        except ValueError:
+            producto = None
+
+        if producto is None:
+            flash("Selecciona un producto válido.", "error")
+            return render_template("camion/carga_nueva_formulario.html", salida=salida, productos=productos, form=request.form)
+
+        cantidad_unidades = round(cajas * producto.unidades_por_caja + unidades)
+        if cantidad_unidades <= 0:
+            flash("La cantidad debe ser mayor a cero.", "error")
+            return render_template("camion/carga_nueva_formulario.html", salida=salida, productos=productos, form=request.form)
+
+        salida.detalles.append(SalidaCamionDetalle(producto_id=producto.id, cantidad_unidades=cantidad_unidades))
+        db.session.commit()
+        flash("Producto agregado a la carga.", "success")
+        return redirect(url_for("camion.detalle", salida_id=salida.id))
+
+    return render_template("camion/carga_nueva_formulario.html", salida=salida, productos=productos, form=None)
+
+
+@bp.route("/<int:salida_id>/carga/<int:detalle_id>/editar", methods=["GET", "POST"])
+def carga_editar(salida_id, detalle_id):
+    salida = SalidaCamion.query.get_or_404(salida_id)
+    detalle = SalidaCamionDetalle.query.filter_by(id=detalle_id, salida_id=salida_id).first_or_404()
+    producto = detalle.producto
+
+    if request.method == "POST":
+        try:
+            cajas = float(request.form.get("cajas") or 0)
+            unidades = float(request.form.get("unidades") or 0)
+        except ValueError:
+            cajas = unidades = 0
+
+        cantidad_unidades = round(cajas * producto.unidades_por_caja + unidades)
+        if cantidad_unidades <= 0:
+            flash("La cantidad debe ser mayor a cero.", "error")
+        elif salida.retorno and _regresado_de(salida.retorno, producto.id) > (cargado_por_producto(salida)[producto.id] - detalle.cantidad_unidades + cantidad_unidades):
+            flash(
+                f"{producto.nombre}: ya hay un retorno registrado con más cantidad regresada de la que quedaría cargada. Corrige primero el retorno.",
+                "error",
+            )
+        else:
+            detalle.cantidad_unidades = cantidad_unidades
+            db.session.commit()
+            flash("Carga actualizada.", "success")
+            return redirect(url_for("camion.detalle", salida_id=salida_id))
+
+    cajas_actual, unidades_actual = cajas_y_unidades(producto, detalle.cantidad_unidades)
+    return render_template(
+        "camion/carga_editar_formulario.html", salida=salida, detalle=detalle, producto=producto,
+        cajas_actual=cajas_actual, unidades_actual=unidades_actual,
+    )
+
+
+@bp.route("/<int:salida_id>/carga/<int:detalle_id>/eliminar", methods=["POST"])
+def carga_eliminar(salida_id, detalle_id):
+    salida = SalidaCamion.query.get_or_404(salida_id)
+    detalle = SalidaCamionDetalle.query.filter_by(id=detalle_id, salida_id=salida_id).first_or_404()
+
+    if salida.retorno and _regresado_de(salida.retorno, detalle.producto_id) > 0:
+        flash(
+            f"{detalle.producto.nombre}: ya hay un retorno registrado con cantidad regresada de este producto. Corrige primero el retorno.",
+            "error",
+        )
+        return redirect(url_for("camion.detalle", salida_id=salida_id))
+
+    db.session.delete(detalle)
+    db.session.commit()
+    flash("Producto quitado de la carga.", "success")
+    return redirect(url_for("camion.detalle", salida_id=salida_id))
+
+
+def _regresado_de(retorno, producto_id):
+    detalle = next((d for d in retorno.detalles if d.producto_id == producto_id), None)
+    return detalle.cantidad_unidades if detalle else 0
