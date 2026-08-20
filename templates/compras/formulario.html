@@ -39,6 +39,7 @@
         <th style="width:140px">Costo ($)</th>
         <th style="width:110px">Descuento %</th>
         <th style="width:100px">% IVA</th>
+        <th style="width:100px">Costo incluye IVA</th>
         <th style="width:100px">Es descuento</th>
         <th></th>
       </tr>
@@ -60,9 +61,16 @@
     </td>
     <td><input type="number" step="1" min="0" name="cajas[]" class="form-control cajas-input" value="0"></td>
     <td><input type="number" step="1" min="0" name="unidades[]" class="form-control unidades-input" value="0"></td>
-    <td><input type="number" min="0" name="costo_linea[]" class="form-control" required></td>
+    <td>
+      <input type="number" min="0" name="costo_linea[]" class="form-control costo-input" required>
+      <div class="form-text small costo-neto-preview"></div>
+    </td>
     <td><input type="number" step="0.1" min="0" name="tasa_descuento[]" class="form-control" value="0"></td>
-    <td><input type="number" step="0.1" min="0" name="porcentaje_iva[]" class="form-control" value="19"></td>
+    <td><input type="number" step="0.1" min="0" name="porcentaje_iva[]" class="form-control iva-input" value="19"></td>
+    <td class="text-center">
+      <input type="hidden" name="costo_incluye_iva[]" value="0" class="incluye-iva-oculto">
+      <input type="checkbox" class="form-check-input incluye-iva-check" title="Marca esto si el costo que escribiste ya trae el IVA sumado (como suele venir en la factura) — el programa calcula solo la parte neta.">
+    </td>
     <td class="text-center">
       <input type="hidden" name="es_descuento[]" value="0" class="es-descuento-oculto">
       <input type="checkbox" class="form-check-input es-descuento-check">
@@ -95,6 +103,19 @@
     costoInput.value = Math.round(cajas * prod.precioCaja + unidades * prod.precioUnidad);
   }
 
+  function actualizarPreviewNeto(fila) {
+    const preview = fila.querySelector(".costo-neto-preview");
+    const incluyeIva = fila.querySelector(".incluye-iva-check").checked;
+    const costo = parseFloat(fila.querySelector(".costo-input").value) || 0;
+    const iva = parseFloat(fila.querySelector(".iva-input").value) || 0;
+    if (incluyeIva && iva > 0 && costo > 0) {
+      const neto = Math.round(costo / (1 + iva / 100));
+      preview.textContent = `Neto sin IVA: $${neto.toLocaleString("es-CO")}`;
+    } else {
+      preview.textContent = "";
+    }
+  }
+
   function agregarLinea() {
     const nodo = plantilla.content.cloneNode(true);
     nodo.querySelector(".btn-quitar-linea").addEventListener("click", (e) => {
@@ -115,6 +136,12 @@
     fila.querySelector(".es-descuento-check").addEventListener("change", (e) => {
       fila.querySelector(".es-descuento-oculto").value = e.target.checked ? "1" : "0";
     });
+    fila.querySelector(".incluye-iva-check").addEventListener("change", (e) => {
+      fila.querySelector(".incluye-iva-oculto").value = e.target.checked ? "1" : "0";
+      actualizarPreviewNeto(fila);
+    });
+    fila.querySelector(".costo-input").addEventListener("input", () => actualizarPreviewNeto(fila));
+    fila.querySelector(".iva-input").addEventListener("input", () => actualizarPreviewNeto(fila));
     cuerpo.appendChild(nodo);
   }
 

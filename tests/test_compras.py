@@ -74,6 +74,32 @@ def test_nueva_compra_combina_cajas_y_unidades_sueltas(db, client):
     assert calcular_stock(coca.id) == 15  # 2*6 + 3
 
 
+def test_nueva_compra_calcula_neto_cuando_costo_incluye_iva(db, client):
+    coca = crear_producto(db)
+
+    r = client.post(
+        "/compras/nueva",
+        data={
+            "fecha": "2026-08-16",
+            "numero_factura": "",
+            "notas": "",
+            "producto_id[]": [str(coca.id)],
+            "cajas[]": ["0"],
+            "unidades[]": ["1"],
+            "costo_linea[]": ["119000"],  # 100000 neto + 19% IVA
+            "tasa_descuento[]": ["0"],
+            "porcentaje_iva[]": ["19"],
+            "costo_incluye_iva[]": ["1"],
+        },
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+
+    detalle = CompraDetalle.query.filter_by(producto_id=coca.id).first()
+    assert detalle.costo_linea == 100000
+    assert detalle.valor_iva == 19000
+
+
 def test_lista_y_detalle_de_compra_muestran_cajas_y_unidades_por_separado(db, client):
     coca = crear_producto(db)  # 6 unidades por caja
     compra = Compra(fecha=date(2026, 8, 5))
@@ -183,6 +209,45 @@ def test_agregar_linea_a_compra_existente(db, client):
     assert nueva_linea.tasa_descuento_aplicada == 10.0
     assert nueva_linea.porcentaje_iva == 19.0
     assert calcular_stock(nuevo.id) == 15
+
+
+def test_agregar_linea_calcula_neto_cuando_costo_incluye_iva(db, client):
+    compra, coca, agua = _crear_compra_con_dos_productos(db)
+    nuevo = crear_producto(db, nombre="Sprite 1.5L", precio=2500)
+
+    r = client.post(
+        f"/compras/{compra.id}/linea/nueva",
+        data={
+            "producto_id": str(nuevo.id), "cajas": "0", "unidades": "1",
+            "costo_linea": "119000", "tasa_descuento": "0", "porcentaje_iva": "19",
+            "costo_incluye_iva": "1",
+        },
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+
+    nueva_linea = next(d for d in Compra.query.get(compra.id).detalles if d.producto_id == nuevo.id)
+    assert nueva_linea.costo_linea == 100000
+    assert nueva_linea.valor_iva == 19000
+
+
+def test_editar_linea_calcula_neto_cuando_costo_incluye_iva(db, client):
+    compra, coca, agua = _crear_compra_con_dos_productos(db)
+    detalle_coca = next(d for d in compra.detalles if d.producto_id == coca.id)
+
+    r = client.post(
+        f"/compras/{compra.id}/linea/{detalle_coca.id}/editar",
+        data={
+            "cajas": "0", "unidades": "1", "costo_linea": "119000",
+            "tasa_descuento": "0", "porcentaje_iva": "19", "costo_incluye_iva": "1",
+        },
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+
+    actualizado = CompraDetalle.query.get(detalle_coca.id)
+    assert actualizado.costo_linea == 100000
+    assert actualizado.valor_iva == 19000
 
 
 def test_agregar_linea_sin_producto_no_agrega_nada(db, client):

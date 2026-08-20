@@ -78,6 +78,8 @@ def linea_nueva(compra_id):
             costo = int(request.form.get("costo_linea") or 0)
             tasa = float(request.form.get("tasa_descuento") or 0)
             iva = float(request.form.get("porcentaje_iva") or 0)
+            if request.form.get("costo_incluye_iva") and iva > 0:
+                costo = round(costo / (1 + iva / 100.0))
         except ValueError:
             producto = None
         es_descuento = bool(request.form.get("es_descuento"))
@@ -124,6 +126,8 @@ def linea_editar(compra_id, detalle_id):
         except ValueError:
             cajas = unidades = costo = tasa = iva = 0
         es_descuento = bool(request.form.get("es_descuento"))
+        if request.form.get("costo_incluye_iva") and iva > 0:
+            costo = round(costo / (1 + iva / 100.0))
 
         cantidad_unidades = round(cajas * producto.unidades_por_caja + unidades)
         if cantidad_unidades <= 0:
@@ -169,6 +173,7 @@ def nueva():
         tasas = request.form.getlist("tasa_descuento[]")
         es_descuentos = request.form.getlist("es_descuento[]")
         ivas = request.form.getlist("porcentaje_iva[]")
+        costo_incluye_iva_lista = request.form.getlist("costo_incluye_iva[]")
 
         lineas_validas = []
         errores = []
@@ -186,6 +191,8 @@ def nueva():
                 errores.append(f"Línea {i + 1}: datos inválidos.")
                 continue
             es_descuento = i < len(es_descuentos) and es_descuentos[i] == "1"
+            if i < len(costo_incluye_iva_lista) and costo_incluye_iva_lista[i] == "1" and iva > 0:
+                costo = round(costo / (1 + iva / 100.0))
 
             if producto is None:
                 errores.append(f"Línea {i + 1}: producto no encontrado.")

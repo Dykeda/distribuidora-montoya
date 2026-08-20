@@ -17,6 +17,7 @@
     <div class="col-md-3">
       <label class="form-label">Costo ($)</label>
       <input type="number" min="0" id="costo_linea" name="costo_linea" class="form-control" value="{{ detalle.costo_linea }}" required>
+      <div class="form-text small" id="costo-neto-preview"></div>
     </div>
     <div class="col-md-3">
       <label class="form-label">Descuento %</label>
@@ -24,8 +25,12 @@
     </div>
     <div class="col-md-3">
       <label class="form-label">% IVA</label>
-      <input type="number" step="0.1" min="0" name="porcentaje_iva" class="form-control" value="{{ iva_actual }}">
+      <input type="number" step="0.1" min="0" id="porcentaje_iva" name="porcentaje_iva" class="form-control" value="{{ iva_actual }}">
     </div>
+  </div>
+  <div class="form-check mb-2">
+    <input type="checkbox" name="costo_incluye_iva" value="1" class="form-check-input" id="costo_incluye_iva">
+    <label class="form-check-label" for="costo_incluye_iva">El costo que escribí ya incluye el IVA (como suele venir en la factura)</label>
   </div>
   <div class="form-check mb-3">
     <input type="checkbox" name="es_descuento" value="1" class="form-check-input" id="es_descuento" {% if es_descuento_actual %}checked{% endif %}>
@@ -47,5 +52,25 @@
 
   document.getElementById("cajas").addEventListener("input", recalcularCosto);
   document.getElementById("unidades").addEventListener("input", recalcularCosto);
+
+  const costoInput = document.getElementById("costo_linea");
+  const ivaInput = document.getElementById("porcentaje_iva");
+  const incluyeIvaInput = document.getElementById("costo_incluye_iva");
+  const netoPreview = document.getElementById("costo-neto-preview");
+
+  function actualizarPreviewNeto() {
+    const costo = parseFloat(costoInput.value) || 0;
+    const iva = parseFloat(ivaInput.value) || 0;
+    if (incluyeIvaInput.checked && iva > 0 && costo > 0) {
+      const neto = Math.round(costo / (1 + iva / 100));
+      netoPreview.textContent = `Neto sin IVA: $${neto.toLocaleString("es-CO")}`;
+    } else {
+      netoPreview.textContent = "";
+    }
+  }
+
+  costoInput.addEventListener("input", actualizarPreviewNeto);
+  ivaInput.addEventListener("input", actualizarPreviewNeto);
+  incluyeIvaInput.addEventListener("change", actualizarPreviewNeto);
 </script>
 {% endblock %}
