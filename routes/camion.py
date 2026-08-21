@@ -110,9 +110,17 @@ def detalle(salida_id):
 
     cuadre = None
     if salida.retorno and salida.retorno.efectivo_contado is not None and salida.retorno.monedas_contado is not None:
-        efectivo_esperado = efectivo_por_salida(salida_id) or 0
+        venta_implicita = efectivo_por_salida(salida_id) or 0
+        gasto_en_ruta = salida.retorno.gasto_en_ruta or 0
+        creditos_pagados = salida.retorno.creditos_pagados or 0
+        nuevos_creditos = salida.retorno.nuevos_creditos or 0
+        efectivo_esperado = venta_implicita - gasto_en_ruta - nuevos_creditos + creditos_pagados
         efectivo_real = salida.retorno.efectivo_contado + salida.retorno.monedas_contado
         cuadre = {
+            "venta_implicita": venta_implicita,
+            "gasto_en_ruta": gasto_en_ruta,
+            "creditos_pagados": creditos_pagados,
+            "nuevos_creditos": nuevos_creditos,
             "esperado": efectivo_esperado,
             "efectivo_contado": salida.retorno.efectivo_contado,
             "monedas_contado": salida.retorno.monedas_contado,
@@ -211,11 +219,27 @@ def retorno_nueva(salida_id):
             except ValueError:
                 efectivo_contado = monedas_contado = None
 
+        try:
+            gasto_en_ruta = int(request.form.get("gasto_en_ruta") or 0)
+        except ValueError:
+            gasto_en_ruta = 0
+        try:
+            creditos_pagados = int(request.form.get("creditos_pagados") or 0)
+        except ValueError:
+            creditos_pagados = 0
+        try:
+            nuevos_creditos = int(request.form.get("nuevos_creditos") or 0)
+        except ValueError:
+            nuevos_creditos = 0
+
         if retorno_existente is not None:
             retorno_existente.fecha = fecha
             retorno_existente.notas = request.form.get("notas") or None
             retorno_existente.efectivo_contado = efectivo_contado
             retorno_existente.monedas_contado = monedas_contado
+            retorno_existente.gasto_en_ruta = gasto_en_ruta
+            retorno_existente.creditos_pagados = creditos_pagados
+            retorno_existente.nuevos_creditos = nuevos_creditos
             retorno_existente.detalles = detalles
             db.session.commit()
             flash("Retorno de camión actualizado. Inventario recalculado.", "success")
@@ -223,6 +247,7 @@ def retorno_nueva(salida_id):
             retorno = RetornoCamion(
                 salida_id=salida.id, fecha=fecha, notas=request.form.get("notas") or None,
                 efectivo_contado=efectivo_contado, monedas_contado=monedas_contado,
+                gasto_en_ruta=gasto_en_ruta, creditos_pagados=creditos_pagados, nuevos_creditos=nuevos_creditos,
             )
             retorno.detalles = detalles
             db.session.add(retorno)

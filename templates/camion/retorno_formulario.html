@@ -19,7 +19,7 @@
     </div>
   </div>
 
-  <div class="row col-lg-6 mb-4">
+  <div class="row col-lg-6 mb-3">
     <div class="col-md-6">
       <label class="form-label">Efectivo contado (billetes)</label>
       <input type="number" step="1" min="0" name="efectivo_contado" class="form-control" value="{{ form.efectivo_contado if form else (retorno_existente.efectivo_contado if retorno_existente and retorno_existente.efectivo_contado is not none else '') }}" placeholder="Opcional">
@@ -29,6 +29,24 @@
       <input type="number" step="1" min="0" name="monedas_contado" class="form-control" value="{{ form.monedas_contado if form else (retorno_existente.monedas_contado if retorno_existente and retorno_existente.monedas_contado is not none else '') }}" placeholder="Opcional">
     </div>
     <p class="text-muted small mt-1 mb-0">Opcional — si los cuentas, te decimos al guardar si sobró o faltó dinero comparado con lo que debería haber traído la ruta.</p>
+  </div>
+
+  <div class="row col-lg-6 mb-4">
+    <div class="col-md-4">
+      <label class="form-label">Gasto en ruta</label>
+      <input type="number" step="1" min="0" name="gasto_en_ruta" class="form-control" value="{{ form.gasto_en_ruta if form else (retorno_existente.gasto_en_ruta if retorno_existente and retorno_existente.gasto_en_ruta else 0) }}">
+      <div class="form-text small">Gasolina, peajes, etc. — se resta de lo esperado.</div>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Créditos pagados</label>
+      <input type="number" step="1" min="0" name="creditos_pagados" class="form-control" value="{{ form.creditos_pagados if form else (retorno_existente.creditos_pagados if retorno_existente and retorno_existente.creditos_pagados else 0) }}">
+      <div class="form-text small">Cobros de facturas viejas — se suma a lo esperado.</div>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Nuevos créditos</label>
+      <input type="number" step="1" min="0" name="nuevos_creditos" class="form-control" value="{{ form.nuevos_creditos if form else (retorno_existente.nuevos_creditos if retorno_existente and retorno_existente.nuevos_creditos else 0) }}">
+      <div class="form-text small">Venta que quedó fiada hoy — se resta de lo esperado.</div>
+    </div>
   </div>
 
   <input type="text" id="buscar-producto-retorno" class="form-control mb-2" placeholder="Buscar producto...">

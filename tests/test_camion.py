@@ -402,3 +402,74 @@ def test_lista_de_camion_muestra_acceso_directo_al_cuadre_segun_estado(db, clien
     assert f"/camion/retorno/nueva/{salida_cerrada.id}" in body
     assert "Editar cuadre de caja" in body
     assert "Registrar retorno" in body
+
+
+def test_cuadre_de_caja_incluye_gasto_creditos_pagados_y_nuevos_creditos(db, client):
+    coca = crear_producto(db, unidades_por_caja=6, precio=3000)
+    salida = SalidaCamion(fecha=date(2026, 8, 1))
+    db.session.add(salida)
+    db.session.flush()
+    # 26 unidades cargadas, se vende todo (retorno 0) -> venta implicita = 26*3000 = 78000
+    db.session.add(SalidaCamionDetalle(salida_id=salida.id, producto_id=coca.id, cantidad_unidades=26))
+    db.session.commit()
+
+    r = client.post(
+        f"/camion/retorno/nueva/{salida.id}",
+        data={
+            "fecha": HOY, "notas": "",
+            f"regreso_cajas_{coca.id}": "0", f"regreso_unidades_{coca.id}": "0",
+            "efectivo_contado": "70000", "monedas_contado": "0",
+            "gasto_en_ruta": "5000", "creditos_pagados": "10000", "nuevos_creditos": "13000",
+        },
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+
+    retorno = RetornoCamion.query.filter_by(salida_id=salida.id).first()
+    assert retorno.gasto_en_ruta == 5000
+    assert retorno.creditos_pagados == 10000
+    assert retorno.nuevos_creditos == 13000
+
+    r = client.get(f"/camion/{salida.id}")
+    body = r.get_data(as_text=True)
+    # esperado = 78000 - 5000 (gasto) - 13000 (nuevos creditos) + 10000 (creditos pagados) = 70000
+    # contado = 70000 -> cuadra exacto
+    assert "Cuadra exacto" in body
+    assert "70,000" in body
+
+
+def test_editar_retorno_permite_ajustar_gasto_en_ruta(db, client):
+    coca = crear_producto(db, unidades_por_caja=6, precio=3000)
+    salida = SalidaCamion(fecha=date(2026, 8, 1))
+    db.session.add(salida)
+    db.session.flush()
+    db.session.add(SalidaCamionDetalle(salida_id=salida.id, producto_id=coca.id, cantidad_unidades=26))
+    db.session.commit()
+
+    client.post(
+        f"/camion/retorno/nueva/{salida.id}",
+        data={
+            "fecha": HOY, "notas": "",
+            f"regreso_cajas_{coca.id}": "0", f"regreso_unidades_{coca.id}": "0",
+            "efectivo_contado": "78000", "monedas_contado": "0",
+        },
+        follow_redirects=True,
+    )
+
+    r = client.post(
+        f"/camion/retorno/nueva/{salida.id}",
+        data={
+            "fecha": HOY, "notas": "",
+            f"regreso_cajas_{coca.id}": "0", f"regreso_unidades_{coca.id}": "0",
+            "efectivo_contado": "78000", "monedas_contado": "0",
+            "gasto_en_ruta": "8000",
+        },
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+
+    r = client.get(f"/camion/{salida.id}")
+    body = r.get_data(as_text=True)
+    # esperado = 78000 - 8000 = 70000, contado = 78000 -> sobraron 8000
+    assert "Sobraron" in body
+    assert "8,000" in body
