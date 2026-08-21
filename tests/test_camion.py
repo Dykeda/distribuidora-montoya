@@ -434,13 +434,11 @@ def test_cuadre_de_caja_incluye_gasto_creditos_pagados_y_nuevos_creditos(db, cli
 
     r = client.get(f"/camion/{salida.id}")
     body = r.get_data(as_text=True)
-    # esperado = 78000 - 5000 (gasto) + 13000 (nuevos creditos) + 10000 (creditos pagados) = 96000
+    # esperado = contado(70000+0) + gasto(5000) + nuevos creditos(13000) = 88000
     # venta total = 78000 + 10000 (creditos pagados) = 88000
-    # diferencia = 96000 - 88000 = 8000 -> sobraron
-    assert "96,000" in body
+    # diferencia = 88000 - 88000 = 0 -> cuadra exacto
     assert "88,000" in body
-    assert "Sobraron" in body
-    assert "8,000" in body
+    assert "Cuadra exacto" in body
 
 
 def test_editar_retorno_permite_ajustar_gasto_en_ruta(db, client):

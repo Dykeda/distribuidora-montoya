@@ -114,8 +114,8 @@ def detalle(salida_id):
         gasto_en_ruta = salida.retorno.gasto_en_ruta or 0
         creditos_pagados = salida.retorno.creditos_pagados or 0
         nuevos_creditos = salida.retorno.nuevos_creditos or 0
-        efectivo_esperado = venta_implicita - gasto_en_ruta + nuevos_creditos + creditos_pagados
         efectivo_real = salida.retorno.efectivo_contado + salida.retorno.monedas_contado
+        efectivo_esperado = efectivo_real + gasto_en_ruta + nuevos_creditos
         venta_total = venta_implicita + creditos_pagados
         cuadre = {
             "venta_implicita": venta_implicita,
