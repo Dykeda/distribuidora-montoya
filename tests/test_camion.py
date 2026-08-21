@@ -499,6 +499,6 @@ def test_cuadre_muestra_venta_total_sumando_creditos_y_restando_gasto(db, client
     body = r.get_data(as_text=True)
     # efectivo esperado sigue igual: 78000 - 5000 - 13000 + 10000 = 70000
     assert "Cuadra exacto" in body
-    # venta total = 78000 + 13000 (nuevos creditos) - 5000 (gasto) = 86000
+    # venta total = 78000 + 10000 (creditos pagados) - 5000 (gasto) = 83000
     assert "Venta total" in body
-    assert "86,000" in body
+    assert "83,000" in body
