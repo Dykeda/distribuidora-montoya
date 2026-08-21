@@ -102,7 +102,11 @@ def editar(producto_id):
         p.tasa_descuento_referencia = tasa_descuento_referencia
 
         nuevo_precio_unidad = round(nuevo_precio_caja / unidades_por_caja)
-        if p.precio_caja_actual() != nuevo_precio_caja:
+        # Ojo: si cambian las unidades por caja pero el precio de caja se deja igual, el
+        # precio por unidad SÍ cambia (misma plata repartida entre más o menos unidades) --
+        # hay que comparar contra el precio por unidad también, no solo el de caja, o se
+        # queda con un precio por unidad viejo que ya no cuadra con la caja actual.
+        if p.precio_caja_actual() != nuevo_precio_caja or p.precio_actual() != nuevo_precio_unidad:
             db.session.add(
                 ProductoPrecio(
                     producto_id=p.id,

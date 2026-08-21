@@ -67,6 +67,33 @@ def test_editar_producto_recalcula_precio_por_unidad(client):
     assert p.precio_actual() == 4000  # 24000 / 6
 
 
+def test_editar_producto_recalcula_precio_por_unidad_si_solo_cambian_las_unidades_por_caja(client):
+    # precio de caja se deja igual (45000) pero las unidades por caja bajan de 15 a 12 --
+    # el precio por unidad debe subir de 3000 a 3750, aunque el de caja no haya cambiado.
+    crear_producto(client, nombre="Pet 1,5 Lts Gaseosa", precio_caja="45000", unidades_por_caja="15")
+    from models import Producto
+
+    p = Producto.query.filter_by(nombre="Pet 1,5 Lts Gaseosa").first()
+    assert p.precio_actual() == 3000
+
+    client.post(
+        f"/productos/{p.id}/editar",
+        data={
+            "nombre": "Pet 1,5 Lts Gaseosa",
+            "categoria": "Gaseosa",
+            "unidades_por_caja": "12",
+            "maneja_cajas": "on",
+            "maneja_unidades": "on",
+            "precio_venta_caja": "45000",
+            "tasa_descuento_referencia": "0",
+        },
+        follow_redirects=True,
+    )
+
+    assert p.precio_actual() == 3750  # 45000 / 12
+    assert p.precio_caja_actual() == 45000
+
+
 def test_eliminar_producto_sin_movimientos_lo_borra(client):
     crear_producto(client)
     from models import Producto
