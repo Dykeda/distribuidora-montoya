@@ -89,7 +89,7 @@
     <tbody>
       <tr><td>Venta implícita de la ruta</td><td class="text-end">${{ "{:,}".format(cuadre.venta_implicita) }}</td></tr>
       {% if cuadre.gasto_en_ruta %}<tr><td>Gasto en ruta</td><td class="text-end">&minus;${{ "{:,}".format(cuadre.gasto_en_ruta) }}</td></tr>{% endif %}
-      {% if cuadre.nuevos_creditos %}<tr><td>Nuevos créditos</td><td class="text-end">&minus;${{ "{:,}".format(cuadre.nuevos_creditos) }}</td></tr>{% endif %}
+      {% if cuadre.nuevos_creditos %}<tr><td>Nuevos créditos</td><td class="text-end">+${{ "{:,}".format(cuadre.nuevos_creditos) }}</td></tr>{% endif %}
       {% if cuadre.creditos_pagados %}<tr><td>Créditos pagados</td><td class="text-end">+${{ "{:,}".format(cuadre.creditos_pagados) }}</td></tr>{% endif %}
       <tr class="fw-bold border-top"><td>Efectivo esperado</td><td class="text-end">${{ "{:,}".format(cuadre.esperado) }}</td></tr>
     </tbody>
@@ -102,7 +102,6 @@
     <tbody>
       <tr><td>Venta implícita de la ruta</td><td class="text-end">${{ "{:,}".format(cuadre.venta_implicita) }}</td></tr>
       {% if cuadre.creditos_pagados %}<tr><td>Créditos pagados</td><td class="text-end">+${{ "{:,}".format(cuadre.creditos_pagados) }}</td></tr>{% endif %}
-      {% if cuadre.gasto_en_ruta %}<tr><td>Gasto en ruta</td><td class="text-end">&minus;${{ "{:,}".format(cuadre.gasto_en_ruta) }}</td></tr>{% endif %}
       <tr class="fw-bold border-top"><td>Venta total</td><td class="text-end">${{ "{:,}".format(cuadre.venta_total) }}</td></tr>
     </tbody>
   </table>
@@ -118,9 +117,8 @@
   </div>
   <div class="col-md-3">
     <div class="card card-metric h-100"><div class="card-body">
-      <div class="text-muted small">Contado (billetes + monedas)</div>
-      <div class="fs-5 fw-bold">${{ "{:,}".format(cuadre.real) }}</div>
-      <div class="text-muted small">${{ "{:,}".format(cuadre.efectivo_contado) }} + ${{ "{:,}".format(cuadre.monedas_contado) }}</div>
+      <div class="text-muted small">Venta total</div>
+      <div class="fs-5 fw-bold">${{ "{:,}".format(cuadre.venta_total) }}</div>
     </div></div>
   </div>
   <div class="col-md-6">
@@ -133,6 +131,7 @@
     {% endif %}
   </div>
 </div>
+<p class="text-muted small">Contado en la ruta: ${{ "{:,}".format(cuadre.efectivo_contado) }} (billetes) + ${{ "{:,}".format(cuadre.monedas_contado) }} (monedas) = ${{ "{:,}".format(cuadre.real) }}</p>
 {% endif %}
 
 {% else %}

@@ -156,7 +156,7 @@ def test_retorno_con_conteo_de_caja_muestra_sobrante(db, client):
     salida = SalidaCamion(fecha=date(2026, 8, 1))
     db.session.add(salida)
     db.session.flush()
-    # 26 unidades cargadas, se vende todo (retorno 0) -> esperado = 26*3000 = 78000
+    # 26 unidades cargadas, se vende todo (retorno 0) -> venta implicita = 26*3000 = 78000
     db.session.add(SalidaCamionDetalle(salida_id=salida.id, producto_id=coca.id, cantidad_unidades=26))
     db.session.commit()
 
@@ -166,6 +166,7 @@ def test_retorno_con_conteo_de_caja_muestra_sobrante(db, client):
             "fecha": HOY, "notas": "",
             f"regreso_cajas_{coca.id}": "0", f"regreso_unidades_{coca.id}": "0",
             "efectivo_contado": "75000", "monedas_contado": "3500",
+            "nuevos_creditos": "5000",
         },
         follow_redirects=True,
     )
@@ -180,9 +181,9 @@ def test_retorno_con_conteo_de_caja_muestra_sobrante(db, client):
     r = client.get(f"/camion/{salida.id}")
     body = r.get_data(as_text=True)
     assert "Cuadre de caja" in body
-    # esperado 78000, contado 75000+3500=78500 -> sobraron 500
+    # esperado = 78000 + 5000 (nuevos creditos) = 83000; venta total = 78000 -> sobraron 5000
     assert "Sobraron" in body
-    assert "500" in body
+    assert "5,000" in body
 
 
 def test_retorno_con_conteo_de_caja_muestra_faltante(db, client):
@@ -199,6 +200,7 @@ def test_retorno_con_conteo_de_caja_muestra_faltante(db, client):
             "fecha": HOY, "notas": "",
             f"regreso_cajas_{coca.id}": "0", f"regreso_unidades_{coca.id}": "0",
             "efectivo_contado": "70000", "monedas_contado": "0",
+            "gasto_en_ruta": "8000",
         },
         follow_redirects=True,
     )
@@ -207,7 +209,7 @@ def test_retorno_con_conteo_de_caja_muestra_faltante(db, client):
     r = client.get(f"/camion/{salida.id}")
     body = r.get_data(as_text=True)
     assert "Cuadre de caja" in body
-    # esperado 78000, contado 70000 -> faltan 8000
+    # esperado = 78000 - 8000 (gasto) = 70000; venta total = 78000 -> faltan 8000
     assert "Faltan" in body
     assert "8,000" in body
 
@@ -432,10 +434,13 @@ def test_cuadre_de_caja_incluye_gasto_creditos_pagados_y_nuevos_creditos(db, cli
 
     r = client.get(f"/camion/{salida.id}")
     body = r.get_data(as_text=True)
-    # esperado = 78000 - 5000 (gasto) - 13000 (nuevos creditos) + 10000 (creditos pagados) = 70000
-    # contado = 70000 -> cuadra exacto
-    assert "Cuadra exacto" in body
-    assert "70,000" in body
+    # esperado = 78000 - 5000 (gasto) + 13000 (nuevos creditos) + 10000 (creditos pagados) = 96000
+    # venta total = 78000 + 10000 (creditos pagados) = 88000
+    # diferencia = 96000 - 88000 = 8000 -> sobraron
+    assert "96,000" in body
+    assert "88,000" in body
+    assert "Sobraron" in body
+    assert "8,000" in body
 
 
 def test_editar_retorno_permite_ajustar_gasto_en_ruta(db, client):
@@ -470,8 +475,8 @@ def test_editar_retorno_permite_ajustar_gasto_en_ruta(db, client):
 
     r = client.get(f"/camion/{salida.id}")
     body = r.get_data(as_text=True)
-    # esperado = 78000 - 8000 = 70000, contado = 78000 -> sobraron 8000
-    assert "Sobraron" in body
+    # esperado = 78000 - 8000 (gasto) = 70000; venta total sigue en 78000 -> faltan 8000
+    assert "Faltan" in body
     assert "8,000" in body
 
 
@@ -497,8 +502,6 @@ def test_cuadre_muestra_venta_total_sumando_creditos_y_restando_gasto(db, client
 
     r = client.get(f"/camion/{salida.id}")
     body = r.get_data(as_text=True)
-    # efectivo esperado sigue igual: 78000 - 5000 - 13000 + 10000 = 70000
-    assert "Cuadra exacto" in body
-    # venta total = 78000 + 10000 (creditos pagados) - 5000 (gasto) = 83000
+    # venta total = 78000 + 10000 (creditos pagados) = 88000
     assert "Venta total" in body
-    assert "83,000" in body
+    assert "88,000" in body
