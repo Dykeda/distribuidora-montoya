@@ -116,6 +116,7 @@ def detalle(salida_id):
         nuevos_creditos = salida.retorno.nuevos_creditos or 0
         efectivo_esperado = venta_implicita - gasto_en_ruta - nuevos_creditos + creditos_pagados
         efectivo_real = salida.retorno.efectivo_contado + salida.retorno.monedas_contado
+        venta_total = venta_implicita + nuevos_creditos - gasto_en_ruta
         cuadre = {
             "venta_implicita": venta_implicita,
             "gasto_en_ruta": gasto_en_ruta,
@@ -126,6 +127,7 @@ def detalle(salida_id):
             "monedas_contado": salida.retorno.monedas_contado,
             "real": efectivo_real,
             "diferencia": efectivo_real - efectivo_esperado,
+            "venta_total": venta_total,
         }
 
     return render_template("camion/detalle.html", salida=salida, carga=carga, recargas=recargas, venta=venta, cuadre=cuadre)

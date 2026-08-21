@@ -473,3 +473,32 @@ def test_editar_retorno_permite_ajustar_gasto_en_ruta(db, client):
     # esperado = 78000 - 8000 = 70000, contado = 78000 -> sobraron 8000
     assert "Sobraron" in body
     assert "8,000" in body
+
+
+def test_cuadre_muestra_venta_total_sumando_creditos_y_restando_gasto(db, client):
+    coca = crear_producto(db, unidades_por_caja=6, precio=3000)
+    salida = SalidaCamion(fecha=date(2026, 8, 1))
+    db.session.add(salida)
+    db.session.flush()
+    # 26 unidades cargadas, se vende todo (retorno 0) -> venta implicita = 26*3000 = 78000
+    db.session.add(SalidaCamionDetalle(salida_id=salida.id, producto_id=coca.id, cantidad_unidades=26))
+    db.session.commit()
+
+    client.post(
+        f"/camion/retorno/nueva/{salida.id}",
+        data={
+            "fecha": HOY, "notas": "",
+            f"regreso_cajas_{coca.id}": "0", f"regreso_unidades_{coca.id}": "0",
+            "efectivo_contado": "70000", "monedas_contado": "0",
+            "gasto_en_ruta": "5000", "creditos_pagados": "10000", "nuevos_creditos": "13000",
+        },
+        follow_redirects=True,
+    )
+
+    r = client.get(f"/camion/{salida.id}")
+    body = r.get_data(as_text=True)
+    # efectivo esperado sigue igual: 78000 - 5000 - 13000 + 10000 = 70000
+    assert "Cuadra exacto" in body
+    # venta total = 78000 + 13000 (nuevos creditos) - 5000 (gasto) = 86000
+    assert "Venta total" in body
+    assert "86,000" in body

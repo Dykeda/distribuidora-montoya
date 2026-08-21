@@ -82,16 +82,32 @@
 
 {% if cuadre %}
 <h2 class="h5 mt-4">Cuadre de caja</h2>
-<div class="table-responsive mb-2">
-<table class="table table-sm w-auto">
-  <tbody>
-    <tr><td>Venta implícita de la ruta</td><td class="text-end">${{ "{:,}".format(cuadre.venta_implicita) }}</td></tr>
-    {% if cuadre.gasto_en_ruta %}<tr><td>Gasto en ruta</td><td class="text-end">&minus;${{ "{:,}".format(cuadre.gasto_en_ruta) }}</td></tr>{% endif %}
-    {% if cuadre.nuevos_creditos %}<tr><td>Nuevos créditos</td><td class="text-end">&minus;${{ "{:,}".format(cuadre.nuevos_creditos) }}</td></tr>{% endif %}
-    {% if cuadre.creditos_pagados %}<tr><td>Créditos pagados</td><td class="text-end">+${{ "{:,}".format(cuadre.creditos_pagados) }}</td></tr>{% endif %}
-    <tr class="fw-bold border-top"><td>Efectivo esperado</td><td class="text-end">${{ "{:,}".format(cuadre.esperado) }}</td></tr>
-  </tbody>
-</table>
+<div class="row mb-2">
+  <div class="col-md-6">
+  <div class="table-responsive">
+  <table class="table table-sm w-auto">
+    <tbody>
+      <tr><td>Venta implícita de la ruta</td><td class="text-end">${{ "{:,}".format(cuadre.venta_implicita) }}</td></tr>
+      {% if cuadre.gasto_en_ruta %}<tr><td>Gasto en ruta</td><td class="text-end">&minus;${{ "{:,}".format(cuadre.gasto_en_ruta) }}</td></tr>{% endif %}
+      {% if cuadre.nuevos_creditos %}<tr><td>Nuevos créditos</td><td class="text-end">&minus;${{ "{:,}".format(cuadre.nuevos_creditos) }}</td></tr>{% endif %}
+      {% if cuadre.creditos_pagados %}<tr><td>Créditos pagados</td><td class="text-end">+${{ "{:,}".format(cuadre.creditos_pagados) }}</td></tr>{% endif %}
+      <tr class="fw-bold border-top"><td>Efectivo esperado</td><td class="text-end">${{ "{:,}".format(cuadre.esperado) }}</td></tr>
+    </tbody>
+  </table>
+  </div>
+  </div>
+  <div class="col-md-6">
+  <div class="table-responsive">
+  <table class="table table-sm w-auto">
+    <tbody>
+      <tr><td>Venta implícita de la ruta</td><td class="text-end">${{ "{:,}".format(cuadre.venta_implicita) }}</td></tr>
+      {% if cuadre.nuevos_creditos %}<tr><td>Nuevos créditos</td><td class="text-end">+${{ "{:,}".format(cuadre.nuevos_creditos) }}</td></tr>{% endif %}
+      {% if cuadre.gasto_en_ruta %}<tr><td>Gasto en ruta</td><td class="text-end">&minus;${{ "{:,}".format(cuadre.gasto_en_ruta) }}</td></tr>{% endif %}
+      <tr class="fw-bold border-top"><td>Venta total</td><td class="text-end">${{ "{:,}".format(cuadre.venta_total) }}</td></tr>
+    </tbody>
+  </table>
+  </div>
+  </div>
 </div>
 <div class="row g-3 mb-2">
   <div class="col-md-3">
