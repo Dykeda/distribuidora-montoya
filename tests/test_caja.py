@@ -129,7 +129,7 @@ def test_saldo_acumulado_no_tiene_limite_inferior_y_resta_gastos(db):
     p = crear_producto(db)
     cerrar_ruta(db, p, cantidad_salida=30, cantidad_retorno=6, fecha=date(2026, 1, 5))
 
-    cat = CategoriaGasto.query.filter_by(nombre="Luz", tipo="hogar").first()
+    cat = CategoriaGasto.query.filter_by(nombre="Servicios públicos", tipo="hogar").first()
     db.session.add(Gasto(categoria_id=cat.id, fecha=date(2026, 6, 1), monto=8000))
     db.session.commit()
 

@@ -6,6 +6,7 @@ from services.gastos import (
     listar_gastos,
     total_gastos_periodo,
     asegurar_categorias_default,
+    fusionar_categorias,
 )
 
 
@@ -21,8 +22,7 @@ def test_categorias_default_quedan_creadas(db):
     assert "Pago Nómina" in nombres_negocio
     assert "Gasto en ruta" in nombres_negocio
     assert "Arriendo" in nombres_hogar
-    assert "Luz" in nombres_hogar
-    assert "Agua" in nombres_hogar
+    assert "Servicios públicos" in nombres_hogar
     assert "Compras" in nombres_hogar
 
 
@@ -52,3 +52,28 @@ def test_total_gastos_periodo_filtra_por_tipo(db):
     solo_negocio = listar_gastos(tipo="negocio")
     assert len(solo_negocio) == 1
     assert solo_negocio[0].categoria.nombre == "Pago Nómina"
+
+
+def test_fusionar_categorias_mueve_gastos_y_desactiva_las_de_origen(db):
+    luz = CategoriaGasto(nombre="Luz", tipo="hogar")
+    agua = CategoriaGasto(nombre="Agua", tipo="hogar")
+    db.session.add_all([luz, agua])
+    db.session.flush()
+    db.session.add(Gasto(categoria_id=luz.id, fecha=date(2026, 8, 5), monto=50000))
+    db.session.add(Gasto(categoria_id=agua.id, fecha=date(2026, 8, 5), monto=30000))
+    db.session.commit()
+
+    destino, movidos = fusionar_categorias(["Luz", "Agua"], "hogar", "Servicios públicos")
+
+    assert movidos == 2
+    assert destino.nombre == "Servicios públicos"
+    assert total_gastos_periodo(date(2026, 8, 1), date(2026, 8, 31), tipo="hogar") == 80000
+
+    nombres_hogar_activas = {c.nombre for c in categorias_por_tipo("hogar")}
+    assert "Luz" not in nombres_hogar_activas
+    assert "Agua" not in nombres_hogar_activas
+    assert "Servicios públicos" in nombres_hogar_activas
+
+    gasto_luz = Gasto.query.filter_by(categoria_id=luz.id).first()
+    assert gasto_luz is None  # ya no queda ningún Gasto en la categoria vieja
+    assert Gasto.query.filter_by(categoria_id=destino.id).count() == 2

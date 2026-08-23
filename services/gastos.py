@@ -13,8 +13,7 @@ CATEGORIAS_DEFAULT = {
     ],
     "hogar": [
         "Arriendo",
-        "Luz",
-        "Agua",
+        "Servicios públicos",
         "Compras",
     ],
 }
@@ -39,6 +38,27 @@ def categorias_por_tipo(tipo, solo_activas=True):
     if solo_activas:
         query = query.filter_by(activa=True)
     return query.order_by(CategoriaGasto.nombre).all()
+
+
+def fusionar_categorias(nombres_origen, tipo, nombre_destino):
+    """Junta varias categorías del mismo tipo en una sola -- mueve todos los Gasto de las
+    categorías de origen a la de destino (la crea si no existe) y desactiva las de
+    origen, sin borrar nada del historial."""
+    destino = CategoriaGasto.query.filter_by(nombre=nombre_destino, tipo=tipo).first()
+    if not destino:
+        destino = CategoriaGasto(nombre=nombre_destino, tipo=tipo)
+        db.session.add(destino)
+        db.session.flush()
+
+    movidos = 0
+    for nombre in nombres_origen:
+        origen = CategoriaGasto.query.filter_by(nombre=nombre, tipo=tipo).first()
+        if not origen or origen.id == destino.id:
+            continue
+        movidos += Gasto.query.filter_by(categoria_id=origen.id).update({"categoria_id": destino.id})
+        origen.activa = False
+    db.session.commit()
+    return destino, movidos
 
 
 def categoria_gasto_en_ruta():
