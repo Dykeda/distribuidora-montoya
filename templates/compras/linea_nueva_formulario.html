@@ -45,6 +45,13 @@
       <input type="number" step="0.1" min="0" id="porcentaje_iva" name="porcentaje_iva" class="form-control" value="{{ form.porcentaje_iva if form else 19 }}">
     </div>
   </div>
+  <div class="row col-lg-8 mb-3">
+    <div class="col-md-6">
+      <label class="form-label">Notas (opcional)</label>
+      <input type="text" name="notas" class="form-control" placeholder="ej. Uva, sabor promo" value="{{ form.notas if form else '' }}">
+      <div class="form-text small">Útil si divides un producto en varias líneas por una tasa de descuento distinta.</div>
+    </div>
+  </div>
   <div class="form-check mb-2">
     <input type="checkbox" name="costo_incluye_iva" value="1" class="form-check-input" id="costo_incluye_iva" {% if form and form.get('costo_incluye_iva') %}checked{% endif %}>
     <label class="form-check-label" for="costo_incluye_iva">El costo que escribí ya incluye el IVA (como suele venir en la factura)</label>

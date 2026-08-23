@@ -107,13 +107,13 @@ def construir_workbook():
     for c in compras:
         for d in c.detalles:
             filas_compras.append([
-                c.fecha, c.numero_factura or "", d.producto.nombre,
+                c.fecha, c.numero_factura or "", d.producto.nombre, d.notas or "",
                 d.cantidad_comprada_unidades, d.costo_linea, d.tasa_descuento_aplicada,
                 "Sí" if d.es_descuento else "No", d.porcentaje_iva, d.valor_iva,
             ])
     _hoja(
         wb, "Compras",
-        ["Fecha", "Factura", "Producto", "Cantidad (unid.)", "Costo", "Tasa descuento %", "Es descuento", "% IVA", "Valor IVA"],
+        ["Fecha", "Factura", "Producto", "Notas", "Cantidad (unid.)", "Costo", "Tasa descuento %", "Es descuento", "% IVA", "Valor IVA"],
         filas_compras,
     )
 

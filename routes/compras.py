@@ -101,6 +101,7 @@ def linea_nueva(compra_id):
                 tasa_descuento_aplicada=tasa,
                 es_descuento=es_descuento,
                 porcentaje_iva=iva,
+                notas=request.form.get("notas") or None,
             )
         )
         db.session.commit()
@@ -138,6 +139,7 @@ def linea_editar(compra_id, detalle_id):
             detalle.tasa_descuento_aplicada = tasa
             detalle.es_descuento = es_descuento
             detalle.porcentaje_iva = iva
+            detalle.notas = request.form.get("notas") or None
             db.session.commit()
             flash("Producto de la compra actualizado.", "success")
             return redirect(url_for("compras.detalle", compra_id=compra_id))
@@ -145,13 +147,14 @@ def linea_editar(compra_id, detalle_id):
         return render_template(
             "compras/linea_formulario.html", compra=compra, detalle=detalle, producto=producto,
             cajas_actual=cajas, unidades_actual=unidades, es_descuento_actual=es_descuento, iva_actual=iva,
+            notas_actual=request.form.get("notas") or "",
         )
 
     cajas_actual, unidades_actual = cajas_y_unidades(producto, detalle.cantidad_comprada_unidades)
     return render_template(
         "compras/linea_formulario.html", compra=compra, detalle=detalle, producto=producto,
         cajas_actual=cajas_actual, unidades_actual=unidades_actual, es_descuento_actual=detalle.es_descuento,
-        iva_actual=detalle.porcentaje_iva,
+        iva_actual=detalle.porcentaje_iva, notas_actual=detalle.notas or "",
     )
 
 
@@ -174,6 +177,7 @@ def nueva():
         es_descuentos = request.form.getlist("es_descuento[]")
         ivas = request.form.getlist("porcentaje_iva[]")
         costo_incluye_iva_lista = request.form.getlist("costo_incluye_iva[]")
+        notas_lineas = request.form.getlist("notas_linea[]")
 
         lineas_validas = []
         errores = []
@@ -203,6 +207,7 @@ def nueva():
                 errores.append(f"Línea {i + 1}: la cantidad debe ser mayor a cero.")
                 continue
 
+            notas_linea = notas_lineas[i].strip() if i < len(notas_lineas) and notas_lineas[i].strip() else None
             lineas_validas.append(
                 CompraDetalle(
                     producto_id=producto.id,
@@ -211,6 +216,7 @@ def nueva():
                     tasa_descuento_aplicada=tasa,
                     es_descuento=es_descuento,
                     porcentaje_iva=iva,
+                    notas=notas_linea,
                 )
             )
 

@@ -104,7 +104,7 @@ def test_construir_workbook_incluye_todas_las_hojas_y_resumen_calculado(db):
 
     compras = wb["Compras"]
     assert compras.max_row == 3
-    assert compras.cell(row=3, column=7).value == "Sí"  # es_descuento
+    assert compras.cell(row=3, column=8).value == "Sí"  # es_descuento
 
     descuentos = wb["Descuentos"]
     assert descuentos.max_row == 2

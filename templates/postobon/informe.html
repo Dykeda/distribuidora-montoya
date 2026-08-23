@@ -51,7 +51,10 @@
       <tbody>
         {% for f in g.lineas %}
         <tr>
-          <td>{{ f.producto.nombre }}</td>
+          <td>
+            {{ f.producto.nombre }}
+            {% if f.detalle.notas %}<span class="text-muted d-block small">{{ f.detalle.notas }}</span>{% endif %}
+          </td>
           <td class="text-end">${{ "{:,}".format(f.detalle.costo_linea) }}</td>
           <td class="text-end">{{ f.tasa_esperada }}%</td>
           <td class="text-end">{{ f.tasa_aplicada }}%</td>

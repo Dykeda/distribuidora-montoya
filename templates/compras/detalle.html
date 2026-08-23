@@ -31,6 +31,7 @@
       <td>
         {{ f.detalle.producto.nombre }}
         {% if f.detalle.es_descuento %}<span class="badge bg-secondary">Descuento</span>{% endif %}
+        {% if f.detalle.notas %}<span class="text-muted d-block small">{{ f.detalle.notas }}</span>{% endif %}
       </td>
       <td class="text-end">{{ f.cajas }}</td>
       <td class="text-end">{{ f.unidades_sueltas }}</td>

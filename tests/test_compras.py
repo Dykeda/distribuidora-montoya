@@ -211,6 +211,71 @@ def test_agregar_linea_a_compra_existente(db, client):
     assert calcular_stock(nuevo.id) == 15
 
 
+def test_agregar_linea_guarda_notas(db, client):
+    compra, coca, agua = _crear_compra_con_dos_productos(db)
+
+    r = client.post(
+        f"/compras/{compra.id}/linea/nueva",
+        data={
+            "producto_id": str(coca.id), "cajas": "0", "unidades": "20",
+            "costo_linea": "60000", "tasa_descuento": "9.2", "porcentaje_iva": "19",
+            "notas": "Uva",
+        },
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+
+    nueva_linea = CompraDetalle.query.filter_by(compra_id=compra.id, tasa_descuento_aplicada=9.2).first()
+    assert nueva_linea is not None
+    assert nueva_linea.notas == "Uva"
+
+
+def test_editar_linea_de_compra_actualiza_notas(db, client):
+    compra, coca, agua = _crear_compra_con_dos_productos(db)
+    detalle_coca = next(d for d in compra.detalles if d.producto_id == coca.id)
+
+    r = client.post(
+        f"/compras/{compra.id}/linea/{detalle_coca.id}/editar",
+        data={"cajas": "10", "unidades": "0", "costo_linea": "180000", "tasa_descuento": "5.0", "notas": "sabor promo"},
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+
+    actualizado = CompraDetalle.query.get(detalle_coca.id)
+    assert actualizado.notas == "sabor promo"
+
+
+def test_dividir_un_producto_en_dos_lineas_con_tasas_distintas_detecta_faltante_solo_en_una(db, client):
+    # Mismo producto (Pet 2,5 Gaseosa) facturado en dos líneas: la mayoría al 12% (sin
+    # faltante) y la porción de Uva al 9.2% (sí hay faltante) -- sin crear "Uva" como
+    # producto aparte en el catálogo.
+    from services.postobon import listar_faltantes_de_compra
+
+    p = crear_producto(db, "Pet 2,5 Gaseosa", 4000)
+    p.tasa_descuento_referencia = 12.0
+    compra = Compra(fecha=date(2026, 8, 20), numero_factura="AS001")
+    db.session.add(compra)
+    db.session.flush()
+    db.session.add(CompraDetalle(
+        compra_id=compra.id, producto_id=p.id, cantidad_comprada_unidades=80,
+        costo_linea=280000, tasa_descuento_aplicada=12.0,
+    ))
+    db.session.add(CompraDetalle(
+        compra_id=compra.id, producto_id=p.id, cantidad_comprada_unidades=20,
+        costo_linea=72600, tasa_descuento_aplicada=9.2, notas="Uva",
+    ))
+    db.session.commit()
+
+    faltantes = listar_faltantes_de_compra(compra.id)
+    assert len(faltantes) == 1
+    assert faltantes[0]["detalle"].notas == "Uva"
+    assert faltantes[0]["diferencia_pct"] == 2.8
+
+    r = client.get(f"/compras/{compra.id}")
+    body = r.get_data(as_text=True)
+    assert "Uva" in body
+
+
 def test_agregar_linea_calcula_neto_cuando_costo_incluye_iva(db, client):
     compra, coca, agua = _crear_compra_con_dos_productos(db)
     nuevo = crear_producto(db, nombre="Sprite 1.5L", precio=2500)

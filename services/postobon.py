@@ -86,7 +86,7 @@ def construir_workbook_faltantes(fecha_inicio, fecha_fin):
     ws = wb.active
     ws.title = "Faltantes de descuento"
 
-    encabezados = ["Factura", "Fecha", "Producto", "Cantidad", "Costo", "% esperado", "% aplicado", "Diferencia %", "Monto faltante"]
+    encabezados = ["Factura", "Fecha", "Producto", "Notas", "Cantidad", "Costo", "% esperado", "% aplicado", "Diferencia %", "Monto faltante"]
     ws.append(encabezados)
     for celda in ws[1]:
         celda.font = Font(bold=True)
@@ -96,16 +96,16 @@ def construir_workbook_faltantes(fecha_inicio, fecha_fin):
         compra = grupo["compra"]
         for f in grupo["lineas"]:
             ws.append([
-                compra.numero_factura, compra.fecha, f["producto"].nombre,
+                compra.numero_factura, compra.fecha, f["producto"].nombre, f["detalle"].notas or "",
                 f["detalle"].cantidad_comprada_unidades, f["detalle"].costo_linea,
                 f["tasa_esperada"], f["tasa_aplicada"], f["diferencia_pct"], f["monto_faltante"],
             ])
-        ws.append(["", "", "", "", "", "", "", "Subtotal factura", grupo["subtotal"]])
+        ws.append(["", "", "", "", "", "", "", "", "Subtotal factura", grupo["subtotal"]])
         for celda in ws[ws.max_row]:
             celda.font = Font(bold=True)
         total_general += grupo["subtotal"]
 
-    ws.append(["", "", "", "", "", "", "", "TOTAL", total_general])
+    ws.append(["", "", "", "", "", "", "", "", "TOTAL", total_general])
     for celda in ws[ws.max_row]:
         celda.font = Font(bold=True)
 
@@ -121,7 +121,7 @@ def construir_workbook_faltantes_de_compra(compra_id):
     ws = wb.active
     ws.title = "Faltantes de descuento"
 
-    encabezados = ["Factura", "Fecha", "Producto", "Cantidad", "Costo", "% esperado", "% aplicado", "Diferencia %", "Monto faltante"]
+    encabezados = ["Factura", "Fecha", "Producto", "Notas", "Cantidad", "Costo", "% esperado", "% aplicado", "Diferencia %", "Monto faltante"]
     ws.append(encabezados)
     for celda in ws[1]:
         celda.font = Font(bold=True)
@@ -131,13 +131,13 @@ def construir_workbook_faltantes_de_compra(compra_id):
     for f in filas:
         compra = f["compra"]
         ws.append([
-            compra.numero_factura, compra.fecha, f["producto"].nombre,
+            compra.numero_factura, compra.fecha, f["producto"].nombre, f["detalle"].notas or "",
             f["detalle"].cantidad_comprada_unidades, f["detalle"].costo_linea,
             f["tasa_esperada"], f["tasa_aplicada"], f["diferencia_pct"], f["monto_faltante"],
         ])
         total += f["monto_faltante"]
 
-    ws.append(["", "", "", "", "", "", "", "TOTAL", total])
+    ws.append(["", "", "", "", "", "", "", "", "TOTAL", total])
     for celda in ws[ws.max_row]:
         celda.font = Font(bold=True)
 

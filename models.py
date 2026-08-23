@@ -101,6 +101,10 @@ class CompraDetalle(db.Model):
     # costo_linea ya es el valor neto (después del descuento de precio); el IVA se suma
     # aparte para armar el total real de la factura, no hace parte del costo del producto.
     porcentaje_iva = db.Column(db.Float, nullable=False, default=0.0)
+    # Para cuando un mismo producto del catálogo se divide en varias líneas porque un
+    # sabor/variante trajo una tasa de descuento distinta a las demás (sin crear un
+    # producto por sabor) -- aquí se anota cuál es cuál (ej. "Uva").
+    notas = db.Column(db.String(255), nullable=True)
 
     @property
     def valor_iva(self):
