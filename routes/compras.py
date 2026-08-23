@@ -15,7 +15,8 @@ def listar():
     filas = []
     for c in compras:
         costo_total = sum(d.costo_linea for d in c.detalles)
-        filas.append({"compra": c, "costo_total": costo_total})
+        iva_total = sum(d.valor_iva for d in c.detalles)
+        filas.append({"compra": c, "total_a_pagar": costo_total + iva_total})
     return render_template("compras/lista.html", filas=filas)
 
 

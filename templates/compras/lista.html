@@ -12,7 +12,7 @@
     <tr>
       <th>Fecha</th>
       <th>Factura</th>
-      <th class="text-end">Costo total</th>
+      <th class="text-end">Total a pagar</th>
       <th></th>
     </tr>
   </thead>
@@ -21,7 +21,7 @@
     <tr>
       <td>{{ f.compra.fecha.strftime("%Y-%m-%d") }}</td>
       <td>{{ f.compra.numero_factura or "-" }}</td>
-      <td class="text-end">${{ "{:,}".format(f.costo_total) }}</td>
+      <td class="text-end">${{ "{:,}".format(f.total_a_pagar) }}</td>
       <td class="text-end"><a href="{{ url_for('compras.detalle', compra_id=f.compra.id) }}" class="btn btn-sm btn-outline-primary">Ver detalle</a></td>
     </tr>
     {% else %}
