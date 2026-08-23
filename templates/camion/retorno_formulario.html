@@ -31,18 +31,36 @@
     <p class="text-muted small mt-1 mb-0">Opcional — si los cuentas, te decimos al guardar si sobró o faltó dinero comparado con lo que debería haber traído la ruta.</p>
   </div>
 
-  <div class="row col-lg-6 mb-4">
-    <div class="col-md-4">
+  <div class="row mb-4">
+    <div class="col-md-3">
       <label class="form-label">Gasto en ruta</label>
       <input type="number" step="1" min="0" name="gasto_en_ruta" class="form-control" value="{{ form.gasto_en_ruta if form else (retorno_existente.gasto_en_ruta if retorno_existente and retorno_existente.gasto_en_ruta else 0) }}">
       <div class="form-text small">Gasolina, peajes, etc. — se resta de lo esperado.</div>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-3">
+      <label class="form-label">Categoría del gasto</label>
+      {% set categoria_actual = form.gasto_categoria_id if form else (retorno_existente.gasto_en_ruta_categoria_id if retorno_existente else None) %}
+      <select name="gasto_categoria_id" class="form-select">
+        <option value="">Gasto en ruta (general)</option>
+        <optgroup label="Negocio">
+          {% for c in categorias_negocio %}
+          <option value="{{ c.id }}" {% if categoria_actual and categoria_actual|string == c.id|string %}selected{% endif %}>{{ c.nombre }}</option>
+          {% endfor %}
+        </optgroup>
+        <optgroup label="Hogar">
+          {% for c in categorias_hogar %}
+          <option value="{{ c.id }}" {% if categoria_actual and categoria_actual|string == c.id|string %}selected{% endif %}>{{ c.nombre }}</option>
+          {% endfor %}
+        </optgroup>
+      </select>
+      <div class="form-text small">A qué categoría de Salidas de dinero se registra.</div>
+    </div>
+    <div class="col-md-3">
       <label class="form-label">Créditos pagados</label>
       <input type="number" step="1" min="0" name="creditos_pagados" class="form-control" value="{{ form.creditos_pagados if form else (retorno_existente.creditos_pagados if retorno_existente and retorno_existente.creditos_pagados else 0) }}">
       <div class="form-text small">Cobros de facturas viejas — se suma a lo esperado.</div>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-3">
       <label class="form-label">Nuevos créditos</label>
       <input type="number" step="1" min="0" name="nuevos_creditos" class="form-control" value="{{ form.nuevos_creditos if form else (retorno_existente.nuevos_creditos if retorno_existente and retorno_existente.nuevos_creditos else 0) }}">
       <div class="form-text small">Venta que quedó fiada hoy — se resta de lo esperado.</div>

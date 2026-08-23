@@ -608,3 +608,35 @@ def test_quitar_gasto_en_ruta_borra_la_salida_de_dinero(db, client):
     )
 
     assert Gasto.query.count() == 0
+
+
+def test_gasto_en_ruta_usa_categoria_elegida(db, client):
+    from models import Gasto, CategoriaGasto
+
+    coca = crear_producto(db, unidades_por_caja=6, precio=3000)
+    salida = SalidaCamion(fecha=date(2026, 8, 1))
+    db.session.add(salida)
+    db.session.flush()
+    db.session.add(SalidaCamionDetalle(salida_id=salida.id, producto_id=coca.id, cantidad_unidades=26))
+    db.session.commit()
+
+    categoria_hogar = CategoriaGasto.query.filter_by(nombre="Arriendo", tipo="hogar").first()
+
+    client.post(
+        f"/camion/retorno/nueva/{salida.id}",
+        data={
+            "fecha": HOY, "notas": "",
+            f"regreso_cajas_{coca.id}": "0", f"regreso_unidades_{coca.id}": "0",
+            "efectivo_contado": "70000", "monedas_contado": "0",
+            "gasto_en_ruta": "20000", "gasto_categoria_id": str(categoria_hogar.id),
+        },
+        follow_redirects=True,
+    )
+
+    gasto = Gasto.query.one()
+    assert gasto.monto == 20000
+    assert gasto.categoria.nombre == "Arriendo"
+    assert gasto.categoria.tipo == "hogar"
+
+    retorno = RetornoCamion.query.filter_by(salida_id=salida.id).first()
+    assert retorno.gasto_en_ruta_categoria_id == categoria_hogar.id

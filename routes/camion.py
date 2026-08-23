@@ -16,7 +16,7 @@ from models import (
 from services.ventas import venta_por_salida, rutas_en_transito, cargado_por_producto
 from services.inventario import cajas_y_unidades
 from services.caja import efectivo_por_salida
-from services.gastos import sincronizar_gasto_en_ruta
+from services.gastos import sincronizar_gasto_en_ruta, categorias_por_tipo
 from services.fechas import MESES_ES
 
 bp = Blueprint("camion", __name__, url_prefix="/camion")
@@ -174,6 +174,8 @@ def retorno_nueva(salida_id):
     nada a mano."""
     salida = SalidaCamion.query.get_or_404(salida_id)
     retorno_existente = salida.retorno
+    categorias_negocio = categorias_por_tipo("negocio")
+    categorias_hogar = categorias_por_tipo("hogar")
 
     cargado = cargado_por_producto(salida)  # incluye salida inicial + recargas del día
     regresado_previo = {d.producto_id: d.cantidad_unidades for d in retorno_existente.detalles} if retorno_existente else {}
@@ -210,7 +212,10 @@ def retorno_nueva(salida_id):
                     f"{fila['producto'].nombre}: no puede regresar más de lo que salió/se le recargó ({fila['cantidad_cargada']}).",
                     "error",
                 )
-                return render_template("camion/retorno_formulario.html", salida=salida, filas=filas, form=request.form, retorno_existente=retorno_existente)
+                return render_template(
+                    "camion/retorno_formulario.html", salida=salida, filas=filas, form=request.form,
+                    retorno_existente=retorno_existente, categorias_negocio=categorias_negocio, categorias_hogar=categorias_hogar,
+                )
             detalles.append(RetornoCamionDetalle(producto_id=fila["producto"].id, cantidad_unidades=cantidad_unidades))
 
         efectivo_contado = None
@@ -226,6 +231,8 @@ def retorno_nueva(salida_id):
             gasto_en_ruta = int(request.form.get("gasto_en_ruta") or 0)
         except ValueError:
             gasto_en_ruta = 0
+        gasto_categoria_id = request.form.get("gasto_categoria_id")
+        gasto_categoria_id = int(gasto_categoria_id) if gasto_categoria_id else None
         try:
             creditos_pagados = int(request.form.get("creditos_pagados") or 0)
         except ValueError:
@@ -241,27 +248,32 @@ def retorno_nueva(salida_id):
             retorno_existente.efectivo_contado = efectivo_contado
             retorno_existente.monedas_contado = monedas_contado
             retorno_existente.gasto_en_ruta = gasto_en_ruta
+            retorno_existente.gasto_en_ruta_categoria_id = gasto_categoria_id
             retorno_existente.creditos_pagados = creditos_pagados
             retorno_existente.nuevos_creditos = nuevos_creditos
             retorno_existente.detalles = detalles
-            sincronizar_gasto_en_ruta(retorno_existente, gasto_en_ruta, salida.fecha)
+            sincronizar_gasto_en_ruta(retorno_existente, gasto_en_ruta, salida.fecha, gasto_categoria_id)
             db.session.commit()
             flash("Retorno de camión actualizado. Inventario y salidas de dinero recalculados.", "success")
         else:
             retorno = RetornoCamion(
                 salida_id=salida.id, fecha=fecha, notas=request.form.get("notas") or None,
                 efectivo_contado=efectivo_contado, monedas_contado=monedas_contado,
-                gasto_en_ruta=gasto_en_ruta, creditos_pagados=creditos_pagados, nuevos_creditos=nuevos_creditos,
+                gasto_en_ruta=gasto_en_ruta, gasto_en_ruta_categoria_id=gasto_categoria_id,
+                creditos_pagados=creditos_pagados, nuevos_creditos=nuevos_creditos,
             )
             retorno.detalles = detalles
             db.session.add(retorno)
             db.session.flush()
-            sincronizar_gasto_en_ruta(retorno, gasto_en_ruta, salida.fecha)
+            sincronizar_gasto_en_ruta(retorno, gasto_en_ruta, salida.fecha, gasto_categoria_id)
             db.session.commit()
             flash("Retorno de camión registrado. Inventario actualizado.", "success")
         return redirect(url_for("camion.detalle", salida_id=salida.id))
 
-    return render_template("camion/retorno_formulario.html", salida=salida, filas=filas, form=None, retorno_existente=retorno_existente)
+    return render_template(
+        "camion/retorno_formulario.html", salida=salida, filas=filas, form=None,
+        retorno_existente=retorno_existente, categorias_negocio=categorias_negocio, categorias_hogar=categorias_hogar,
+    )
 
 
 @bp.route("/recarga/nueva")

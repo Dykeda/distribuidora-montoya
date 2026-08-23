@@ -53,12 +53,16 @@ def categoria_gasto_en_ruta():
     return categoria
 
 
-def sincronizar_gasto_en_ruta(retorno, monto, fecha_salida):
-    """Crea, actualiza o borra el Gasto de "Gasto en ruta" ligado a este retorno, para que
-    el cuadre de caja de la ruta y la pantalla de Salidas de dinero siempre coincidan."""
+def sincronizar_gasto_en_ruta(retorno, monto, fecha_salida, categoria_id=None):
+    """Crea, actualiza o borra el Gasto ligado a este retorno, para que el cuadre de caja
+    de la ruta y la pantalla de Salidas de dinero siempre coincidan. categoria_id es la
+    categoría real (negocio u hogar) elegida en el cuadre -- si no se manda ninguna, cae
+    en la categoría genérica "Gasto en ruta"."""
     gasto = Gasto.query.filter_by(retorno_id=retorno.id).first()
     if monto and monto > 0:
-        categoria = categoria_gasto_en_ruta()
+        categoria = db.session.get(CategoriaGasto, categoria_id) if categoria_id else None
+        if categoria is None:
+            categoria = categoria_gasto_en_ruta()
         if gasto:
             gasto.monto = monto
             gasto.fecha = retorno.fecha
