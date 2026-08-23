@@ -17,7 +17,9 @@
       <th>Producto</th>
       <th class="text-end">Cajas</th>
       <th class="text-end">Unidades sueltas</th>
-      <th class="text-end">Costo</th>
+      <th class="text-end">Bruto</th>
+      <th class="text-end">Descuento</th>
+      <th class="text-end">Costo neto</th>
       <th class="text-end">Tasa descuento</th>
       <th class="text-end">% IVA</th>
       <th class="text-end">Valor IVA</th>
@@ -30,11 +32,13 @@
     <tr class="{{ 'table-danger' if es_faltante else '' }}">
       <td>
         {{ f.detalle.producto.nombre }}
-        {% if f.detalle.es_descuento %}<span class="badge bg-secondary">Descuento</span>{% endif %}
+        {% if f.detalle.es_descuento %}<span class="badge bg-secondary">Descuento en producto</span>{% endif %}
         {% if f.detalle.notas %}<span class="text-muted d-block small">{{ f.detalle.notas }}</span>{% endif %}
       </td>
       <td class="text-end">{{ f.cajas }}</td>
       <td class="text-end">{{ f.unidades_sueltas }}</td>
+      <td class="text-end">${{ "{:,}".format(f.bruto) }}</td>
+      <td class="text-end">${{ "{:,}".format(f.descuento) }}</td>
       <td class="text-end">${{ "{:,}".format(f.detalle.costo_linea) }}</td>
       <td class="text-end">
         {{ f.detalle.tasa_descuento_aplicada }}%
@@ -56,31 +60,29 @@
   </tbody>
   <tfoot>
     <tr class="fw-bold">
-      <td>Costo total</td>
-      <td class="text-end" colspan="2"></td>
-      <td class="text-end">${{ "{:,}".format(costo_total) }}</td>
-      <td></td>
-      <td class="text-end" colspan="2">{% if iva_total %}IVA: ${{ "{:,}".format(iva_total) }}{% endif %}</td>
-      <td></td>
+      <td>Subtotal</td>
+      <td colspan="2"></td>
+      <td class="text-end">${{ "{:,}".format(subtotal_bruto) }}</td>
+      <td colspan="5"></td>
     </tr>
-    {% if descuento_total %}
     <tr>
-      <td>Descuento (líneas marcadas)</td>
-      <td class="text-end" colspan="2"></td>
+      <td>Descuento</td>
+      <td colspan="2"></td>
       <td class="text-end text-danger">−${{ "{:,}".format(descuento_total) }}</td>
-      <td class="text-end" colspan="3"></td>
-      <td></td>
+      <td colspan="5"></td>
     </tr>
-    {% endif %}
-    {% if iva_total %}
+    <tr>
+      <td>IVA</td>
+      <td colspan="2"></td>
+      <td class="text-end">${{ "{:,}".format(iva_total) }}</td>
+      <td colspan="5"></td>
+    </tr>
     <tr class="fw-bold border-top">
       <td>Total a pagar</td>
-      <td class="text-end" colspan="2"></td>
+      <td colspan="2"></td>
       <td class="text-end">${{ "{:,}".format(total_a_pagar) }}</td>
-      <td class="text-end" colspan="3"></td>
-      <td></td>
+      <td colspan="5"></td>
     </tr>
-    {% endif %}
   </tfoot>
 </table>
 </div>

@@ -9,6 +9,16 @@ from services.inventario import cajas_y_unidades
 bp = Blueprint("compras", __name__, url_prefix="/compras")
 
 
+def _bruto_linea(detalle):
+    """Reconstruye el valor bruto (antes de descuento) de una línea a partir del costo
+    neto guardado y la tasa aplicada -- para que el detalle de la compra se pueda ver
+    con la misma estructura que la factura real de Postobón (Subtotal/Descuento/IVA/Total),
+    sin tener que guardar el bruto como un campo aparte."""
+    if detalle.tasa_descuento_aplicada >= 100:
+        return detalle.costo_linea
+    return round(detalle.costo_linea / (1 - detalle.tasa_descuento_aplicada / 100))
+
+
 @bp.route("/")
 def listar():
     compras = Compra.query.order_by(Compra.fecha.desc(), Compra.id.desc()).all()
@@ -26,17 +36,22 @@ def detalle(compra_id):
     filas = []
     for d in compra.detalles:
         cajas, unidades_sueltas = cajas_y_unidades(d.producto, d.cantidad_comprada_unidades)
-        filas.append({"detalle": d, "cajas": cajas, "unidades_sueltas": unidades_sueltas})
+        bruto = _bruto_linea(d)
+        filas.append({
+            "detalle": d, "cajas": cajas, "unidades_sueltas": unidades_sueltas,
+            "bruto": bruto, "descuento": bruto - d.costo_linea,
+        })
 
     costo_total = sum(d.costo_linea for d in compra.detalles)
-    descuento_total = sum(d.costo_linea for d in compra.detalles if d.es_descuento)
     iva_total = sum(d.valor_iva for d in compra.detalles)
     total_a_pagar = costo_total + iva_total
+    subtotal_bruto = sum(f["bruto"] for f in filas)
+    descuento_total = subtotal_bruto - costo_total
 
     return render_template(
         "compras/detalle.html", compra=compra, filas=filas,
-        costo_total=costo_total, descuento_total=descuento_total, iva_total=iva_total,
-        total_a_pagar=total_a_pagar,
+        subtotal_bruto=subtotal_bruto, costo_total=costo_total, descuento_total=descuento_total,
+        iva_total=iva_total, total_a_pagar=total_a_pagar,
     )
 
 

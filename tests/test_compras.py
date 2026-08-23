@@ -356,7 +356,7 @@ def test_eliminar_ultima_linea_de_compra_borra_la_compra_completa(db, client):
     assert Compra.query.get(compra.id) is None
 
 
-def test_detalle_de_compra_muestra_costo_total_y_descuento(db, client):
+def test_detalle_de_compra_muestra_subtotal_descuento_y_total(db, client):
     coca = crear_producto(db, "Coca-Cola 1.5L", 3000)
     agua = crear_producto(db, "Agua Cristal", 2000)
     compra = Compra(fecha=date(2026, 8, 17), numero_factura="AS001")
@@ -373,12 +373,13 @@ def test_detalle_de_compra_muestra_costo_total_y_descuento(db, client):
     r = client.get(f"/compras/{compra.id}")
     body = r.get_data(as_text=True)
     assert r.status_code == 200
-    assert "189,000" in body  # costo total (180000 + 9000)
-    assert "9,000" in body  # descuento (líneas marcadas), informativo, ya no se resta de nada
-    assert "Total a pagar" not in body  # sin IVA en ninguna línea, no hay total distinto que mostrar
+    # bruto: 180000/0.9=200000 + 9000 (tasa 0) = 209000; descuento = 209000-189000 = 20000
+    assert "209,000" in body  # subtotal (bruto)
+    assert "20,000" in body  # descuento
+    assert "189,000" in body  # total a pagar (sin IVA en ninguna línea)
 
 
-def test_detalle_de_compra_sin_lineas_marcadas_no_muestra_fila_de_descuento(db, client):
+def test_detalle_de_compra_sin_lineas_marcadas_no_muestra_insignia_de_descuento(db, client):
     coca = crear_producto(db, "Coca-Cola 1.5L", 3000)
     compra = Compra(fecha=date(2026, 8, 17), numero_factura="AS001")
     db.session.add(compra)
@@ -391,7 +392,7 @@ def test_detalle_de_compra_sin_lineas_marcadas_no_muestra_fila_de_descuento(db, 
     r = client.get(f"/compras/{compra.id}")
     body = r.get_data(as_text=True)
     assert r.status_code == 200
-    assert "Descuento (líneas marcadas)" not in body
+    assert "Descuento en producto" not in body
 
 
 def test_detalle_de_compra_calcula_iva_por_linea_y_total_real(db, client):
@@ -420,8 +421,9 @@ def test_detalle_de_compra_calcula_iva_por_linea_y_total_real(db, client):
     r = client.get(f"/compras/{compra.id}")
     body = r.get_data(as_text=True)
     assert r.status_code == 200
-    # costo total = 150000, IVA total = 19000 (solo la linea de coca), total = 169000
-    assert "150,000" in body
+    # coca: bruto=100000/0.9=111111, agua: bruto=50000 (tasa 0) -> subtotal=161111
+    # IVA total = 19000 (solo la linea de coca), total a pagar = 150000+19000 = 169000
+    assert "161,111" in body
     assert "19,000" in body
     assert "169,000" in body
 
@@ -472,8 +474,8 @@ def test_total_a_pagar_es_costo_mas_iva_sin_restar_el_descuento(db, client):
     r = client.get(f"/compras/{compra.id}")
     body = r.get_data(as_text=True)
     assert r.status_code == 200
-    # costo total = 150000, IVA = 19000, total a pagar = 169000 (NO se resta el descuento de 50000)
-    assert "150,000" in body  # costo total
-    assert "50,000" in body  # descuento (líneas marcadas), informativo
-    assert "169,000" in body  # total a pagar = costo total + IVA
-    assert "Total (sin la parte de descuento)" not in body
+    # coca: bruto=100000/0.9=111111 (descuento 11111), agua: bruto=50000 (tasa 0, descuento 0)
+    # subtotal=161111, descuento=11111, IVA=19000, total a pagar = 150000+19000 = 169000
+    assert "161,111" in body  # subtotal (bruto)
+    assert "11,111" in body  # descuento
+    assert "169,000" in body  # total a pagar = costo neto total + IVA (no resta el descuento otra vez)
