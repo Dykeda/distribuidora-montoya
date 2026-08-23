@@ -503,3 +503,108 @@ def test_cuadre_muestra_venta_total_sumando_creditos_y_restando_gasto(db, client
     # venta total = 78000 + 10000 (creditos pagados) = 88000
     assert "Venta total" in body
     assert "88,000" in body
+
+
+def test_gasto_en_ruta_crea_salida_de_dinero(db, client):
+    from models import Gasto
+
+    coca = crear_producto(db, unidades_por_caja=6, precio=3000)
+    salida = SalidaCamion(fecha=date(2026, 8, 1))
+    db.session.add(salida)
+    db.session.flush()
+    db.session.add(SalidaCamionDetalle(salida_id=salida.id, producto_id=coca.id, cantidad_unidades=26))
+    db.session.commit()
+
+    client.post(
+        f"/camion/retorno/nueva/{salida.id}",
+        data={
+            "fecha": HOY, "notas": "",
+            f"regreso_cajas_{coca.id}": "0", f"regreso_unidades_{coca.id}": "0",
+            "efectivo_contado": "70000", "monedas_contado": "0",
+            "gasto_en_ruta": "5000",
+        },
+        follow_redirects=True,
+    )
+
+    gastos = Gasto.query.all()
+    assert len(gastos) == 1
+    assert gastos[0].monto == 5000
+    assert gastos[0].categoria.nombre == "Gasto en ruta"
+
+    r = client.get("/gastos/")
+    body = r.get_data(as_text=True)
+    assert "Gasto en ruta" in body
+    assert "5,000" in body
+
+
+def test_editar_gasto_en_ruta_actualiza_la_misma_salida_de_dinero_sin_duplicar(db, client):
+    from models import Gasto
+
+    coca = crear_producto(db, unidades_por_caja=6, precio=3000)
+    salida = SalidaCamion(fecha=date(2026, 8, 1))
+    db.session.add(salida)
+    db.session.flush()
+    db.session.add(SalidaCamionDetalle(salida_id=salida.id, producto_id=coca.id, cantidad_unidades=26))
+    db.session.commit()
+
+    client.post(
+        f"/camion/retorno/nueva/{salida.id}",
+        data={
+            "fecha": HOY, "notas": "",
+            f"regreso_cajas_{coca.id}": "0", f"regreso_unidades_{coca.id}": "0",
+            "efectivo_contado": "70000", "monedas_contado": "0",
+            "gasto_en_ruta": "5000",
+        },
+        follow_redirects=True,
+    )
+    assert Gasto.query.count() == 1
+
+    client.post(
+        f"/camion/retorno/nueva/{salida.id}",
+        data={
+            "fecha": HOY, "notas": "",
+            f"regreso_cajas_{coca.id}": "0", f"regreso_unidades_{coca.id}": "0",
+            "efectivo_contado": "70000", "monedas_contado": "0",
+            "gasto_en_ruta": "9000",
+        },
+        follow_redirects=True,
+    )
+
+    assert Gasto.query.count() == 1
+    assert Gasto.query.first().monto == 9000
+
+
+def test_quitar_gasto_en_ruta_borra_la_salida_de_dinero(db, client):
+    from models import Gasto
+
+    coca = crear_producto(db, unidades_por_caja=6, precio=3000)
+    salida = SalidaCamion(fecha=date(2026, 8, 1))
+    db.session.add(salida)
+    db.session.flush()
+    db.session.add(SalidaCamionDetalle(salida_id=salida.id, producto_id=coca.id, cantidad_unidades=26))
+    db.session.commit()
+
+    client.post(
+        f"/camion/retorno/nueva/{salida.id}",
+        data={
+            "fecha": HOY, "notas": "",
+            f"regreso_cajas_{coca.id}": "0", f"regreso_unidades_{coca.id}": "0",
+            "efectivo_contado": "70000", "monedas_contado": "0",
+            "gasto_en_ruta": "5000",
+        },
+        follow_redirects=True,
+    )
+    assert Gasto.query.count() == 1
+
+    client.post(
+        f"/camion/retorno/nueva/{salida.id}",
+        data={
+            "fecha": HOY, "notas": "",
+            f"regreso_cajas_{coca.id}": "0", f"regreso_unidades_{coca.id}": "0",
+            "efectivo_contado": "70000", "monedas_contado": "0",
+            "gasto_en_ruta": "0",
+        },
+        follow_redirects=True,
+    )
+
+    assert Gasto.query.count() == 0

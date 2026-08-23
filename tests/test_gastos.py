@@ -19,6 +19,7 @@ def test_categorias_default_quedan_creadas(db):
     assert "Pago Postobón Contado" in nombres_negocio
     assert "Pago otros Distribuidores" in nombres_negocio
     assert "Pago Nómina" in nombres_negocio
+    assert "Gasto en ruta" in nombres_negocio
     assert "Arriendo" in nombres_hogar
     assert "Luz" in nombres_hogar
     assert "Agua" in nombres_hogar

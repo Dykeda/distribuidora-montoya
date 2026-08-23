@@ -16,6 +16,7 @@ from models import (
 from services.ventas import venta_por_salida, rutas_en_transito, cargado_por_producto
 from services.inventario import cajas_y_unidades
 from services.caja import efectivo_por_salida
+from services.gastos import sincronizar_gasto_en_ruta
 from services.fechas import MESES_ES
 
 bp = Blueprint("camion", __name__, url_prefix="/camion")
@@ -243,8 +244,9 @@ def retorno_nueva(salida_id):
             retorno_existente.creditos_pagados = creditos_pagados
             retorno_existente.nuevos_creditos = nuevos_creditos
             retorno_existente.detalles = detalles
+            sincronizar_gasto_en_ruta(retorno_existente, gasto_en_ruta, salida.fecha)
             db.session.commit()
-            flash("Retorno de camión actualizado. Inventario recalculado.", "success")
+            flash("Retorno de camión actualizado. Inventario y salidas de dinero recalculados.", "success")
         else:
             retorno = RetornoCamion(
                 salida_id=salida.id, fecha=fecha, notas=request.form.get("notas") or None,
@@ -253,6 +255,8 @@ def retorno_nueva(salida_id):
             )
             retorno.detalles = detalles
             db.session.add(retorno)
+            db.session.flush()
+            sincronizar_gasto_en_ruta(retorno, gasto_en_ruta, salida.fecha)
             db.session.commit()
             flash("Retorno de camión registrado. Inventario actualizado.", "success")
         return redirect(url_for("camion.detalle", salida_id=salida.id))

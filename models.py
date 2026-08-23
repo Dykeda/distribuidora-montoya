@@ -295,5 +295,9 @@ class Gasto(db.Model):
     fecha = db.Column(db.Date, nullable=False, default=date.today)
     monto = db.Column(db.Integer, nullable=False)
     notas = db.Column(db.String(255), nullable=True)
+    # No nulo solo para los gastos que se generan solos desde el cuadre de caja de una
+    # ruta ("Gasto en ruta") -- permite encontrar y actualizar ese mismo Gasto si se edita
+    # el retorno, en vez de duplicarlo cada vez.
+    retorno_id = db.Column(db.Integer, db.ForeignKey("retorno_camion.id"), nullable=True)
 
     categoria = db.relationship("CategoriaGasto", back_populates="gastos")

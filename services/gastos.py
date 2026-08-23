@@ -9,6 +9,7 @@ CATEGORIAS_DEFAULT = {
         "Pago Postobón Contado",
         "Pago otros Distribuidores",
         "Pago Nómina",
+        "Gasto en ruta",
     ],
     "hogar": [
         "Arriendo",
@@ -38,6 +39,38 @@ def categorias_por_tipo(tipo, solo_activas=True):
     if solo_activas:
         query = query.filter_by(activa=True)
     return query.order_by(CategoriaGasto.nombre).all()
+
+
+def categoria_gasto_en_ruta():
+    """Categoría "Gasto en ruta" (negocio) -- la crea si todavía no existe, para que el
+    cuadre de caja de una ruta pueda generar su Gasto sin depender de que ya se haya
+    corrido asegurar_categorias_default() en esta base de datos."""
+    categoria = CategoriaGasto.query.filter_by(nombre="Gasto en ruta", tipo="negocio").first()
+    if not categoria:
+        categoria = CategoriaGasto(nombre="Gasto en ruta", tipo="negocio")
+        db.session.add(categoria)
+        db.session.flush()
+    return categoria
+
+
+def sincronizar_gasto_en_ruta(retorno, monto, fecha_salida):
+    """Crea, actualiza o borra el Gasto de "Gasto en ruta" ligado a este retorno, para que
+    el cuadre de caja de la ruta y la pantalla de Salidas de dinero siempre coincidan."""
+    gasto = Gasto.query.filter_by(retorno_id=retorno.id).first()
+    if monto and monto > 0:
+        categoria = categoria_gasto_en_ruta()
+        if gasto:
+            gasto.monto = monto
+            gasto.fecha = retorno.fecha
+            gasto.categoria_id = categoria.id
+        else:
+            db.session.add(Gasto(
+                categoria_id=categoria.id, fecha=retorno.fecha, monto=monto,
+                notas=f"Gasto en ruta — salida del {fecha_salida.strftime('%Y-%m-%d')}",
+                retorno_id=retorno.id,
+            ))
+    elif gasto:
+        db.session.delete(gasto)
 
 
 def listar_gastos(tipo=None):
