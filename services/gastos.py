@@ -104,11 +104,33 @@ def sincronizar_gastos_en_ruta(retorno, lineas, fecha_salida):
         ))
 
 
-def listar_gastos(tipo=None):
+def listar_gastos(tipo=None, categoria_id=None, fecha_inicio=None, fecha_fin=None):
     query = Gasto.query.join(CategoriaGasto)
     if tipo:
         query = query.filter(CategoriaGasto.tipo == tipo)
+    if categoria_id:
+        query = query.filter(Gasto.categoria_id == categoria_id)
+    if fecha_inicio is not None:
+        query = query.filter(Gasto.fecha >= fecha_inicio)
+    if fecha_fin is not None:
+        query = query.filter(Gasto.fecha <= fecha_fin)
     return query.order_by(Gasto.fecha.desc(), Gasto.id.desc()).all()
+
+
+def totales_por_categoria(tipo=None, fecha_inicio=None, fecha_fin=None):
+    """Acumulado por categoría -- para ver de un vistazo en qué se fue la plata, sin
+    tener que sumar la lista detallada a mano."""
+    query = db.session.query(CategoriaGasto, func.coalesce(func.sum(Gasto.monto), 0)).join(
+        Gasto, Gasto.categoria_id == CategoriaGasto.id
+    )
+    if tipo:
+        query = query.filter(CategoriaGasto.tipo == tipo)
+    if fecha_inicio is not None:
+        query = query.filter(Gasto.fecha >= fecha_inicio)
+    if fecha_fin is not None:
+        query = query.filter(Gasto.fecha <= fecha_fin)
+    query = query.group_by(CategoriaGasto.id).order_by(func.sum(Gasto.monto).desc())
+    return [{"categoria": categoria, "total": round(total)} for categoria, total in query.all()]
 
 
 def total_gastos_periodo(fecha_inicio, fecha_fin, tipo=None):

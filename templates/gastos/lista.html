@@ -17,10 +17,63 @@
 </div>
 
 <ul class="nav nav-pills mb-3">
-  <li class="nav-item"><a class="nav-link {{ 'active' if not tipo_activo }}" href="{{ url_for('gastos.listar') }}">Todas</a></li>
-  <li class="nav-item"><a class="nav-link {{ 'active' if tipo_activo == 'negocio' }}" href="{{ url_for('gastos.listar', tipo='negocio') }}">Negocio</a></li>
-  <li class="nav-item"><a class="nav-link {{ 'active' if tipo_activo == 'hogar' }}" href="{{ url_for('gastos.listar', tipo='hogar') }}">Hogar</a></li>
+  <li class="nav-item"><a class="nav-link {{ 'active' if not tipo_activo }}" href="{{ url_for('gastos.listar', periodo=periodo, anio=anio, mes=mes) }}">Todas</a></li>
+  <li class="nav-item"><a class="nav-link {{ 'active' if tipo_activo == 'negocio' }}" href="{{ url_for('gastos.listar', tipo='negocio', periodo=periodo, anio=anio, mes=mes) }}">Negocio</a></li>
+  <li class="nav-item"><a class="nav-link {{ 'active' if tipo_activo == 'hogar' }}" href="{{ url_for('gastos.listar', tipo='hogar', periodo=periodo, anio=anio, mes=mes) }}">Hogar</a></li>
 </ul>
+
+<form method="get" class="row g-3 mb-4 align-items-end">
+  {% if tipo_activo %}<input type="hidden" name="tipo" value="{{ tipo_activo }}">{% endif %}
+  <div class="col-auto">
+    <label class="form-label">Período</label>
+    <select name="periodo" class="form-select" onchange="this.form.submit()">
+      <option value="todo" {% if periodo == 'todo' %}selected{% endif %}>Todo el histórico</option>
+      <option value="mes" {% if periodo == 'mes' %}selected{% endif %}>Un mes específico</option>
+    </select>
+  </div>
+  {% if periodo == 'mes' %}
+  <div class="col-auto">
+    <label class="form-label">Mes</label>
+    <select name="mes" class="form-select" onchange="this.form.submit()">
+      {% for nombre in meses %}
+      <option value="{{ loop.index }}" {% if loop.index == mes %}selected{% endif %}>{{ nombre }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-auto">
+    <label class="form-label">Año</label>
+    <input type="number" name="anio" class="form-control" style="width: 110px" value="{{ anio }}" onchange="this.form.submit()">
+  </div>
+  {% endif %}
+  <div class="col-auto">
+    <label class="form-label">Categoría</label>
+    <select name="categoria_id" class="form-select" onchange="this.form.submit()">
+      <option value="">Todas las categorías</option>
+      {% for c in categorias_filtro %}
+      <option value="{{ c.id }}" {% if categoria_id == c.id %}selected{% endif %}>{{ c.nombre }}{% if not c.activa %} (fusionada){% endif %}</option>
+      {% endfor %}
+    </select>
+  </div>
+</form>
+
+{% if totales_categoria %}
+<div class="table-responsive mb-4">
+<table class="table table-sm w-auto">
+  <thead><tr><th>Categoría</th><th class="text-end">Total</th></tr></thead>
+  <tbody>
+    {% for fila in totales_categoria %}
+    <tr>
+      <td>
+        <a href="{{ url_for('gastos.listar', tipo=tipo_activo, categoria_id=fila.categoria.id, periodo=periodo, anio=anio, mes=mes) }}">{{ fila.categoria.nombre }}</a>
+        <span class="badge bg-secondary">{{ fila.categoria.tipo|title }}</span>
+      </td>
+      <td class="text-end">${{ "{:,}".format(fila.total) }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
 
 <div class="table-responsive">
 <table class="table table-striped align-middle">

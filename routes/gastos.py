@@ -1,10 +1,12 @@
+import calendar
 from datetime import date, datetime
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 
 from extensions import db
 from models import CategoriaGasto, Gasto
-from services.gastos import categorias_por_tipo, listar_gastos
+from services.gastos import categorias_por_tipo, listar_gastos, totales_por_categoria
+from services.fechas import MESES_ES
 
 bp = Blueprint("gastos", __name__, url_prefix="/gastos")
 
@@ -14,9 +16,34 @@ def listar():
     tipo = request.args.get("tipo") or None
     if tipo not in (None, "negocio", "hogar"):
         tipo = None
-    gastos = listar_gastos(tipo=tipo)
+
+    categoria_id = request.args.get("categoria_id")
+    categoria_id = int(categoria_id) if categoria_id else None
+
+    periodo = request.args.get("periodo") or "todo"
+    hoy = date.today()
+    anio = int(request.args.get("anio", hoy.year))
+    mes = int(request.args.get("mes", hoy.month))
+    if periodo == "mes":
+        ultimo_dia = calendar.monthrange(anio, mes)[1]
+        fecha_inicio, fecha_fin = date(anio, mes, 1), date(anio, mes, ultimo_dia)
+    else:
+        fecha_inicio = fecha_fin = None
+
+    categorias_filtro = categorias_por_tipo(tipo, solo_activas=False) if tipo else (
+        categorias_por_tipo("negocio", solo_activas=False) + categorias_por_tipo("hogar", solo_activas=False)
+    )
+
+    gastos = listar_gastos(tipo=tipo, categoria_id=categoria_id, fecha_inicio=fecha_inicio, fecha_fin=fecha_fin)
     total = sum(g.monto for g in gastos)
-    return render_template("gastos/lista.html", gastos=gastos, total=total, tipo_activo=tipo)
+    totales_categoria = totales_por_categoria(tipo=tipo, fecha_inicio=fecha_inicio, fecha_fin=fecha_fin)
+
+    return render_template(
+        "gastos/lista.html", gastos=gastos, total=total, tipo_activo=tipo,
+        categoria_id=categoria_id, categorias_filtro=categorias_filtro,
+        periodo=periodo, anio=anio, mes=mes, meses=MESES_ES,
+        totales_categoria=totales_categoria,
+    )
 
 
 @bp.route("/nuevo", methods=["GET", "POST"])
