@@ -157,16 +157,12 @@ class RetornoCamion(db.Model):
     monedas_contado = db.Column(db.Integer, nullable=True)
     # Ajustes manuales del cuadre de caja -- montos que el conductor escribe a mano al
     # cerrar la ruta, sin relación con Gastos ni Cartera. Se usan solo para calcular el
-    # efectivo esperado de ESTA ruta, nada más.
-    gasto_en_ruta = db.Column(db.Integer, nullable=True)
-    # Categoría real (de Salidas de dinero, negocio u hogar) del gasto en ruta -- así el
-    # Gasto que se genera solo queda bien clasificado, en vez de todo bajo "Gasto en ruta".
-    gasto_en_ruta_categoria_id = db.Column(db.Integer, db.ForeignKey("categoria_gasto.id"), nullable=True)
+    # efectivo esperado de ESTA ruta, nada más. El gasto en ruta en sí (pueden ser varios,
+    # cada uno con su categoría) vive como Gasto.retorno_id -- ver services/gastos.py.
     creditos_pagados = db.Column(db.Integer, nullable=True)
     nuevos_creditos = db.Column(db.Integer, nullable=True)
 
     salida = db.relationship("SalidaCamion", back_populates="retorno")
-    gasto_en_ruta_categoria = db.relationship("CategoriaGasto")
     detalles = db.relationship(
         "RetornoCamionDetalle", back_populates="retorno", cascade="all, delete-orphan"
     )

@@ -200,7 +200,7 @@ def test_retorno_con_conteo_de_caja_muestra_faltante(db, client):
             "fecha": HOY, "notas": "",
             f"regreso_cajas_{coca.id}": "0", f"regreso_unidades_{coca.id}": "0",
             "efectivo_contado": "70000", "monedas_contado": "0",
-            "gasto_en_ruta": "8000",
+            "gasto_categoria_id[]": [""], "gasto_monto[]": ["8000"],
         },
         follow_redirects=True,
     )
@@ -421,14 +421,16 @@ def test_cuadre_de_caja_incluye_gasto_creditos_pagados_y_nuevos_creditos(db, cli
             "fecha": HOY, "notas": "",
             f"regreso_cajas_{coca.id}": "0", f"regreso_unidades_{coca.id}": "0",
             "efectivo_contado": "70000", "monedas_contado": "0",
-            "gasto_en_ruta": "5000", "creditos_pagados": "10000", "nuevos_creditos": "13000",
+            "gasto_categoria_id[]": [""], "gasto_monto[]": ["5000"], "creditos_pagados": "10000", "nuevos_creditos": "13000",
         },
         follow_redirects=True,
     )
     assert r.status_code == 200
 
+    from services.gastos import total_gasto_en_ruta
+
     retorno = RetornoCamion.query.filter_by(salida_id=salida.id).first()
-    assert retorno.gasto_en_ruta == 5000
+    assert total_gasto_en_ruta(retorno.id) == 5000
     assert retorno.creditos_pagados == 10000
     assert retorno.nuevos_creditos == 13000
 
@@ -465,7 +467,7 @@ def test_editar_retorno_permite_ajustar_gasto_en_ruta(db, client):
             "fecha": HOY, "notas": "",
             f"regreso_cajas_{coca.id}": "0", f"regreso_unidades_{coca.id}": "0",
             "efectivo_contado": "78000", "monedas_contado": "0",
-            "gasto_en_ruta": "8000",
+            "gasto_categoria_id[]": [""], "gasto_monto[]": ["8000"],
         },
         follow_redirects=True,
     )
@@ -493,7 +495,7 @@ def test_cuadre_muestra_venta_total_sumando_creditos_y_restando_gasto(db, client
             "fecha": HOY, "notas": "",
             f"regreso_cajas_{coca.id}": "0", f"regreso_unidades_{coca.id}": "0",
             "efectivo_contado": "70000", "monedas_contado": "0",
-            "gasto_en_ruta": "5000", "creditos_pagados": "10000", "nuevos_creditos": "13000",
+            "gasto_categoria_id[]": [""], "gasto_monto[]": ["5000"], "creditos_pagados": "10000", "nuevos_creditos": "13000",
         },
         follow_redirects=True,
     )
@@ -521,7 +523,7 @@ def test_gasto_en_ruta_crea_salida_de_dinero(db, client):
             "fecha": HOY, "notas": "",
             f"regreso_cajas_{coca.id}": "0", f"regreso_unidades_{coca.id}": "0",
             "efectivo_contado": "70000", "monedas_contado": "0",
-            "gasto_en_ruta": "5000",
+            "gasto_categoria_id[]": [""], "gasto_monto[]": ["5000"],
         },
         follow_redirects=True,
     )
@@ -553,7 +555,7 @@ def test_editar_gasto_en_ruta_actualiza_la_misma_salida_de_dinero_sin_duplicar(d
             "fecha": HOY, "notas": "",
             f"regreso_cajas_{coca.id}": "0", f"regreso_unidades_{coca.id}": "0",
             "efectivo_contado": "70000", "monedas_contado": "0",
-            "gasto_en_ruta": "5000",
+            "gasto_categoria_id[]": [""], "gasto_monto[]": ["5000"],
         },
         follow_redirects=True,
     )
@@ -565,7 +567,7 @@ def test_editar_gasto_en_ruta_actualiza_la_misma_salida_de_dinero_sin_duplicar(d
             "fecha": HOY, "notas": "",
             f"regreso_cajas_{coca.id}": "0", f"regreso_unidades_{coca.id}": "0",
             "efectivo_contado": "70000", "monedas_contado": "0",
-            "gasto_en_ruta": "9000",
+            "gasto_categoria_id[]": [""], "gasto_monto[]": ["9000"],
         },
         follow_redirects=True,
     )
@@ -590,7 +592,7 @@ def test_quitar_gasto_en_ruta_borra_la_salida_de_dinero(db, client):
             "fecha": HOY, "notas": "",
             f"regreso_cajas_{coca.id}": "0", f"regreso_unidades_{coca.id}": "0",
             "efectivo_contado": "70000", "monedas_contado": "0",
-            "gasto_en_ruta": "5000",
+            "gasto_categoria_id[]": [""], "gasto_monto[]": ["5000"],
         },
         follow_redirects=True,
     )
@@ -602,7 +604,7 @@ def test_quitar_gasto_en_ruta_borra_la_salida_de_dinero(db, client):
             "fecha": HOY, "notas": "",
             f"regreso_cajas_{coca.id}": "0", f"regreso_unidades_{coca.id}": "0",
             "efectivo_contado": "70000", "monedas_contado": "0",
-            "gasto_en_ruta": "0",
+            "gasto_categoria_id[]": [""], "gasto_monto[]": ["0"],
         },
         follow_redirects=True,
     )
@@ -628,7 +630,7 @@ def test_gasto_en_ruta_usa_categoria_elegida(db, client):
             "fecha": HOY, "notas": "",
             f"regreso_cajas_{coca.id}": "0", f"regreso_unidades_{coca.id}": "0",
             "efectivo_contado": "70000", "monedas_contado": "0",
-            "gasto_en_ruta": "20000", "gasto_categoria_id": str(categoria_hogar.id),
+            "gasto_categoria_id[]": [str(categoria_hogar.id)], "gasto_monto[]": ["20000"],
         },
         follow_redirects=True,
     )
@@ -638,5 +640,78 @@ def test_gasto_en_ruta_usa_categoria_elegida(db, client):
     assert gasto.categoria.nombre == "Arriendo"
     assert gasto.categoria.tipo == "hogar"
 
-    retorno = RetornoCamion.query.filter_by(salida_id=salida.id).first()
-    assert retorno.gasto_en_ruta_categoria_id == categoria_hogar.id
+
+def test_varios_gastos_en_ruta_con_categorias_distintas(db, client):
+    from models import Gasto, CategoriaGasto
+
+    coca = crear_producto(db, unidades_por_caja=6, precio=3000)
+    salida = SalidaCamion(fecha=date(2026, 8, 1))
+    db.session.add(salida)
+    db.session.flush()
+    db.session.add(SalidaCamionDetalle(salida_id=salida.id, producto_id=coca.id, cantidad_unidades=26))
+    db.session.commit()
+
+    categoria_hogar = CategoriaGasto.query.filter_by(nombre="Arriendo", tipo="hogar").first()
+    categoria_negocio = CategoriaGasto.query.filter_by(nombre="Pago Nómina", tipo="negocio").first()
+
+    r = client.post(
+        f"/camion/retorno/nueva/{salida.id}",
+        data={
+            "fecha": HOY, "notas": "",
+            f"regreso_cajas_{coca.id}": "0", f"regreso_unidades_{coca.id}": "0",
+            "efectivo_contado": "70000", "monedas_contado": "0",
+            "gasto_categoria_id[]": ["", str(categoria_hogar.id), str(categoria_negocio.id)],
+            "gasto_monto[]": ["5000", "20000", "15000"],
+        },
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+
+    gastos = Gasto.query.order_by(Gasto.monto).all()
+    assert len(gastos) == 3
+    assert [g.monto for g in gastos] == [5000, 15000, 20000]
+    assert {g.categoria.nombre for g in gastos} == {"Gasto en ruta", "Pago Nómina", "Arriendo"}
+
+    r = client.get(f"/camion/{salida.id}")
+    body = r.get_data(as_text=True)
+    assert "Gastos en ruta" in body
+    assert "Arriendo" in body and "Pago Nómina" in body
+
+
+def test_editar_retorno_reemplaza_las_lineas_de_gasto_en_ruta(db, client):
+    from models import Gasto
+
+    coca = crear_producto(db, unidades_por_caja=6, precio=3000)
+    salida = SalidaCamion(fecha=date(2026, 8, 1))
+    db.session.add(salida)
+    db.session.flush()
+    db.session.add(SalidaCamionDetalle(salida_id=salida.id, producto_id=coca.id, cantidad_unidades=26))
+    db.session.commit()
+
+    client.post(
+        f"/camion/retorno/nueva/{salida.id}",
+        data={
+            "fecha": HOY, "notas": "",
+            f"regreso_cajas_{coca.id}": "0", f"regreso_unidades_{coca.id}": "0",
+            "efectivo_contado": "70000", "monedas_contado": "0",
+            "gasto_categoria_id[]": ["", ""],
+            "gasto_monto[]": ["5000", "3000"],
+        },
+        follow_redirects=True,
+    )
+    assert Gasto.query.count() == 2
+
+    client.post(
+        f"/camion/retorno/nueva/{salida.id}",
+        data={
+            "fecha": HOY, "notas": "",
+            f"regreso_cajas_{coca.id}": "0", f"regreso_unidades_{coca.id}": "0",
+            "efectivo_contado": "70000", "monedas_contado": "0",
+            "gasto_categoria_id[]": [""],
+            "gasto_monto[]": ["9000"],
+        },
+        follow_redirects=True,
+    )
+
+    assert Gasto.query.count() == 1
+    assert Gasto.query.first().monto == 9000

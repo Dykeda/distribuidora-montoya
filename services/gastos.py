@@ -53,28 +53,35 @@ def categoria_gasto_en_ruta():
     return categoria
 
 
-def sincronizar_gasto_en_ruta(retorno, monto, fecha_salida, categoria_id=None):
-    """Crea, actualiza o borra el Gasto ligado a este retorno, para que el cuadre de caja
-    de la ruta y la pantalla de Salidas de dinero siempre coincidan. categoria_id es la
-    categoría real (negocio u hogar) elegida en el cuadre -- si no se manda ninguna, cae
-    en la categoría genérica "Gasto en ruta"."""
-    gasto = Gasto.query.filter_by(retorno_id=retorno.id).first()
-    if monto and monto > 0:
+def gastos_en_ruta(retorno_id):
+    """Todos los Gasto ligados a un retorno -- una ruta puede tener varios (gasolina,
+    un pago a Postobón hecho en el camino, etc.)."""
+    return Gasto.query.filter_by(retorno_id=retorno_id).order_by(Gasto.id).all()
+
+
+def total_gasto_en_ruta(retorno_id):
+    return db.session.query(func.coalesce(func.sum(Gasto.monto), 0)).filter(
+        Gasto.retorno_id == retorno_id
+    ).scalar()
+
+
+def sincronizar_gastos_en_ruta(retorno, lineas, fecha_salida):
+    """Reemplaza todos los Gasto ligados a este retorno con la lista nueva, para que el
+    cuadre de caja de la ruta y Salidas de dinero siempre coincidan. lineas es una lista
+    de (categoria_id_o_None, monto) -- categoria_id None cae en la categoría genérica
+    "Gasto en ruta"."""
+    Gasto.query.filter_by(retorno_id=retorno.id).delete()
+    for categoria_id, monto in lineas:
+        if not monto or monto <= 0:
+            continue
         categoria = db.session.get(CategoriaGasto, categoria_id) if categoria_id else None
         if categoria is None:
             categoria = categoria_gasto_en_ruta()
-        if gasto:
-            gasto.monto = monto
-            gasto.fecha = retorno.fecha
-            gasto.categoria_id = categoria.id
-        else:
-            db.session.add(Gasto(
-                categoria_id=categoria.id, fecha=retorno.fecha, monto=monto,
-                notas=f"Gasto en ruta — salida del {fecha_salida.strftime('%Y-%m-%d')}",
-                retorno_id=retorno.id,
-            ))
-    elif gasto:
-        db.session.delete(gasto)
+        db.session.add(Gasto(
+            categoria_id=categoria.id, fecha=retorno.fecha, monto=monto,
+            notas=f"Gasto en ruta — salida del {fecha_salida.strftime('%Y-%m-%d')}",
+            retorno_id=retorno.id,
+        ))
 
 
 def listar_gastos(tipo=None):

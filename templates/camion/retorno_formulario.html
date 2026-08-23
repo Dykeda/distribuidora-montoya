@@ -31,41 +31,56 @@
     <p class="text-muted small mt-1 mb-0">Opcional — si los cuentas, te decimos al guardar si sobró o faltó dinero comparado con lo que debería haber traído la ruta.</p>
   </div>
 
-  <div class="row mb-4">
-    <div class="col-md-3">
-      <label class="form-label">Gasto en ruta</label>
-      <input type="number" step="1" min="0" name="gasto_en_ruta" class="form-control" value="{{ form.gasto_en_ruta if form else (retorno_existente.gasto_en_ruta if retorno_existente and retorno_existente.gasto_en_ruta else 0) }}">
-      <div class="form-text small">Gasolina, peajes, etc. — se resta de lo esperado.</div>
-    </div>
-    <div class="col-md-3">
-      <label class="form-label">Categoría del gasto</label>
-      {% set categoria_actual = form.gasto_categoria_id if form else (retorno_existente.gasto_en_ruta_categoria_id if retorno_existente else None) %}
-      <select name="gasto_categoria_id" class="form-select">
-        <option value="">Gasto en ruta (general)</option>
-        <optgroup label="Negocio">
-          {% for c in categorias_negocio %}
-          <option value="{{ c.id }}" {% if categoria_actual and categoria_actual|string == c.id|string %}selected{% endif %}>{{ c.nombre }}</option>
-          {% endfor %}
-        </optgroup>
-        <optgroup label="Hogar">
-          {% for c in categorias_hogar %}
-          <option value="{{ c.id }}" {% if categoria_actual and categoria_actual|string == c.id|string %}selected{% endif %}>{{ c.nombre }}</option>
-          {% endfor %}
-        </optgroup>
-      </select>
-      <div class="form-text small">A qué categoría de Salidas de dinero se registra.</div>
-    </div>
-    <div class="col-md-3">
+  <div class="row col-lg-6 mb-3">
+    <div class="col-md-6">
       <label class="form-label">Créditos pagados</label>
       <input type="number" step="1" min="0" name="creditos_pagados" class="form-control" value="{{ form.creditos_pagados if form else (retorno_existente.creditos_pagados if retorno_existente and retorno_existente.creditos_pagados else 0) }}">
       <div class="form-text small">Cobros de facturas viejas — se suma a lo esperado.</div>
     </div>
-    <div class="col-md-3">
+    <div class="col-md-6">
       <label class="form-label">Nuevos créditos</label>
       <input type="number" step="1" min="0" name="nuevos_creditos" class="form-control" value="{{ form.nuevos_creditos if form else (retorno_existente.nuevos_creditos if retorno_existente and retorno_existente.nuevos_creditos else 0) }}">
       <div class="form-text small">Venta que quedó fiada hoy — se resta de lo esperado.</div>
     </div>
   </div>
+
+  <label class="form-label mb-1">Gastos en ruta</label>
+  <p class="text-muted small mt-0 mb-2">Gasolina, peajes, un pago que se hizo en el camino, etc. — una ruta puede tener varios, cada uno con su categoría real. Se restan de lo esperado y se registran solos en Salidas de dinero.</p>
+  <div class="table-responsive">
+  <table class="table table-sm" id="tabla-gastos-ruta">
+    <thead>
+      <tr>
+        <th>Categoría</th>
+        <th style="width:180px">Monto</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="cuerpo-gastos-ruta"></tbody>
+  </table>
+  </div>
+  <button type="button" id="btn-agregar-gasto" class="btn btn-outline-secondary btn-sm mb-4">+ Agregar gasto</button>
+
+  <template id="plantilla-gasto-ruta">
+    <tr>
+      <td>
+        <select name="gasto_categoria_id[]" class="form-select">
+          <option value="">Gasto en ruta (general)</option>
+          <optgroup label="Negocio">
+            {% for c in categorias_negocio %}
+            <option value="{{ c.id }}">{{ c.nombre }}</option>
+            {% endfor %}
+          </optgroup>
+          <optgroup label="Hogar">
+            {% for c in categorias_hogar %}
+            <option value="{{ c.id }}">{{ c.nombre }}</option>
+            {% endfor %}
+          </optgroup>
+        </select>
+      </td>
+      <td><input type="number" step="1" min="0" name="gasto_monto[]" class="form-control" value="0"></td>
+      <td><button type="button" class="btn btn-sm btn-outline-danger btn-quitar-gasto">&times;</button></td>
+    </tr>
+  </template>
 
   <input type="text" id="buscar-producto-retorno" class="form-control mb-2" placeholder="Buscar producto...">
 
@@ -107,5 +122,31 @@
       tr.style.display = tr.dataset.nombre.includes(q) ? "" : "none";
     });
   });
+
+  const cuerpoGastos = document.getElementById("cuerpo-gastos-ruta");
+  const plantillaGasto = document.getElementById("plantilla-gasto-ruta");
+
+  function agregarLineaGasto(categoriaId, monto) {
+    const nodo = plantillaGasto.content.cloneNode(true);
+    nodo.querySelector(".btn-quitar-gasto").addEventListener("click", (e) => {
+      e.target.closest("tr").remove();
+    });
+    if (categoriaId) {
+      nodo.querySelector('select[name="gasto_categoria_id[]"]').value = String(categoriaId);
+    }
+    if (monto) {
+      nodo.querySelector('input[name="gasto_monto[]"]').value = monto;
+    }
+    cuerpoGastos.appendChild(nodo);
+  }
+
+  document.getElementById("btn-agregar-gasto").addEventListener("click", () => agregarLineaGasto(null, 0));
+
+  const lineasIniciales = {{ lineas_gasto_iniciales | tojson }};
+  if (lineasIniciales.length) {
+    lineasIniciales.forEach(([categoriaId, monto]) => agregarLineaGasto(categoriaId, monto));
+  } else {
+    agregarLineaGasto(null, 0);
+  }
 </script>
 {% endblock %}

@@ -108,6 +108,12 @@
   </div>
   </div>
 </div>
+{% if cuadre.gastos_ruta %}
+<p class="text-muted small mb-2">
+  Gastos en ruta:
+  {% for g in cuadre.gastos_ruta %}{{ g.categoria.nombre }} ${{ "{:,}".format(g.monto) }}{% if not loop.last %} · {% endif %}{% endfor %}
+</p>
+{% endif %}
 <div class="row g-3 mb-2">
   <div class="col-md-3">
     <div class="card card-metric h-100"><div class="card-body">
