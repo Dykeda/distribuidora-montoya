@@ -305,3 +305,17 @@ class Gasto(db.Model):
     retorno_id = db.Column(db.Integer, db.ForeignKey("retorno_camion.id"), nullable=True)
 
     categoria = db.relationship("CategoriaGasto", back_populates="gastos")
+
+
+class AjustePostobon(db.Model):
+    """Ajuste manual al saldo pendiente que Postobón debe por descuentos faltantes --
+    para sumar una deuda que ya existía antes de que esta pantalla empezara a calcularla
+    sola, o para restar cuando Postobón abona parte de lo que debía. monto puede ser
+    positivo (suma al pendiente) o negativo (resta)."""
+
+    __tablename__ = "ajuste_postobon"
+
+    id = db.Column(db.Integer, primary_key=True)
+    fecha = db.Column(db.Date, nullable=False, default=date.today)
+    monto = db.Column(db.Integer, nullable=False)
+    notas = db.Column(db.String(255), nullable=True)

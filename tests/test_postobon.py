@@ -2,8 +2,8 @@ from datetime import date
 
 import pytest
 
-from models import Producto, ProductoPrecio, Compra, CompraDetalle
-from services.postobon import listar_faltantes, listar_faltantes_agrupados
+from models import Producto, ProductoPrecio, Compra, CompraDetalle, AjustePostobon
+from services.postobon import listar_faltantes, listar_faltantes_agrupados, total_pendiente_acumulado
 
 
 @pytest.fixture
@@ -179,3 +179,53 @@ def test_detalle_de_compra_no_resalta_fila_sin_faltante(db, client):
     body = r.get_data(as_text=True)
     assert r.status_code == 200
     assert "table-danger" not in body
+
+
+def test_total_pendiente_acumulado_suma_faltantes_historicos_sin_ajustes(db):
+    coca = crear_producto(db, tasa_referencia=15.0)
+    crear_compra_detalle(db, coca, date(2026, 5, 1), costo_linea=100000, tasa_aplicada=10.0)
+    crear_compra_detalle(db, coca, date(2026, 8, 17), costo_linea=100000, tasa_aplicada=10.0, numero_factura="F-002")
+
+    assert total_pendiente_acumulado(date(2026, 8, 31)) == 5000 + 5000
+
+
+def test_total_pendiente_acumulado_suma_ajustes_positivos_y_negativos(db):
+    coca = crear_producto(db, tasa_referencia=15.0)
+    crear_compra_detalle(db, coca, date(2026, 8, 17), costo_linea=100000, tasa_aplicada=10.0)
+    db.session.add(AjustePostobon(fecha=date(2026, 1, 1), monto=200000, notas="Deuda anterior"))
+    db.session.add(AjustePostobon(fecha=date(2026, 8, 20), monto=-50000, notas="Abono de Postobon"))
+    db.session.commit()
+
+    assert total_pendiente_acumulado(date(2026, 8, 31)) == 5000 + 200000 - 50000
+
+
+def test_total_pendiente_acumulado_ignora_ajustes_despues_de_la_fecha_de_corte(db):
+    db.session.add(AjustePostobon(fecha=date(2026, 9, 1), monto=100000))
+    db.session.commit()
+
+    assert total_pendiente_acumulado(date(2026, 8, 31)) == 0
+
+
+def test_agregar_ajuste_lo_muestra_en_el_informe(db, client):
+    r = client.post(
+        "/postobon/ajustes/nuevo",
+        data={"fecha": "2026-01-01", "monto": "150000", "notas": "Saldo pendiente anterior a esta pantalla"},
+        follow_redirects=True,
+    )
+    body = r.get_data(as_text=True)
+    assert r.status_code == 200
+    assert "Saldo pendiente anterior a esta pantalla" in body
+    assert "150,000" in body
+
+    ajuste = AjustePostobon.query.one()
+    assert ajuste.monto == 150000
+
+
+def test_eliminar_ajuste_lo_quita_del_informe(db, client):
+    ajuste = AjustePostobon(fecha=date(2026, 1, 1), monto=150000, notas="Prueba")
+    db.session.add(ajuste)
+    db.session.commit()
+
+    r = client.post(f"/postobon/ajustes/{ajuste.id}/eliminar", follow_redirects=True)
+    assert r.status_code == 200
+    assert AjustePostobon.query.count() == 0

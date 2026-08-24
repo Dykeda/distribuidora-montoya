@@ -2,11 +2,18 @@ import calendar
 from datetime import date, datetime
 from io import BytesIO
 
-from flask import Blueprint, render_template, request, send_file
+from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file
 
-from models import Compra
+from extensions import db
+from models import Compra, AjustePostobon
 
-from services.postobon import listar_faltantes_agrupados, construir_workbook_faltantes, construir_workbook_faltantes_de_compra
+from services.postobon import (
+    listar_faltantes_agrupados,
+    construir_workbook_faltantes,
+    construir_workbook_faltantes_de_compra,
+    listar_ajustes,
+    total_pendiente_acumulado,
+)
 from services.fechas import MESES_ES
 
 bp = Blueprint("postobon", __name__, url_prefix="/postobon")
@@ -26,11 +33,49 @@ def index():
     fecha_inicio, fecha_fin = _rango_mes(anio, mes)
     grupos = listar_faltantes_agrupados(fecha_inicio, fecha_fin)
     total_faltante = sum(g["subtotal"] for g in grupos)
+    pendiente_acumulado = total_pendiente_acumulado()
+    ajustes = listar_ajustes()
 
     return render_template(
         "postobon/informe.html", grupos=grupos, total_faltante=total_faltante,
         anio=anio, mes=mes, meses=MESES_ES,
+        pendiente_acumulado=pendiente_acumulado, ajustes=ajustes,
     )
+
+
+@bp.route("/ajustes/nuevo", methods=["GET", "POST"])
+def ajuste_nuevo():
+    if request.method == "POST":
+        fecha_str = request.form.get("fecha")
+        try:
+            fecha = datetime.strptime(fecha_str, "%Y-%m-%d").date() if fecha_str else date.today()
+        except ValueError:
+            fecha = date.today()
+
+        try:
+            monto = int(request.form.get("monto") or 0)
+        except ValueError:
+            monto = 0
+
+        if monto == 0:
+            flash("El monto no puede ser cero.", "error")
+            return render_template("postobon/ajuste_formulario.html", form=request.form)
+
+        db.session.add(AjustePostobon(fecha=fecha, monto=monto, notas=request.form.get("notas") or None))
+        db.session.commit()
+        flash("Ajuste registrado.", "success")
+        return redirect(url_for("postobon.index"))
+
+    return render_template("postobon/ajuste_formulario.html", form=None)
+
+
+@bp.route("/ajustes/<int:ajuste_id>/eliminar", methods=["POST"])
+def ajuste_eliminar(ajuste_id):
+    ajuste = AjustePostobon.query.get_or_404(ajuste_id)
+    db.session.delete(ajuste)
+    db.session.commit()
+    flash("Ajuste eliminado.", "success")
+    return redirect(url_for("postobon.index"))
 
 
 @bp.route("/exportar-excel")

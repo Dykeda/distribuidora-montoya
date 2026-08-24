@@ -22,11 +22,61 @@
   </div>
 </form>
 
-<div class="card card-metric mb-4" style="max-width: 320px;">
-  <div class="card-body">
-    <div class="text-muted small">Total faltante del mes</div>
-    <div class="fs-3 fw-bold text-danger">${{ "{:,}".format(total_faltante) }}</div>
+<div class="row mb-4">
+  <div class="col-auto">
+    <div class="card card-metric" style="max-width: 320px;">
+      <div class="card-body">
+        <div class="text-muted small">Total faltante del mes</div>
+        <div class="fs-3 fw-bold text-danger">${{ "{:,}".format(total_faltante) }}</div>
+      </div>
+    </div>
   </div>
+  <div class="col-auto">
+    <div class="card card-metric" style="max-width: 320px;">
+      <div class="card-body">
+        <div class="text-muted small">Saldo pendiente acumulado (con ajustes)</div>
+        <div class="fs-3 fw-bold text-danger">${{ "{:,}".format(pendiente_acumulado) }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="mb-4">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h2 class="h6 mb-0">Ajustes manuales al pendiente</h2>
+    <a href="{{ url_for('postobon.ajuste_nuevo') }}" class="btn btn-sm btn-outline-primary">+ Agregar ajuste</a>
+  </div>
+  {% if ajustes %}
+  <div class="table-responsive">
+  <table class="table table-sm mb-0">
+    <thead>
+      <tr>
+        <th>Fecha</th>
+        <th>Notas</th>
+        <th class="text-end">Monto</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for a in ajustes %}
+      <tr>
+        <td>{{ a.fecha.strftime("%Y-%m-%d") }}</td>
+        <td>{{ a.notas or "-" }}</td>
+        <td class="text-end {% if a.monto < 0 %}text-success{% endif %}">${{ "{:,}".format(a.monto) }}</td>
+        <td class="text-end">
+          <form method="post" action="{{ url_for('postobon.ajuste_eliminar', ajuste_id=a.id) }}" class="d-inline"
+                onsubmit="return confirm('¿Eliminar este ajuste de ${{ '{:,}'.format(a.monto) }}?');">
+            <button type="submit" class="btn btn-sm btn-outline-danger">Eliminar</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="text-muted small mb-0">No hay ajustes registrados todavía.</p>
+  {% endif %}
 </div>
 
 {% if grupos %}
