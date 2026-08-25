@@ -473,6 +473,47 @@ def test_cuadre_de_caja_incluye_gasto_creditos_pagados_y_nuevos_creditos(db, cli
     assert "Cuadra exacto" in body
 
 
+def test_cuadre_de_caja_incluye_montos_manuales_de_creditos(db, client):
+    # cliente sin la cartera pendiente real cargada en el sistema todavia -- usa el
+    # monto manual en vez del buscador/constructor ligado a Cartera
+    coca = crear_producto(db, unidades_por_caja=6, precio=3000)
+    salida = SalidaCamion(fecha=date(2026, 8, 1))
+    db.session.add(salida)
+    db.session.flush()
+    # 26 unidades cargadas, se vende todo (retorno 0) -> venta implicita = 26*3000 = 78000
+    db.session.add(SalidaCamionDetalle(salida_id=salida.id, producto_id=coca.id, cantidad_unidades=26))
+    db.session.commit()
+
+    r = client.post(
+        f"/camion/retorno/nueva/{salida.id}",
+        data={
+            "fecha": HOY, "notas": "",
+            f"regreso_cajas_{coca.id}": "0", f"regreso_unidades_{coca.id}": "0",
+            "efectivo_contado": "60000", "monedas_contado": "0",
+            "creditos_pagados_manual": "8000", "nuevos_creditos_manual": "6000",
+        },
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+
+    retorno = RetornoCamion.query.filter_by(salida_id=salida.id).first()
+    assert retorno.creditos_pagados_manual == 8000
+    assert retorno.nuevos_creditos_manual == 6000
+    assert retorno.creditos_pagados == 8000  # sin nada ligado a Cartera, es puro manual
+    assert retorno.nuevos_creditos == 6000
+    # el monto manual no crea ni toca ninguna FacturaCartera
+    assert FacturaCartera.query.count() == 0
+
+    r = client.get(f"/camion/{salida.id}")
+    body = r.get_data(as_text=True)
+    # venta implicita = 78000 - 6000 (nuevos creditos manual) = 72000
+    # venta total = 72000 + 8000 (creditos pagados manual) = 80000
+    # esperado = contado(60000+0) = 60000
+    # diferencia = 60000 - 80000 = -20000 -> faltan 20000
+    assert "Faltan" in body
+    assert "20,000" in body
+
+
 def test_editar_retorno_permite_ajustar_gasto_en_ruta(db, client):
     coca = crear_producto(db, unidades_por_caja=6, precio=3000)
     salida = SalidaCamion(fecha=date(2026, 8, 1))

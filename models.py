@@ -159,12 +159,19 @@ class RetornoCamion(db.Model):
     # Conteo físico de caja al cerrar la ruta -- nulo si no se contó (no es obligatorio).
     efectivo_contado = db.Column(db.Integer, nullable=True)
     monedas_contado = db.Column(db.Integer, nullable=True)
-    # Ajustes manuales del cuadre de caja -- montos que el conductor escribe a mano al
-    # cerrar la ruta, sin relación con Gastos ni Cartera. Se usan solo para calcular el
-    # efectivo esperado de ESTA ruta, nada más. El gasto en ruta en sí (pueden ser varios,
-    # cada uno con su categoría) vive como Gasto.retorno_id -- ver services/gastos.py.
+    # creditos_pagados/nuevos_creditos son el TOTAL que usa el cuadre de caja de esta ruta
+    # (buscador/constructor ligado a Cartera + el monto manual de abajo, sumados) -- se
+    # recalculan en routes/camion.py cada vez que se guarda el retorno, nunca se escriben
+    # a mano directamente. El gasto en ruta en sí (pueden ser varios, cada uno con su
+    # categoría) vive aparte como Gasto.retorno_id -- ver services/gastos.py.
     creditos_pagados = db.Column(db.Integer, nullable=True)
     nuevos_creditos = db.Column(db.Integer, nullable=True)
+    # Parte manual de cada total de arriba -- para cobros/ventas fiadas que el usuario
+    # todavía no tiene cargados como facturas reales en Cartera (ej. mientras termina de
+    # migrar su cartera pendiente al sistema). No genera ni afecta ninguna FacturaCartera,
+    # solo ajusta el cuadre de caja de esta ruta.
+    creditos_pagados_manual = db.Column(db.Integer, nullable=True)
+    nuevos_creditos_manual = db.Column(db.Integer, nullable=True)
 
     salida = db.relationship("SalidaCamion", back_populates="retorno")
     detalles = db.relationship(

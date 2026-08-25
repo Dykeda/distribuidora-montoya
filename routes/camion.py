@@ -135,8 +135,10 @@ def detalle(salida_id):
         # venta_implicita ya viene neta de lo que quedó fiado hoy -- efectivo_por_salida()
         # resta las facturas de cartera ligadas a esta salida, y "nuevos créditos" del
         # cuadre ahora SON esas facturas (ver services/cartera.py), así que no se debe
-        # volver a restar/sumar aparte para no contar dos veces.
-        venta_implicita = efectivo_por_salida(salida_id) or 0
+        # volver a restar/sumar aparte para no contar dos veces. La parte MANUAL de
+        # nuevos créditos (sin factura real en Cartera) no la resta efectivo_por_salida,
+        # así que se resta aparte aquí.
+        venta_implicita = (efectivo_por_salida(salida_id) or 0) - (salida.retorno.nuevos_creditos_manual or 0)
         gastos_ruta = gastos_en_ruta(salida.retorno.id)
         gasto_en_ruta = sum(g.monto for g in gastos_ruta)
         creditos_pagados = salida.retorno.creditos_pagados or 0
@@ -267,6 +269,15 @@ def retorno_nueva(salida_id):
             int(fid) for fid in request.form.getlist("pagada_factura_id[]") if fid
         ]
 
+        try:
+            creditos_pagados_manual = int(request.form.get("creditos_pagados_manual") or 0)
+        except ValueError:
+            creditos_pagados_manual = 0
+        try:
+            nuevos_creditos_manual = int(request.form.get("nuevos_creditos_manual") or 0)
+        except ValueError:
+            nuevos_creditos_manual = 0
+
         detalles = []
         for fila in filas:
             producto = fila["producto"]
@@ -323,8 +334,10 @@ def retorno_nueva(salida_id):
 
         sincronizar_creditos_nuevos_en_ruta(retorno, salida, lineas_credito_nuevo)
         sincronizar_creditos_pagados_en_ruta(retorno, factura_ids_pagadas)
-        retorno.nuevos_creditos = total_creditos_nuevos_en_ruta(retorno.id)
-        retorno.creditos_pagados = total_creditos_pagados_en_ruta(retorno.id)
+        retorno.creditos_pagados_manual = creditos_pagados_manual
+        retorno.nuevos_creditos_manual = nuevos_creditos_manual
+        retorno.nuevos_creditos = total_creditos_nuevos_en_ruta(retorno.id) + nuevos_creditos_manual
+        retorno.creditos_pagados = total_creditos_pagados_en_ruta(retorno.id) + creditos_pagados_manual
         db.session.commit()
 
         if retorno_existente is not None:
