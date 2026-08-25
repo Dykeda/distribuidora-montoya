@@ -39,6 +39,18 @@ def _parsear_fecha(nombre_campo):
         return date.today()
 
 
+def _factura_json(f):
+    """Serializa una FacturaCartera para el buscador de "créditos pagados" del cuadre de
+    caja -- se filtra del lado del cliente (JS), sin ir al servidor por cada letra."""
+    return {
+        "id": f.id,
+        "cliente": f.cliente.nombre,
+        "fecha": f.fecha.strftime("%Y-%m-%d"),
+        "monto": f.monto,
+        "notas": f.notas or "",
+    }
+
+
 def _parsear_lineas(producto_por_id):
     producto_ids = request.form.getlist("producto_id[]")
     cajas_lista = request.form.getlist("cajas[]")
@@ -193,13 +205,13 @@ def retorno_nueva(salida_id):
     categorias_hogar = categorias_por_tipo("hogar")
     gastos_previos = gastos_en_ruta(retorno_existente.id) if retorno_existente else []
     clientes = listar_clientes()
-    pendientes = listar_pendientes()
+    pendientes_json = [_factura_json(f) for f in listar_pendientes()]
     creditos_previos = (
         FacturaCartera.query.filter_by(creada_en_retorno_id=retorno_existente.id).all()
         if retorno_existente else []
     )
-    pagadas_previas_ids = (
-        [f.id for f in FacturaCartera.query.filter_by(cobrada_en_retorno_id=retorno_existente.id).all()]
+    pagadas_previas_json = (
+        [_factura_json(f) for f in FacturaCartera.query.filter_by(cobrada_en_retorno_id=retorno_existente.id).all()]
         if retorno_existente else []
     )
 
@@ -272,11 +284,13 @@ def retorno_nueva(salida_id):
                     f"{fila['producto'].nombre}: no puede regresar más de lo que salió/se le recargó ({fila['cantidad_cargada']}).",
                     "error",
                 )
+                facturas_pagadas_elegidas = FacturaCartera.query.filter(FacturaCartera.id.in_(factura_ids_pagadas)).all() if factura_ids_pagadas else []
                 return render_template(
                     "camion/retorno_formulario.html", salida=salida, filas=filas, form=request.form,
                     retorno_existente=retorno_existente, categorias_negocio=categorias_negocio, categorias_hogar=categorias_hogar,
-                    lineas_gasto_iniciales=lineas_gasto, clientes=clientes, pendientes=pendientes,
-                    lineas_credito_iniciales=lineas_credito_nuevo, pagadas_previas_ids=factura_ids_pagadas,
+                    lineas_gasto_iniciales=lineas_gasto, clientes=clientes, pendientes_json=pendientes_json,
+                    lineas_credito_iniciales=lineas_credito_nuevo,
+                    pagadas_previas_json=[_factura_json(f) for f in facturas_pagadas_elegidas],
                 )
             detalles.append(RetornoCamionDetalle(producto_id=fila["producto"].id, cantidad_unidades=cantidad_unidades))
 
@@ -323,9 +337,9 @@ def retorno_nueva(salida_id):
         "camion/retorno_formulario.html", salida=salida, filas=filas, form=None,
         retorno_existente=retorno_existente, categorias_negocio=categorias_negocio, categorias_hogar=categorias_hogar,
         lineas_gasto_iniciales=[(g.categoria_id, g.monto) for g in gastos_previos],
-        clientes=clientes, pendientes=pendientes,
+        clientes=clientes, pendientes_json=pendientes_json,
         lineas_credito_iniciales=[(f.cliente_id, f.monto, f.notas or "") for f in creditos_previos],
-        pagadas_previas_ids=pagadas_previas_ids,
+        pagadas_previas_json=pagadas_previas_json,
     )
 
 

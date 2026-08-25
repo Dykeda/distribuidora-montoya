@@ -32,31 +32,24 @@
   </div>
 
   <label class="form-label mb-1">Créditos pagados</label>
-  <p class="text-muted small mt-0 mb-2">Marca las facturas de cartera que el cliente pagó en efectivo durante esta ruta — se suman a lo esperado y quedan marcadas como pagadas en Cartera.</p>
-  <input type="text" id="buscar-credito-pagado" class="form-control mb-2" placeholder="Buscar cliente...">
+  <p class="text-muted small mt-0 mb-2">Busca y elige las facturas de cartera que el cliente pagó en efectivo durante esta ruta — se suman a lo esperado y quedan marcadas como pagadas en Cartera.</p>
+  <div class="position-relative mb-2" style="max-width:500px;">
+    <input type="text" id="buscar-credito-pagado" class="form-control" placeholder="Buscar cliente..." autocomplete="off">
+    <div id="resultados-credito-pagado" class="list-group position-absolute w-100 d-none" style="z-index:1000; max-height:240px; overflow-y:auto;"></div>
+  </div>
   <div class="table-responsive mb-4">
   <table class="table table-sm" id="tabla-creditos-pagados">
     <thead>
       <tr>
-        <th style="width:40px"></th>
         <th>Cliente</th>
         <th>Fecha</th>
         <th class="text-end">Monto</th>
         <th>Notas</th>
+        <th></th>
       </tr>
     </thead>
-    <tbody>
-      {% for f in pendientes %}
-      <tr data-nombre="{{ f.cliente.nombre | lower }}">
-        <td><input type="checkbox" name="pagada_factura_id[]" value="{{ f.id }}" {% if f.id in pagadas_previas_ids %}checked{% endif %}></td>
-        <td>{{ f.cliente.nombre }}</td>
-        <td>{{ f.fecha.strftime("%Y-%m-%d") }}</td>
-        <td class="text-end">${{ "{:,}".format(f.monto) }}</td>
-        <td>{{ f.notas or "-" }}</td>
-      </tr>
-      {% else %}
-      <tr><td colspan="5" class="text-center text-muted">No hay facturas pendientes en Cartera.</td></tr>
-      {% endfor %}
+    <tbody id="cuerpo-creditos-pagados">
+      <tr id="fila-sin-creditos-pagados"><td colspan="5" class="text-center text-muted">Ninguna elegida todavía.</td></tr>
     </tbody>
   </table>
   </div>
@@ -202,12 +195,81 @@
     agregarLineaGasto(null, 0);
   }
 
-  document.getElementById("buscar-credito-pagado").addEventListener("input", (e) => {
-    const q = e.target.value.trim().toLowerCase();
-    document.querySelectorAll("#tabla-creditos-pagados tbody tr[data-nombre]").forEach((tr) => {
-      tr.style.display = tr.dataset.nombre.includes(q) ? "" : "none";
+  const pendientesCredito = {{ pendientes_json | tojson }};
+  const seleccionadasCredito = new Map();
+  const inputBuscarCredito = document.getElementById("buscar-credito-pagado");
+  const resultadosCredito = document.getElementById("resultados-credito-pagado");
+  const cuerpoSeleccionadasCredito = document.getElementById("cuerpo-creditos-pagados");
+  const filaSinCreditos = document.getElementById("fila-sin-creditos-pagados");
+
+  function formatoMonto(n) {
+    return n.toLocaleString("en-US");
+  }
+
+  function renderSeleccionadasCredito() {
+    cuerpoSeleccionadasCredito.querySelectorAll("tr[data-factura-id]").forEach((tr) => tr.remove());
+    filaSinCreditos.style.display = seleccionadasCredito.size ? "none" : "";
+    seleccionadasCredito.forEach((f, id) => {
+      const tr = document.createElement("tr");
+      tr.dataset.facturaId = id;
+      tr.innerHTML = `
+        <td>${f.cliente}</td>
+        <td>${f.fecha}</td>
+        <td class="text-end">$${formatoMonto(f.monto)}</td>
+        <td>${f.notas || "-"}</td>
+        <td>
+          <input type="hidden" name="pagada_factura_id[]" value="${id}">
+          <button type="button" class="btn btn-sm btn-outline-danger btn-quitar-pagada">&times;</button>
+        </td>`;
+      tr.querySelector(".btn-quitar-pagada").addEventListener("click", () => {
+        seleccionadasCredito.delete(id);
+        renderSeleccionadasCredito();
+      });
+      cuerpoSeleccionadasCredito.appendChild(tr);
     });
+  }
+
+  function elegirCredito(f) {
+    seleccionadasCredito.set(f.id, f);
+    renderSeleccionadasCredito();
+    inputBuscarCredito.value = "";
+    resultadosCredito.classList.add("d-none");
+    resultadosCredito.innerHTML = "";
+  }
+
+  inputBuscarCredito.addEventListener("input", () => {
+    const q = inputBuscarCredito.value.trim().toLowerCase();
+    resultadosCredito.innerHTML = "";
+    if (!q) {
+      resultadosCredito.classList.add("d-none");
+      return;
+    }
+    const coincidencias = pendientesCredito
+      .filter((f) => !seleccionadasCredito.has(f.id) && f.cliente.toLowerCase().includes(q))
+      .slice(0, 8);
+    if (!coincidencias.length) {
+      resultadosCredito.classList.add("d-none");
+      return;
+    }
+    coincidencias.forEach((f) => {
+      const item = document.createElement("button");
+      item.type = "button";
+      item.className = "list-group-item list-group-item-action";
+      item.textContent = `${f.cliente} — $${formatoMonto(f.monto)} (${f.fecha})`;
+      item.addEventListener("click", () => elegirCredito(f));
+      resultadosCredito.appendChild(item);
+    });
+    resultadosCredito.classList.remove("d-none");
   });
+
+  document.addEventListener("click", (e) => {
+    if (e.target !== inputBuscarCredito && !resultadosCredito.contains(e.target)) {
+      resultadosCredito.classList.add("d-none");
+    }
+  });
+
+  {{ pagadas_previas_json | tojson }}.forEach((f) => seleccionadasCredito.set(f.id, f));
+  renderSeleccionadasCredito();
 
   const cuerpoCreditos = document.getElementById("cuerpo-creditos-nuevos");
   const plantillaCredito = document.getElementById("plantilla-credito-nuevo");
