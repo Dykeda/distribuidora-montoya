@@ -121,12 +121,25 @@
 
 {% if resumen.venta_por_producto %}
 <h2 class="h5 mt-4">Venta del mes por producto</h2>
+<p class="text-muted">De mayor a menor valor vendido — el producto más exitoso del mes primero.</p>
 <div class="table-responsive">
-<table class="table table-sm table-striped" style="max-width:500px;">
-  <thead><tr><th>Producto</th><th class="text-end">Valor vendido</th></tr></thead>
+<table class="table table-sm table-striped" style="max-width:650px;">
+  <thead>
+    <tr>
+      <th>Producto</th>
+      <th class="text-end">Cajas vendidas</th>
+      <th class="text-end">Valor vendido</th>
+    </tr>
+  </thead>
   <tbody>
-    {% for nombre, valor in resumen.venta_por_producto.items() %}
-    <tr><td>{{ nombre }}</td><td class="text-end">${{ "{:,}".format(valor) }}</td></tr>
+    {% for f in resumen.venta_por_producto %}
+    <tr>
+      <td>{{ f.producto.nombre }}</td>
+      <td class="text-end">
+        {{ f.cajas }} cajas{% if f.unidades_sueltas %} + {{ f.unidades_sueltas }} u.{% endif %}
+      </td>
+      <td class="text-end fw-bold">${{ "{:,}".format(f.valor) }}</td>
+    </tr>
     {% endfor %}
   </tbody>
 </table>
