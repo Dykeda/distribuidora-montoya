@@ -85,9 +85,9 @@ def construir_workbook():
 
     _hoja(
         wb, "Descuento por producto",
-        ["Producto", "Descuento contabilizado (histórico)"],
+        ["Producto", "Cajas (histórico)", "Descuento contabilizado (histórico)"],
         [
-            [r["producto"], r["descuento_contabilizado"]]
+            [r["producto"].nombre, r["cajas"] if r["cajas"] is not None else "", r["descuento_contabilizado"]]
             for r in rendimiento_por_producto(DESDE_SIEMPRE, hoy)
         ],
     )

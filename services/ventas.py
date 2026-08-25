@@ -1,6 +1,6 @@
 from extensions import db
 from models import SalidaCamion, RetornoCamion, VentaBodega, Producto
-from services.inventario import cajas_y_unidades
+from services.inventario import cajas_aproximadas
 
 
 def cargado_por_producto(salida):
@@ -46,8 +46,9 @@ def venta_por_salida(salida_id):
 def ventas_en_periodo(fecha_inicio, fecha_fin):
     """Valor total de venta del período: implícita de rutas cerradas (cuyo retorno cae en
     el período) más venta directa en bodega (cuya fecha cae en el período). por_producto
-    trae, para cada producto, cuántas cajas físicas y unidades sueltas se vendieron y el
-    valor en dinero -- ordenado de mayor a menor valor vendido (el más exitoso primero)."""
+    trae, para cada producto, cuántas cajas físicas se vendieron (redondeado, sin desglose
+    de unidades sueltas) y el valor en dinero -- ordenado de mayor a menor valor vendido
+    (el más exitoso primero)."""
     total = 0
     detalle_por_producto = {}
 
@@ -81,12 +82,10 @@ def ventas_en_periodo(fecha_inicio, fecha_fin):
 
     por_producto = []
     for fila in detalle_por_producto.values():
-        cajas, unidades_sueltas = cajas_y_unidades(fila["producto"], fila["cantidad_unidades"])
         por_producto.append({
             "producto": fila["producto"],
             "cantidad_unidades": fila["cantidad_unidades"],
-            "cajas": cajas,
-            "unidades_sueltas": unidades_sueltas,
+            "cajas": cajas_aproximadas(fila["producto"], fila["cantidad_unidades"]),
             "valor": fila["valor"],
         })
     por_producto.sort(key=lambda f: f["valor"], reverse=True)

@@ -100,17 +100,19 @@
 <p class="text-muted">Qué productos concentran más descuento contabilizado este mes,
   de mayor a menor.</p>
 <div class="table-responsive">
-<table class="table table-sm table-striped" style="max-width:500px;">
+<table class="table table-sm table-striped" style="max-width:650px;">
   <thead>
     <tr>
       <th>Producto</th>
+      <th class="text-end">Cajas</th>
       <th class="text-end">Descuento contabilizado</th>
     </tr>
   </thead>
   <tbody>
     {% for f in resumen.rendimiento_por_producto %}
     <tr>
-      <td>{{ f.producto }}</td>
+      <td>{{ f.producto.nombre }}</td>
+      <td class="text-end">{{ f.cajas if f.cajas is not none else f.cantidad_unidades ~ " unid." }}</td>
       <td class="text-end fw-bold">${{ "{:,}".format(f.descuento_contabilizado) }}</td>
     </tr>
     {% endfor %}
@@ -135,9 +137,7 @@
     {% for f in resumen.venta_por_producto %}
     <tr>
       <td>{{ f.producto.nombre }}</td>
-      <td class="text-end">
-        {{ f.cajas }} cajas{% if f.unidades_sueltas %} + {{ f.unidades_sueltas }} u.{% endif %}
-      </td>
+      <td class="text-end">{{ f.cajas if f.cajas is not none else f.cantidad_unidades ~ " unid." }}</td>
       <td class="text-end fw-bold">${{ "{:,}".format(f.valor) }}</td>
     </tr>
     {% endfor %}

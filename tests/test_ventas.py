@@ -128,10 +128,10 @@ def test_ventas_en_periodo_incluye_cajas_y_ordena_de_mayor_a_menor_valor(db):
     salida = SalidaCamion(fecha=date(2026, 8, 2))
     db.session.add(salida)
     db.session.flush()
-    # coca: 30 unidades = 5 cajas, vendidas todas -> 30*3000 = 90000
+    # coca: 30 unidades = 5 cajas exactas, vendidas todas -> 30*3000 = 90000
     db.session.add(SalidaCamionDetalle(salida_id=salida.id, producto_id=coca.id, cantidad_unidades=30))
-    # agua: 26 unidades = 2 cajas + 2 sueltas, vendidas todas -> 26*2000 = 52000
-    db.session.add(SalidaCamionDetalle(salida_id=salida.id, producto_id=agua.id, cantidad_unidades=26))
+    # agua: 32 unidades = 2.67 cajas -> redondea a 3, vendidas todas -> 32*2000 = 64000
+    db.session.add(SalidaCamionDetalle(salida_id=salida.id, producto_id=agua.id, cantidad_unidades=32))
     db.session.commit()
 
     retorno = RetornoCamion(salida_id=salida.id, fecha=date(2026, 8, 2))
@@ -141,16 +141,14 @@ def test_ventas_en_periodo_incluye_cajas_y_ordena_de_mayor_a_menor_valor(db):
     resumen = ventas_en_periodo(date(2026, 8, 1), date(2026, 8, 31))
     por_producto = resumen["por_producto"]
 
-    # coca vendió más plata (90000 > 52000) -> va primero
+    # coca vendió más plata (90000 > 64000) -> va primero
     assert por_producto[0]["producto"].nombre == "Coca-Cola 1.5L"
     assert por_producto[0]["cajas"] == 5
-    assert por_producto[0]["unidades_sueltas"] == 0
     assert por_producto[0]["valor"] == 90000
 
     assert por_producto[1]["producto"].nombre == "Agua Cristal"
-    assert por_producto[1]["cajas"] == 2
-    assert por_producto[1]["unidades_sueltas"] == 2
-    assert por_producto[1]["valor"] == 52000
+    assert por_producto[1]["cajas"] == 3  # 32/12 = 2.67 -> redondeado, sin desglose de sueltas
+    assert por_producto[1]["valor"] == 64000
 
 
 def test_historial_diario_no_resta_cartera(db):

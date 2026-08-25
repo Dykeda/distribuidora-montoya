@@ -90,9 +90,10 @@ def test_rendimiento_por_producto_ordena_por_descuento_contabilizado(db):
     filas = rendimiento_por_producto(date(2026, 8, 1), date(2026, 8, 31))
 
     assert len(filas) == 2
-    assert filas[0]["producto"] == "Agua Cristal"
+    assert filas[0]["producto"].nombre == "Agua Cristal"
     assert filas[0]["descuento_contabilizado"] == 150000
-    assert filas[1]["producto"] == "Coca-Cola 1.5L"
+    assert filas[0]["cajas"] == 10  # 60 unidades / 6 por caja
+    assert filas[1]["producto"].nombre == "Coca-Cola 1.5L"
     assert filas[1]["descuento_contabilizado"] == 90000
 
 

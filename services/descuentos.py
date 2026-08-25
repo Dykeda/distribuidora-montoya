@@ -8,6 +8,7 @@ from sqlalchemy import func
 
 from extensions import db
 from models import CompraDetalle, Compra, Producto
+from services.inventario import cajas_aproximadas
 
 
 def total_descuento_periodo(fecha_inicio, fecha_fin):
@@ -58,11 +59,13 @@ def listar_descuentos_agrupados(fecha_inicio, fecha_fin):
 
 def rendimiento_por_producto(fecha_inicio, fecha_fin):
     """Cuánto descuento contabilizado (líneas marcadas) generó cada producto en el
-    período, de mayor a menor."""
+    período, y cuántas cajas de ese descuento en producto llegaron -- de mayor a menor
+    descuento."""
     filas = (
         db.session.query(
-            Producto.nombre,
+            Producto,
             func.coalesce(func.sum(CompraDetalle.costo_linea), 0).label("descuento_contabilizado"),
+            func.coalesce(func.sum(CompraDetalle.cantidad_comprada_unidades), 0).label("cantidad_unidades"),
         )
         .join(Compra, CompraDetalle.compra_id == Compra.id)
         .join(Producto, CompraDetalle.producto_id == Producto.id)
@@ -73,8 +76,13 @@ def rendimiento_por_producto(fecha_inicio, fecha_fin):
     )
 
     resultado = [
-        {"producto": nombre, "descuento_contabilizado": round(valor)}
-        for nombre, valor in filas
+        {
+            "producto": producto,
+            "descuento_contabilizado": round(valor),
+            "cantidad_unidades": int(cantidad),
+            "cajas": cajas_aproximadas(producto, cantidad),
+        }
+        for producto, valor, cantidad in filas
     ]
     resultado.sort(key=lambda f: f["descuento_contabilizado"], reverse=True)
     return resultado

@@ -91,7 +91,7 @@ def test_construir_workbook_incluye_todas_las_hojas_y_resumen_calculado(db):
 
     rendimiento = wb["Descuento por producto"]
     assert rendimiento.cell(row=2, column=1).value == "Coca-Cola 1.5L"
-    assert rendimiento.cell(row=2, column=2).value == 9000  # descuento contabilizado
+    assert rendimiento.cell(row=2, column=3).value == 9000  # descuento contabilizado
 
     ventas_camion = wb["Camion Ventas"]
     assert ventas_camion.max_row == 2

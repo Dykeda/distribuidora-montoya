@@ -53,6 +53,15 @@ def cajas_y_unidades(producto, stock):
     return stock // producto.unidades_por_caja, stock % producto.unidades_por_caja
 
 
+def cajas_aproximadas(producto, cantidad_unidades):
+    """Cajas redondeadas al entero más cercano, sin desglosar unidades sueltas -- para
+    reportes donde un número aproximado de cajas es más útil que el desglose exacto.
+    None si el producto no se maneja por cajas (ahí el llamador debe mostrar unidades)."""
+    if not producto.maneja_cajas or not producto.unidades_por_caja:
+        return None
+    return round(cantidad_unidades / producto.unidades_por_caja)
+
+
 def listar_stock_todos(solo_activos=True):
     """Devuelve una lista de dicts {producto, stock_unidades, cajas, unidades_sueltas}
     para todos los productos — cajas/unidades_sueltas es como el negocio piensa el stock,
