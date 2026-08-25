@@ -13,6 +13,7 @@ from models import (
     RecargaCamion,
     RecargaCamionDetalle,
     FacturaCartera,
+    AbonoFactura,
 )
 from services.ventas import venta_por_salida, rutas_en_transito, cargado_por_producto
 from services.inventario import cajas_y_unidades
@@ -22,7 +23,7 @@ from services.clientes import listar_clientes
 from services.cartera import (
     listar_pendientes,
     sincronizar_creditos_nuevos_en_ruta,
-    sincronizar_creditos_pagados_en_ruta,
+    sincronizar_abonos_en_ruta,
     total_creditos_nuevos_en_ruta,
     total_creditos_pagados_en_ruta,
 )
@@ -39,15 +40,18 @@ def _parsear_fecha(nombre_campo):
         return date.today()
 
 
-def _factura_json(f):
+def _factura_json(f, abono=None):
     """Serializa una FacturaCartera para el buscador de "créditos pagados" del cuadre de
-    caja -- se filtra del lado del cliente (JS), sin ir al servidor por cada letra."""
+    caja -- se filtra del lado del cliente (JS), sin ir al servidor por cada letra. abono
+    es el monto ya elegido en ESTE retorno (al editar uno existente), si aplica."""
     return {
         "id": f.id,
         "cliente": f.cliente.nombre,
         "fecha": f.fecha.strftime("%Y-%m-%d"),
         "monto": f.monto,
+        "saldo": f.saldo_pendiente,
         "notas": f.notas or "",
+        "abono": abono,
     }
 
 
@@ -212,10 +216,11 @@ def retorno_nueva(salida_id):
         FacturaCartera.query.filter_by(creada_en_retorno_id=retorno_existente.id).all()
         if retorno_existente else []
     )
-    pagadas_previas_json = (
-        [_factura_json(f) for f in FacturaCartera.query.filter_by(cobrada_en_retorno_id=retorno_existente.id).all()]
+    abonos_previos = (
+        AbonoFactura.query.filter_by(retorno_id=retorno_existente.id).all()
         if retorno_existente else []
     )
+    pagadas_previas_json = [_factura_json(a.factura, abono=a.monto) for a in abonos_previos]
 
     cargado = cargado_por_producto(salida)  # incluye salida inicial + recargas del día
     regresado_previo = {d.producto_id: d.cantidad_unidades for d in retorno_existente.detalles} if retorno_existente else {}
@@ -265,9 +270,19 @@ def retorno_nueva(salida_id):
             nota = notas_credito[i] if i < len(notas_credito) else ""
             lineas_credito_nuevo.append((int(cliente_id_str), monto, nota))
 
-        factura_ids_pagadas = [
-            int(fid) for fid in request.form.getlist("pagada_factura_id[]") if fid
-        ]
+        factura_ids_abono = request.form.getlist("abono_factura_id[]")
+        montos_abono = request.form.getlist("abono_monto[]")
+        lineas_abono = []
+        for i, factura_id_str in enumerate(factura_ids_abono):
+            if not factura_id_str:
+                continue
+            try:
+                monto = int(montos_abono[i] or 0) if i < len(montos_abono) else 0
+            except ValueError:
+                monto = 0
+            if monto <= 0:
+                continue
+            lineas_abono.append((int(factura_id_str), monto))
 
         try:
             creditos_pagados_manual = int(request.form.get("creditos_pagados_manual") or 0)
@@ -295,13 +310,19 @@ def retorno_nueva(salida_id):
                     f"{fila['producto'].nombre}: no puede regresar más de lo que salió/se le recargó ({fila['cantidad_cargada']}).",
                     "error",
                 )
-                facturas_pagadas_elegidas = FacturaCartera.query.filter(FacturaCartera.id.in_(factura_ids_pagadas)).all() if factura_ids_pagadas else []
+                montos_abono_por_factura = dict(lineas_abono)
+                facturas_pagadas_elegidas = (
+                    FacturaCartera.query.filter(FacturaCartera.id.in_(montos_abono_por_factura)).all()
+                    if montos_abono_por_factura else []
+                )
                 return render_template(
                     "camion/retorno_formulario.html", salida=salida, filas=filas, form=request.form,
                     retorno_existente=retorno_existente, categorias_negocio=categorias_negocio, categorias_hogar=categorias_hogar,
                     lineas_gasto_iniciales=lineas_gasto, clientes=clientes, pendientes_json=pendientes_json,
                     lineas_credito_iniciales=lineas_credito_nuevo,
-                    pagadas_previas_json=[_factura_json(f) for f in facturas_pagadas_elegidas],
+                    pagadas_previas_json=[
+                        _factura_json(f, abono=montos_abono_por_factura[f.id]) for f in facturas_pagadas_elegidas
+                    ],
                 )
             detalles.append(RetornoCamionDetalle(producto_id=fila["producto"].id, cantidad_unidades=cantidad_unidades))
 
@@ -333,7 +354,7 @@ def retorno_nueva(salida_id):
             sincronizar_gastos_en_ruta(retorno, lineas_gasto, salida.fecha)
 
         sincronizar_creditos_nuevos_en_ruta(retorno, salida, lineas_credito_nuevo)
-        sincronizar_creditos_pagados_en_ruta(retorno, factura_ids_pagadas)
+        sincronizar_abonos_en_ruta(retorno, lineas_abono)
         retorno.creditos_pagados_manual = creditos_pagados_manual
         retorno.nuevos_creditos_manual = nuevos_creditos_manual
         retorno.nuevos_creditos = total_creditos_nuevos_en_ruta(retorno.id) + nuevos_creditos_manual

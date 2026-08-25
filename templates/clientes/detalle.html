@@ -22,8 +22,10 @@
       <th>Fecha</th>
       <th>Ruta (salida)</th>
       <th class="text-end">Monto</th>
+      <th class="text-end">Saldo</th>
       <th>Estado</th>
       <th>Notas</th>
+      <th></th>
     </tr>
   </thead>
   <tbody>
@@ -38,6 +40,7 @@
         {% endif %}
       </td>
       <td class="text-end">${{ "{:,}".format(f.monto) }}</td>
+      <td class="text-end fw-bold">${{ "{:,}".format(f.saldo_pendiente) }}</td>
       <td>
         {% if f.estado == 'pagada' %}
           <span class="badge bg-success">Pagada</span>
@@ -46,9 +49,14 @@
         {% endif %}
       </td>
       <td>{{ f.notas or "-" }}</td>
+      <td>
+        {% if f.estado != 'pagada' %}
+        <a href="{{ url_for('cartera.abono_nuevo', factura_id=f.id) }}" class="btn btn-sm btn-outline-primary">+ Abono</a>
+        {% endif %}
+      </td>
     </tr>
     {% else %}
-    <tr><td colspan="5" class="text-center text-muted">Este cliente no tiene facturas todavía.</td></tr>
+    <tr><td colspan="7" class="text-center text-muted">Este cliente no tiene facturas todavía.</td></tr>
     {% endfor %}
   </tbody>
 </table>

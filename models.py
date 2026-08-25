@@ -221,13 +221,41 @@ class FacturaCartera(db.Model):
     # fiada ese día) -- permite sincronizar sin duplicar si se edita el retorno, mismo
     # patrón que Gasto.retorno_id (ver services/gastos.py).
     creada_en_retorno_id = db.Column(db.Integer, db.ForeignKey("retorno_camion.id"), nullable=True)
-    # No nula solo cuando esta factura se marcó pagada durante el cuadre de caja de una
-    # ruta (el cliente le pagó una deuda vieja al conductor) -- para poder deshacer si se
-    # edita el retorno, sin afectar facturas marcadas pagadas a mano desde Cartera.
-    cobrada_en_retorno_id = db.Column(db.Integer, db.ForeignKey("retorno_camion.id"), nullable=True)
 
     salida = db.relationship("SalidaCamion", back_populates="facturas")
     cliente = db.relationship("Cliente", back_populates="facturas")
+    abonos = db.relationship(
+        "AbonoFactura", back_populates="factura", cascade="all, delete-orphan",
+        order_by="AbonoFactura.fecha",
+    )
+
+    @property
+    def total_abonado(self):
+        return sum(a.monto for a in self.abonos)
+
+    @property
+    def saldo_pendiente(self):
+        return self.monto - self.total_abonado
+
+
+class AbonoFactura(db.Model):
+    """Pago parcial (abono) a una factura de cartera -- puede haber varios hasta saldar
+    la factura completa. services/cartera.py recalcula sola el estado de la factura
+    (pagada cuando el saldo llega a 0 o menos) cada vez que se agrega o quita un abono."""
+
+    __tablename__ = "abono_factura"
+
+    id = db.Column(db.Integer, primary_key=True)
+    factura_id = db.Column(db.Integer, db.ForeignKey("factura_cartera.id"), nullable=False)
+    fecha = db.Column(db.Date, nullable=False, default=date.today)
+    monto = db.Column(db.Integer, nullable=False)
+    notas = db.Column(db.String(255), nullable=True)
+    # No nulo solo para abonos recibidos durante el cuadre de caja de una ruta (el cliente
+    # le pagó al conductor) -- mismo patrón que Gasto.retorno_id, para poder sincronizar
+    # sin duplicar si se edita el retorno.
+    retorno_id = db.Column(db.Integer, db.ForeignKey("retorno_camion.id"), nullable=True)
+
+    factura = db.relationship("FacturaCartera", back_populates="abonos")
 
 
 class RecargaCamion(db.Model):

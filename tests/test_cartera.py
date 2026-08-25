@@ -2,7 +2,7 @@ from datetime import date
 
 import pytest
 
-from models import SalidaCamion, RetornoCamion, FacturaCartera, Cliente
+from models import SalidaCamion, RetornoCamion, FacturaCartera, AbonoFactura, Cliente
 from services.cartera import (
     total_pendiente,
     listar_facturas,
@@ -11,9 +11,11 @@ from services.cartera import (
     resumen_antiguedad,
     listar_pendientes,
     sincronizar_creditos_nuevos_en_ruta,
-    sincronizar_creditos_pagados_en_ruta,
+    sincronizar_abonos_en_ruta,
     total_creditos_nuevos_en_ruta,
     total_creditos_pagados_en_ruta,
+    registrar_abono,
+    eliminar_abono,
 )
 
 
@@ -196,7 +198,7 @@ def test_sincronizar_creditos_nuevos_en_ruta_reemplaza_al_editar(db):
     assert facturas[0].monto == 40000
 
 
-def test_sincronizar_creditos_pagados_en_ruta_marca_y_libera(db):
+def test_sincronizar_abonos_en_ruta_pago_completo_marca_y_libera(db):
     salida = crear_salida(db)
     retorno = crear_retorno(db, salida)
     cliente = crear_cliente(db, "Tienda Vieja")
@@ -204,26 +206,43 @@ def test_sincronizar_creditos_pagados_en_ruta_marca_y_libera(db):
     db.session.add(factura)
     db.session.commit()
 
-    sincronizar_creditos_pagados_en_ruta(retorno, [factura.id])
+    sincronizar_abonos_en_ruta(retorno, [(factura.id, 15000)])
     db.session.commit()
 
     assert factura.estado == "pagada"
     assert factura.fecha_pago == retorno.fecha
-    assert factura.cobrada_en_retorno_id == retorno.id
+    assert factura.saldo_pendiente == 0
     assert total_creditos_pagados_en_ruta(retorno.id) == 15000
     assert factura not in listar_pendientes()
 
-    # se edita el retorno y se destilda esa factura -> vuelve a quedar pendiente
-    sincronizar_creditos_pagados_en_ruta(retorno, [])
+    # se edita el retorno y se quita el abono -> vuelve a quedar pendiente, saldo completo
+    sincronizar_abonos_en_ruta(retorno, [])
     db.session.commit()
 
     assert factura.estado == "pendiente"
     assert factura.fecha_pago is None
-    assert factura.cobrada_en_retorno_id is None
+    assert factura.saldo_pendiente == 15000
     assert total_creditos_pagados_en_ruta(retorno.id) == 0
 
 
-def test_sincronizar_creditos_pagados_no_toca_facturas_pagadas_a_mano(db):
+def test_sincronizar_abonos_en_ruta_pago_parcial_deja_saldo_pendiente(db):
+    salida = crear_salida(db)
+    retorno = crear_retorno(db, salida)
+    cliente = crear_cliente(db, "Tienda Vieja")
+    factura = FacturaCartera(cliente_id=cliente.id, fecha=date(2026, 7, 1), monto=15000, estado="pendiente")
+    db.session.add(factura)
+    db.session.commit()
+
+    sincronizar_abonos_en_ruta(retorno, [(factura.id, 6000)])
+    db.session.commit()
+
+    assert factura.estado == "pendiente"  # sigue pendiente, solo abonaron una parte
+    assert factura.saldo_pendiente == 9000
+    assert factura.total_abonado == 6000
+    assert factura in listar_pendientes()
+
+
+def test_sincronizar_abonos_no_toca_facturas_pagadas_a_mano(db):
     salida = crear_salida(db)
     retorno = crear_retorno(db, salida)
     cliente = crear_cliente(db, "Tienda Vieja")
@@ -235,9 +254,86 @@ def test_sincronizar_creditos_pagados_no_toca_facturas_pagadas_a_mano(db):
     db.session.commit()
 
     # el cuadre de esta ruta no elige ninguna factura -- no debe tocar la pagada a mano
-    sincronizar_creditos_pagados_en_ruta(retorno, [])
+    sincronizar_abonos_en_ruta(retorno, [])
     db.session.commit()
 
     assert factura_manual.estado == "pagada"
     assert factura_manual.fecha_pago == date(2026, 7, 15)
-    assert factura_manual.cobrada_en_retorno_id is None
+    assert AbonoFactura.query.filter_by(factura_id=factura_manual.id).count() == 0
+
+
+def test_registrar_abono_parcial_no_marca_pagada(db):
+    cliente = crear_cliente(db, "Tienda Vieja")
+    factura = FacturaCartera(cliente_id=cliente.id, fecha=date(2026, 7, 1), monto=20000, estado="pendiente")
+    db.session.add(factura)
+    db.session.commit()
+
+    registrar_abono(factura, date(2026, 7, 10), 12000, notas="primer abono")
+    db.session.commit()
+
+    assert factura.estado == "pendiente"
+    assert factura.saldo_pendiente == 8000
+    assert factura.total_abonado == 12000
+
+
+def test_registrar_dos_abonos_completa_el_pago(db):
+    cliente = crear_cliente(db, "Tienda Vieja")
+    factura = FacturaCartera(cliente_id=cliente.id, fecha=date(2026, 7, 1), monto=20000, estado="pendiente")
+    db.session.add(factura)
+    db.session.commit()
+
+    registrar_abono(factura, date(2026, 7, 10), 12000)
+    db.session.commit()
+    registrar_abono(factura, date(2026, 7, 20), 8000)
+    db.session.commit()
+
+    assert factura.estado == "pagada"
+    assert factura.fecha_pago == date(2026, 7, 20)
+    assert factura.saldo_pendiente == 0
+
+
+def test_eliminar_abono_reabre_la_factura_si_queda_saldo(db):
+    cliente = crear_cliente(db, "Tienda Vieja")
+    factura = FacturaCartera(cliente_id=cliente.id, fecha=date(2026, 7, 1), monto=20000, estado="pendiente")
+    db.session.add(factura)
+    db.session.commit()
+
+    abono1 = registrar_abono(factura, date(2026, 7, 10), 12000)
+    db.session.commit()
+    registrar_abono(factura, date(2026, 7, 20), 8000)
+    db.session.commit()
+    assert factura.estado == "pagada"
+
+    eliminar_abono(abono1.id)
+    db.session.commit()
+
+    assert factura.estado == "pendiente"
+    assert factura.saldo_pendiente == 12000
+
+
+def test_total_pendiente_descuenta_abonos(db):
+    salida = crear_salida(db)
+    cliente = crear_cliente(db, "Tienda Vieja")
+    factura = FacturaCartera(salida_id=salida.id, cliente_id=cliente.id, fecha=date(2026, 8, 2), monto=50000)
+    db.session.add(factura)
+    db.session.commit()
+
+    registrar_abono(factura, date(2026, 8, 10), 20000)
+    db.session.commit()
+
+    assert total_pendiente() == 30000
+
+
+def test_total_pendiente_a_fecha_de_corte_ignora_abonos_posteriores(db):
+    salida = crear_salida(db)
+    cliente = crear_cliente(db, "Tienda Vieja")
+    factura = FacturaCartera(salida_id=salida.id, cliente_id=cliente.id, fecha=date(2026, 8, 2), monto=50000)
+    db.session.add(factura)
+    db.session.commit()
+
+    registrar_abono(factura, date(2026, 8, 25), 20000)
+    db.session.commit()
+
+    # a fecha de corte 8/20, ese abono (8/25) todavia no habia pasado
+    assert total_pendiente(fecha_corte=date(2026, 8, 20)) == 50000
+    assert total_pendiente(fecha_corte=date(2026, 8, 31)) == 30000

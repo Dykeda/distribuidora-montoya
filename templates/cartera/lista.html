@@ -38,6 +38,8 @@
       <th>Fecha factura</th>
       <th>Ruta (salida)</th>
       <th class="text-end">Monto</th>
+      <th class="text-end">Abonado</th>
+      <th class="text-end">Saldo</th>
       <th>Estado</th>
       <th class="text-end">Días pendiente</th>
       <th></th>
@@ -57,6 +59,8 @@
         {% endif %}
       </td>
       <td class="text-end">${{ "{:,}".format(f.monto) }}</td>
+      <td class="text-end">{{ "${:,}".format(f.total_abonado) if f.total_abonado else "-" }}</td>
+      <td class="text-end fw-bold">${{ "{:,}".format(f.saldo_pendiente) }}</td>
       <td>
         {% if f.estado == 'pagada' %}
           <span class="badge bg-success">Pagada</span>
@@ -67,7 +71,10 @@
       <td class="text-end {{ 'text-danger fw-bold' if fila.dias_pendiente and fila.dias_pendiente > 60 }}">
         {{ fila.dias_pendiente if fila.dias_pendiente is not none else '-' }}
       </td>
-      <td class="text-end">
+      <td class="text-end text-nowrap">
+        {% if f.estado != 'pagada' %}
+        <a href="{{ url_for('cartera.abono_nuevo', factura_id=f.id) }}" class="btn btn-sm btn-outline-primary">+ Abono</a>
+        {% endif %}
         {% if f.estado == 'pagada' %}
         <form method="post" action="{{ url_for('cartera.marcar_pendiente', factura_id=f.id) }}" class="d-inline">
           <button type="submit" class="btn btn-sm btn-outline-secondary">Marcar pendiente</button>
@@ -84,7 +91,7 @@
       </td>
     </tr>
     {% else %}
-    <tr><td colspan="7" class="text-center text-muted">No hay facturas registradas todavía.</td></tr>
+    <tr><td colspan="9" class="text-center text-muted">No hay facturas registradas todavía.</td></tr>
     {% endfor %}
   </tbody>
 </table>

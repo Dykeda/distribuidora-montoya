@@ -32,7 +32,7 @@
   </div>
 
   <label class="form-label mb-1">Créditos pagados</label>
-  <p class="text-muted small mt-0 mb-2">Busca y elige las facturas de cartera que el cliente pagó en efectivo durante esta ruta — se suman a lo esperado y quedan marcadas como pagadas en Cartera.</p>
+  <p class="text-muted small mt-0 mb-2">Busca la factura de cartera que el cliente pagó (completa o solo un abono) durante esta ruta — se suma a lo esperado. Si el abono cubre todo el saldo, la factura queda marcada como pagada; si no, se descuenta el saldo.</p>
   <div class="position-relative mb-2" style="max-width:500px;">
     <input type="text" id="buscar-credito-pagado" class="form-control" placeholder="Buscar cliente..." autocomplete="off">
     <div id="resultados-credito-pagado" class="list-group position-absolute w-100 d-none" style="z-index:1000; max-height:240px; overflow-y:auto;"></div>
@@ -43,8 +43,8 @@
       <tr>
         <th>Cliente</th>
         <th>Fecha</th>
-        <th class="text-end">Monto</th>
-        <th>Notas</th>
+        <th class="text-end">Saldo</th>
+        <th style="width:160px">Abono</th>
         <th></th>
       </tr>
     </thead>
@@ -226,17 +226,18 @@
     cuerpoSeleccionadasCredito.querySelectorAll("tr[data-factura-id]").forEach((tr) => tr.remove());
     filaSinCreditos.style.display = seleccionadasCredito.size ? "none" : "";
     seleccionadasCredito.forEach((f, id) => {
+      const abonoInicial = f.abono != null ? f.abono : f.saldo;
       const tr = document.createElement("tr");
       tr.dataset.facturaId = id;
       tr.innerHTML = `
         <td>${f.cliente}</td>
         <td>${f.fecha}</td>
-        <td class="text-end">$${formatoMonto(f.monto)}</td>
-        <td>${f.notas || "-"}</td>
+        <td class="text-end">$${formatoMonto(f.saldo)}</td>
         <td>
-          <input type="hidden" name="pagada_factura_id[]" value="${id}">
-          <button type="button" class="btn btn-sm btn-outline-danger btn-quitar-pagada">&times;</button>
-        </td>`;
+          <input type="hidden" name="abono_factura_id[]" value="${id}">
+          <input type="number" step="1" min="1" name="abono_monto[]" class="form-control form-control-sm" value="${abonoInicial}">
+        </td>
+        <td><button type="button" class="btn btn-sm btn-outline-danger btn-quitar-pagada">&times;</button></td>`;
       tr.querySelector(".btn-quitar-pagada").addEventListener("click", () => {
         seleccionadasCredito.delete(id);
         renderSeleccionadasCredito();
@@ -271,7 +272,7 @@
       const item = document.createElement("button");
       item.type = "button";
       item.className = "list-group-item list-group-item-action";
-      item.textContent = `${f.cliente} — $${formatoMonto(f.monto)} (${f.fecha})`;
+      item.textContent = `${f.cliente} — saldo $${formatoMonto(f.saldo)} (${f.fecha})`;
       item.addEventListener("click", () => elegirCredito(f));
       resultadosCredito.appendChild(item);
     });

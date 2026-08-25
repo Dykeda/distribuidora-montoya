@@ -139,10 +139,10 @@ def construir_workbook():
     facturas = FacturaCartera.query.order_by(FacturaCartera.fecha.desc()).all()
     _hoja(
         wb, "Cartera",
-        ["Cliente", "Fecha factura", "Ruta (fecha salida)", "Monto", "Estado", "Fecha pago", "Notas"],
+        ["Cliente", "Fecha factura", "Ruta (fecha salida)", "Monto", "Abonado", "Saldo", "Estado", "Fecha pago", "Notas"],
         [
             [f.cliente.nombre, f.fecha, f.salida.fecha if f.salida else "Deuda anterior",
-             f.monto, f.estado, f.fecha_pago or "", f.notas or ""]
+             f.monto, f.total_abonado, f.saldo_pendiente, f.estado, f.fecha_pago or "", f.notas or ""]
             for f in facturas
         ],
     )

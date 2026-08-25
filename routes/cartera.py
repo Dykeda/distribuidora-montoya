@@ -4,7 +4,13 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 
 from extensions import db
 from models import SalidaCamion, FacturaCartera, Cliente
-from services.cartera import total_pendiente, facturas_con_antiguedad, resumen_antiguedad
+from services.cartera import (
+    total_pendiente,
+    facturas_con_antiguedad,
+    resumen_antiguedad,
+    registrar_abono,
+    eliminar_abono,
+)
 from services.clientes import listar_clientes
 
 bp = Blueprint("cartera", __name__, url_prefix="/cartera")
@@ -111,4 +117,47 @@ def eliminar(factura_id):
     db.session.delete(factura)
     db.session.commit()
     flash(f"Factura de {nombre_cliente} eliminada.", "success")
+    return redirect(url_for("cartera.listar"))
+
+
+@bp.route("/<int:factura_id>/abono/nuevo", methods=["GET", "POST"])
+def abono_nuevo(factura_id):
+    factura = FacturaCartera.query.get_or_404(factura_id)
+
+    if request.method == "POST":
+        fecha_str = request.form.get("fecha")
+        try:
+            fecha = datetime.strptime(fecha_str, "%Y-%m-%d").date() if fecha_str else date.today()
+        except ValueError:
+            fecha = date.today()
+
+        errores = []
+        try:
+            monto = int(request.form.get("monto") or 0)
+            if monto <= 0:
+                raise ValueError
+        except ValueError:
+            monto = 0
+            errores.append("El monto debe ser un número mayor a cero.")
+
+        if errores:
+            for e in errores:
+                flash(e, "error")
+            return render_template("cartera/abono_formulario.html", factura=factura, form=request.form)
+
+        registrar_abono(factura, fecha, monto, notas=request.form.get("notas") or None)
+        db.session.commit()
+        flash(f"Abono de ${monto:,} registrado para {factura.cliente.nombre}.", "success")
+        return redirect(url_for("cartera.listar"))
+
+    return render_template("cartera/abono_formulario.html", factura=factura, form=None, hoy=date.today().isoformat())
+
+
+@bp.route("/abono/<int:abono_id>/eliminar", methods=["POST"])
+def abono_eliminar(abono_id):
+    factura = eliminar_abono(abono_id)
+    if factura is None:
+        return redirect(url_for("cartera.listar"))
+    db.session.commit()
+    flash(f"Abono eliminado de la factura de {factura.cliente.nombre}.", "success")
     return redirect(url_for("cartera.listar"))
