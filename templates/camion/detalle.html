@@ -90,7 +90,6 @@
       <tr><td>Efectivo contado (billetes)</td><td class="text-end">${{ "{:,}".format(cuadre.efectivo_contado) }}</td></tr>
       <tr><td>Monedas contadas</td><td class="text-end">+${{ "{:,}".format(cuadre.monedas_contado) }}</td></tr>
       {% if cuadre.gasto_en_ruta %}<tr><td>Gasto en ruta</td><td class="text-end">+${{ "{:,}".format(cuadre.gasto_en_ruta) }}</td></tr>{% endif %}
-      {% if cuadre.nuevos_creditos %}<tr><td>Nuevos créditos</td><td class="text-end">+${{ "{:,}".format(cuadre.nuevos_creditos) }}</td></tr>{% endif %}
       <tr class="fw-bold border-top"><td>Efectivo esperado</td><td class="text-end">${{ "{:,}".format(cuadre.esperado) }}</td></tr>
     </tbody>
   </table>
@@ -113,6 +112,9 @@
   Gastos en ruta:
   {% for g in cuadre.gastos_ruta %}{{ g.categoria.nombre }} ${{ "{:,}".format(g.monto) }}{% if not loop.last %} · {% endif %}{% endfor %}
 </p>
+{% endif %}
+{% if cuadre.nuevos_creditos %}
+<p class="text-muted small mb-2">La venta implícita ya descuenta ${{ "{:,}".format(cuadre.nuevos_creditos) }} que quedó fiado hoy (queda como factura pendiente en Cartera).</p>
 {% endif %}
 <div class="row g-3 mb-2">
   <div class="col-md-3">

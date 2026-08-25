@@ -2,13 +2,18 @@ from datetime import date
 
 import pytest
 
-from models import SalidaCamion, FacturaCartera, Cliente
+from models import SalidaCamion, RetornoCamion, FacturaCartera, Cliente
 from services.cartera import (
     total_pendiente,
     listar_facturas,
     facturas_por_salida,
     facturas_con_antiguedad,
     resumen_antiguedad,
+    listar_pendientes,
+    sincronizar_creditos_nuevos_en_ruta,
+    sincronizar_creditos_pagados_en_ruta,
+    total_creditos_nuevos_en_ruta,
+    total_creditos_pagados_en_ruta,
 )
 
 
@@ -150,3 +155,89 @@ def test_eliminar_factura_la_quita_del_total_pendiente(db, client):
 
 def test_eliminar_factura_inexistente_da_404(client):
     assert client.post("/cartera/999/eliminar").status_code == 404
+
+
+def crear_retorno(db, salida, fecha=date(2026, 8, 5)):
+    r = RetornoCamion(salida_id=salida.id, fecha=fecha)
+    db.session.add(r)
+    db.session.commit()
+    return r
+
+
+def test_sincronizar_creditos_nuevos_en_ruta_crea_facturas_pendientes(db):
+    salida = crear_salida(db)
+    retorno = crear_retorno(db, salida)
+    cliente = crear_cliente(db, "Tienda Nueva")
+
+    sincronizar_creditos_nuevos_en_ruta(retorno, salida, [(cliente.id, 25000, "fiado")])
+    db.session.commit()
+
+    factura = FacturaCartera.query.filter_by(creada_en_retorno_id=retorno.id).one()
+    assert factura.cliente_id == cliente.id
+    assert factura.monto == 25000
+    assert factura.estado == "pendiente"
+    assert factura.salida_id == salida.id
+    assert total_creditos_nuevos_en_ruta(retorno.id) == 25000
+
+
+def test_sincronizar_creditos_nuevos_en_ruta_reemplaza_al_editar(db):
+    salida = crear_salida(db)
+    retorno = crear_retorno(db, salida)
+    cliente = crear_cliente(db, "Tienda Nueva")
+
+    sincronizar_creditos_nuevos_en_ruta(retorno, salida, [(cliente.id, 25000, "")])
+    db.session.commit()
+
+    sincronizar_creditos_nuevos_en_ruta(retorno, salida, [(cliente.id, 40000, "")])
+    db.session.commit()
+
+    facturas = FacturaCartera.query.filter_by(creada_en_retorno_id=retorno.id).all()
+    assert len(facturas) == 1
+    assert facturas[0].monto == 40000
+
+
+def test_sincronizar_creditos_pagados_en_ruta_marca_y_libera(db):
+    salida = crear_salida(db)
+    retorno = crear_retorno(db, salida)
+    cliente = crear_cliente(db, "Tienda Vieja")
+    factura = FacturaCartera(cliente_id=cliente.id, fecha=date(2026, 7, 1), monto=15000, estado="pendiente")
+    db.session.add(factura)
+    db.session.commit()
+
+    sincronizar_creditos_pagados_en_ruta(retorno, [factura.id])
+    db.session.commit()
+
+    assert factura.estado == "pagada"
+    assert factura.fecha_pago == retorno.fecha
+    assert factura.cobrada_en_retorno_id == retorno.id
+    assert total_creditos_pagados_en_ruta(retorno.id) == 15000
+    assert factura not in listar_pendientes()
+
+    # se edita el retorno y se destilda esa factura -> vuelve a quedar pendiente
+    sincronizar_creditos_pagados_en_ruta(retorno, [])
+    db.session.commit()
+
+    assert factura.estado == "pendiente"
+    assert factura.fecha_pago is None
+    assert factura.cobrada_en_retorno_id is None
+    assert total_creditos_pagados_en_ruta(retorno.id) == 0
+
+
+def test_sincronizar_creditos_pagados_no_toca_facturas_pagadas_a_mano(db):
+    salida = crear_salida(db)
+    retorno = crear_retorno(db, salida)
+    cliente = crear_cliente(db, "Tienda Vieja")
+    factura_manual = FacturaCartera(
+        cliente_id=cliente.id, fecha=date(2026, 7, 1), monto=9000,
+        estado="pagada", fecha_pago=date(2026, 7, 15),
+    )
+    db.session.add(factura_manual)
+    db.session.commit()
+
+    # el cuadre de esta ruta no elige ninguna factura -- no debe tocar la pagada a mano
+    sincronizar_creditos_pagados_en_ruta(retorno, [])
+    db.session.commit()
+
+    assert factura_manual.estado == "pagada"
+    assert factura_manual.fecha_pago == date(2026, 7, 15)
+    assert factura_manual.cobrada_en_retorno_id is None

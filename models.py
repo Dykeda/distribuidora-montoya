@@ -210,6 +210,14 @@ class FacturaCartera(db.Model):
     estado = db.Column(db.String(20), nullable=False, default="pendiente")
     fecha_pago = db.Column(db.Date, nullable=True)
     notas = db.Column(db.String(255), nullable=True)
+    # No nula solo para facturas que nacen del cuadre de caja de una ruta (venta que quedó
+    # fiada ese día) -- permite sincronizar sin duplicar si se edita el retorno, mismo
+    # patrón que Gasto.retorno_id (ver services/gastos.py).
+    creada_en_retorno_id = db.Column(db.Integer, db.ForeignKey("retorno_camion.id"), nullable=True)
+    # No nula solo cuando esta factura se marcó pagada durante el cuadre de caja de una
+    # ruta (el cliente le pagó una deuda vieja al conductor) -- para poder deshacer si se
+    # edita el retorno, sin afectar facturas marcadas pagadas a mano desde Cartera.
+    cobrada_en_retorno_id = db.Column(db.Integer, db.ForeignKey("retorno_camion.id"), nullable=True)
 
     salida = db.relationship("SalidaCamion", back_populates="facturas")
     cliente = db.relationship("Cliente", back_populates="facturas")

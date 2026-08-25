@@ -12,11 +12,20 @@ from models import (
     RetornoCamionDetalle,
     RecargaCamion,
     RecargaCamionDetalle,
+    FacturaCartera,
 )
 from services.ventas import venta_por_salida, rutas_en_transito, cargado_por_producto
 from services.inventario import cajas_y_unidades
 from services.caja import efectivo_por_salida
 from services.gastos import sincronizar_gastos_en_ruta, gastos_en_ruta, categorias_por_tipo
+from services.clientes import listar_clientes
+from services.cartera import (
+    listar_pendientes,
+    sincronizar_creditos_nuevos_en_ruta,
+    sincronizar_creditos_pagados_en_ruta,
+    total_creditos_nuevos_en_ruta,
+    total_creditos_pagados_en_ruta,
+)
 from services.fechas import MESES_ES
 
 bp = Blueprint("camion", __name__, url_prefix="/camion")
@@ -111,13 +120,17 @@ def detalle(salida_id):
 
     cuadre = None
     if salida.retorno and salida.retorno.efectivo_contado is not None and salida.retorno.monedas_contado is not None:
+        # venta_implicita ya viene neta de lo que quedó fiado hoy -- efectivo_por_salida()
+        # resta las facturas de cartera ligadas a esta salida, y "nuevos créditos" del
+        # cuadre ahora SON esas facturas (ver services/cartera.py), así que no se debe
+        # volver a restar/sumar aparte para no contar dos veces.
         venta_implicita = efectivo_por_salida(salida_id) or 0
         gastos_ruta = gastos_en_ruta(salida.retorno.id)
         gasto_en_ruta = sum(g.monto for g in gastos_ruta)
         creditos_pagados = salida.retorno.creditos_pagados or 0
         nuevos_creditos = salida.retorno.nuevos_creditos or 0
         efectivo_real = salida.retorno.efectivo_contado + salida.retorno.monedas_contado
-        efectivo_esperado = efectivo_real + gasto_en_ruta + nuevos_creditos
+        efectivo_esperado = efectivo_real + gasto_en_ruta
         venta_total = venta_implicita + creditos_pagados
         cuadre = {
             "venta_implicita": venta_implicita,
@@ -179,6 +192,16 @@ def retorno_nueva(salida_id):
     categorias_negocio = categorias_por_tipo("negocio")
     categorias_hogar = categorias_por_tipo("hogar")
     gastos_previos = gastos_en_ruta(retorno_existente.id) if retorno_existente else []
+    clientes = listar_clientes()
+    pendientes = listar_pendientes()
+    creditos_previos = (
+        FacturaCartera.query.filter_by(creada_en_retorno_id=retorno_existente.id).all()
+        if retorno_existente else []
+    )
+    pagadas_previas_ids = (
+        [f.id for f in FacturaCartera.query.filter_by(cobrada_en_retorno_id=retorno_existente.id).all()]
+        if retorno_existente else []
+    )
 
     cargado = cargado_por_producto(salida)  # incluye salida inicial + recargas del día
     regresado_previo = {d.producto_id: d.cantidad_unidades for d in retorno_existente.detalles} if retorno_existente else {}
@@ -212,6 +235,26 @@ def retorno_nueva(salida_id):
             cat_str = categoria_ids[i] if i < len(categoria_ids) else ""
             lineas_gasto.append((int(cat_str) if cat_str else None, monto))
 
+        cliente_ids_credito = request.form.getlist("credito_cliente_id[]")
+        montos_credito = request.form.getlist("credito_monto[]")
+        notas_credito = request.form.getlist("credito_notas[]")
+        lineas_credito_nuevo = []
+        for i, cliente_id_str in enumerate(cliente_ids_credito):
+            if not cliente_id_str:
+                continue
+            try:
+                monto = int(montos_credito[i] or 0) if i < len(montos_credito) else 0
+            except ValueError:
+                monto = 0
+            if monto <= 0:
+                continue
+            nota = notas_credito[i] if i < len(notas_credito) else ""
+            lineas_credito_nuevo.append((int(cliente_id_str), monto, nota))
+
+        factura_ids_pagadas = [
+            int(fid) for fid in request.form.getlist("pagada_factura_id[]") if fid
+        ]
+
         detalles = []
         for fila in filas:
             producto = fila["producto"]
@@ -232,7 +275,8 @@ def retorno_nueva(salida_id):
                 return render_template(
                     "camion/retorno_formulario.html", salida=salida, filas=filas, form=request.form,
                     retorno_existente=retorno_existente, categorias_negocio=categorias_negocio, categorias_hogar=categorias_hogar,
-                    lineas_gasto_iniciales=lineas_gasto,
+                    lineas_gasto_iniciales=lineas_gasto, clientes=clientes, pendientes=pendientes,
+                    lineas_credito_iniciales=lineas_credito_nuevo, pagadas_previas_ids=factura_ids_pagadas,
                 )
             detalles.append(RetornoCamionDetalle(producto_id=fila["producto"].id, cantidad_unidades=cantidad_unidades))
 
@@ -245,44 +289,43 @@ def retorno_nueva(salida_id):
             except ValueError:
                 efectivo_contado = monedas_contado = None
 
-        try:
-            creditos_pagados = int(request.form.get("creditos_pagados") or 0)
-        except ValueError:
-            creditos_pagados = 0
-        try:
-            nuevos_creditos = int(request.form.get("nuevos_creditos") or 0)
-        except ValueError:
-            nuevos_creditos = 0
-
         if retorno_existente is not None:
-            retorno_existente.fecha = fecha
-            retorno_existente.notas = request.form.get("notas") or None
-            retorno_existente.efectivo_contado = efectivo_contado
-            retorno_existente.monedas_contado = monedas_contado
-            retorno_existente.creditos_pagados = creditos_pagados
-            retorno_existente.nuevos_creditos = nuevos_creditos
-            retorno_existente.detalles = detalles
-            sincronizar_gastos_en_ruta(retorno_existente, lineas_gasto, salida.fecha)
-            db.session.commit()
-            flash("Retorno de camión actualizado. Inventario y salidas de dinero recalculados.", "success")
+            retorno = retorno_existente
+            retorno.fecha = fecha
+            retorno.notas = request.form.get("notas") or None
+            retorno.efectivo_contado = efectivo_contado
+            retorno.monedas_contado = monedas_contado
+            retorno.detalles = detalles
+            sincronizar_gastos_en_ruta(retorno, lineas_gasto, salida.fecha)
         else:
             retorno = RetornoCamion(
                 salida_id=salida.id, fecha=fecha, notas=request.form.get("notas") or None,
                 efectivo_contado=efectivo_contado, monedas_contado=monedas_contado,
-                creditos_pagados=creditos_pagados, nuevos_creditos=nuevos_creditos,
             )
             retorno.detalles = detalles
             db.session.add(retorno)
             db.session.flush()
             sincronizar_gastos_en_ruta(retorno, lineas_gasto, salida.fecha)
-            db.session.commit()
-            flash("Retorno de camión registrado. Inventario actualizado.", "success")
+
+        sincronizar_creditos_nuevos_en_ruta(retorno, salida, lineas_credito_nuevo)
+        sincronizar_creditos_pagados_en_ruta(retorno, factura_ids_pagadas)
+        retorno.nuevos_creditos = total_creditos_nuevos_en_ruta(retorno.id)
+        retorno.creditos_pagados = total_creditos_pagados_en_ruta(retorno.id)
+        db.session.commit()
+
+        if retorno_existente is not None:
+            flash("Retorno de camión actualizado. Inventario, cartera y salidas de dinero recalculados.", "success")
+        else:
+            flash("Retorno de camión registrado. Inventario y cartera actualizados.", "success")
         return redirect(url_for("camion.detalle", salida_id=salida.id))
 
     return render_template(
         "camion/retorno_formulario.html", salida=salida, filas=filas, form=None,
         retorno_existente=retorno_existente, categorias_negocio=categorias_negocio, categorias_hogar=categorias_hogar,
         lineas_gasto_iniciales=[(g.categoria_id, g.monto) for g in gastos_previos],
+        clientes=clientes, pendientes=pendientes,
+        lineas_credito_iniciales=[(f.cliente_id, f.monto, f.notas or "") for f in creditos_previos],
+        pagadas_previas_ids=pagadas_previas_ids,
     )
 
 

@@ -3,7 +3,7 @@ from datetime import date
 from sqlalchemy import func, or_
 
 from extensions import db
-from models import FacturaCartera
+from models import FacturaCartera, Cliente
 
 
 def total_pendiente(fecha_corte=None, cliente_id=None):
@@ -40,6 +40,71 @@ def facturas_por_salida(salida_id):
         .order_by(FacturaCartera.fecha.desc())
         .all()
     )
+
+
+def listar_pendientes():
+    """Todas las facturas de cartera sin cobrar, con el cliente cargado -- para el
+    buscador de "créditos pagados" del cuadre de caja de una ruta."""
+    return (
+        FacturaCartera.query.filter_by(estado="pendiente")
+        .join(Cliente)
+        .order_by(Cliente.nombre, FacturaCartera.fecha)
+        .all()
+    )
+
+
+def sincronizar_creditos_nuevos_en_ruta(retorno, salida, lineas):
+    """Reemplaza todas las facturas de cartera que nacieron de este retorno (venta fiada
+    ese día) con la lista nueva -- mismo patrón que sincronizar_gastos_en_ruta(). lineas es
+    una lista de (cliente_id, monto, notas)."""
+    FacturaCartera.query.filter_by(creada_en_retorno_id=retorno.id).delete()
+    for cliente_id, monto, notas in lineas:
+        if not cliente_id or not monto or monto <= 0:
+            continue
+        db.session.add(FacturaCartera(
+            salida_id=salida.id, cliente_id=cliente_id, fecha=retorno.fecha, monto=monto,
+            notas=notas or None, creada_en_retorno_id=retorno.id,
+        ))
+
+
+def sincronizar_creditos_pagados_en_ruta(retorno, factura_ids):
+    """Marca como pagadas las facturas de cartera elegidas en el cuadre de esta ruta (el
+    cliente le pagó una deuda vieja al conductor), y libera las que ya no estén elegidas
+    -- para poder corregir si se edita el retorno, sin tocar facturas pagadas a mano desde
+    Cartera (esas no tienen cobrada_en_retorno_id)."""
+    liberadas = FacturaCartera.query.filter_by(cobrada_en_retorno_id=retorno.id)
+    if factura_ids:
+        liberadas = liberadas.filter(FacturaCartera.id.notin_(factura_ids))
+    for f in liberadas.all():
+        f.estado = "pendiente"
+        f.fecha_pago = None
+        f.cobrada_en_retorno_id = None
+
+    for factura_id in factura_ids or []:
+        factura = db.session.get(FacturaCartera, factura_id)
+        if factura is None:
+            continue
+        factura.estado = "pagada"
+        factura.fecha_pago = retorno.fecha
+        factura.cobrada_en_retorno_id = retorno.id
+
+
+def total_creditos_nuevos_en_ruta(retorno_id):
+    total = (
+        db.session.query(func.coalesce(func.sum(FacturaCartera.monto), 0))
+        .filter(FacturaCartera.creada_en_retorno_id == retorno_id)
+        .scalar()
+    )
+    return round(total)
+
+
+def total_creditos_pagados_en_ruta(retorno_id):
+    total = (
+        db.session.query(func.coalesce(func.sum(FacturaCartera.monto), 0))
+        .filter(FacturaCartera.cobrada_en_retorno_id == retorno_id)
+        .scalar()
+    )
+    return round(total)
 
 
 RANGOS_ANTIGUEDAD = [

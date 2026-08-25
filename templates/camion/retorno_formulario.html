@@ -31,18 +31,71 @@
     <p class="text-muted small mt-1 mb-0">Opcional — si los cuentas, te decimos al guardar si sobró o faltó dinero comparado con lo que debería haber traído la ruta.</p>
   </div>
 
-  <div class="row col-lg-6 mb-3">
-    <div class="col-md-6">
-      <label class="form-label">Créditos pagados</label>
-      <input type="number" step="1" min="0" name="creditos_pagados" class="form-control" value="{{ form.creditos_pagados if form else (retorno_existente.creditos_pagados if retorno_existente and retorno_existente.creditos_pagados else 0) }}">
-      <div class="form-text small">Cobros de facturas viejas — se suma a lo esperado.</div>
-    </div>
-    <div class="col-md-6">
-      <label class="form-label">Nuevos créditos</label>
-      <input type="number" step="1" min="0" name="nuevos_creditos" class="form-control" value="{{ form.nuevos_creditos if form else (retorno_existente.nuevos_creditos if retorno_existente and retorno_existente.nuevos_creditos else 0) }}">
-      <div class="form-text small">Venta que quedó fiada hoy — se resta de lo esperado.</div>
-    </div>
+  <label class="form-label mb-1">Créditos pagados</label>
+  <p class="text-muted small mt-0 mb-2">Marca las facturas de cartera que el cliente pagó en efectivo durante esta ruta — se suman a lo esperado y quedan marcadas como pagadas en Cartera.</p>
+  <input type="text" id="buscar-credito-pagado" class="form-control mb-2" placeholder="Buscar cliente...">
+  <div class="table-responsive mb-4">
+  <table class="table table-sm" id="tabla-creditos-pagados">
+    <thead>
+      <tr>
+        <th style="width:40px"></th>
+        <th>Cliente</th>
+        <th>Fecha</th>
+        <th class="text-end">Monto</th>
+        <th>Notas</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for f in pendientes %}
+      <tr data-nombre="{{ f.cliente.nombre | lower }}">
+        <td><input type="checkbox" name="pagada_factura_id[]" value="{{ f.id }}" {% if f.id in pagadas_previas_ids %}checked{% endif %}></td>
+        <td>{{ f.cliente.nombre }}</td>
+        <td>{{ f.fecha.strftime("%Y-%m-%d") }}</td>
+        <td class="text-end">${{ "{:,}".format(f.monto) }}</td>
+        <td>{{ f.notas or "-" }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="text-center text-muted">No hay facturas pendientes en Cartera.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
   </div>
+
+  <label class="form-label mb-1">Nuevos créditos</label>
+  <p class="text-muted small mt-0 mb-2">Venta que el cliente no pagó de contado — se resta de lo esperado y queda registrada sola como factura pendiente en Cartera.</p>
+  <div class="table-responsive">
+  <table class="table table-sm" id="tabla-creditos-nuevos">
+    <thead>
+      <tr>
+        <th>Cliente</th>
+        <th style="width:180px">Monto</th>
+        <th>Notas</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="cuerpo-creditos-nuevos"></tbody>
+  </table>
+  </div>
+  <div class="d-flex gap-2 mb-4">
+    <button type="button" id="btn-agregar-credito" class="btn btn-outline-secondary btn-sm">+ Agregar crédito nuevo</button>
+    <a href="{{ url_for('clientes.nuevo', next=url_for('camion.retorno_nueva', salida_id=salida.id)) }}" target="_blank" class="btn btn-outline-secondary btn-sm">+ Nuevo cliente</a>
+  </div>
+
+  <template id="plantilla-credito-nuevo">
+    <tr>
+      <td>
+        <select name="credito_cliente_id[]" class="form-select">
+          <option value="">-- elegir cliente --</option>
+          {% for c in clientes %}
+          <option value="{{ c.id }}">{{ c.nombre }}</option>
+          {% endfor %}
+        </select>
+      </td>
+      <td><input type="number" step="1" min="0" name="credito_monto[]" class="form-control" value="0"></td>
+      <td><input type="text" name="credito_notas[]" class="form-control" placeholder="Opcional"></td>
+      <td><button type="button" class="btn btn-sm btn-outline-danger btn-quitar-credito">&times;</button></td>
+    </tr>
+  </template>
 
   <label class="form-label mb-1">Gastos en ruta</label>
   <p class="text-muted small mt-0 mb-2">Gasolina, peajes, un pago que se hizo en el camino, etc. — una ruta puede tener varios, cada uno con su categoría real. Se restan de lo esperado y se registran solos en Salidas de dinero.</p>
@@ -148,5 +201,37 @@
   } else {
     agregarLineaGasto(null, 0);
   }
+
+  document.getElementById("buscar-credito-pagado").addEventListener("input", (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll("#tabla-creditos-pagados tbody tr[data-nombre]").forEach((tr) => {
+      tr.style.display = tr.dataset.nombre.includes(q) ? "" : "none";
+    });
+  });
+
+  const cuerpoCreditos = document.getElementById("cuerpo-creditos-nuevos");
+  const plantillaCredito = document.getElementById("plantilla-credito-nuevo");
+
+  function agregarLineaCredito(clienteId, monto, notas) {
+    const nodo = plantillaCredito.content.cloneNode(true);
+    nodo.querySelector(".btn-quitar-credito").addEventListener("click", (e) => {
+      e.target.closest("tr").remove();
+    });
+    if (clienteId) {
+      nodo.querySelector('select[name="credito_cliente_id[]"]').value = String(clienteId);
+    }
+    if (monto) {
+      nodo.querySelector('input[name="credito_monto[]"]').value = monto;
+    }
+    if (notas) {
+      nodo.querySelector('input[name="credito_notas[]"]').value = notas;
+    }
+    cuerpoCreditos.appendChild(nodo);
+  }
+
+  document.getElementById("btn-agregar-credito").addEventListener("click", () => agregarLineaCredito(null, 0, ""));
+
+  const lineasCreditoIniciales = {{ lineas_credito_iniciales | tojson }};
+  lineasCreditoIniciales.forEach(([clienteId, monto, notas]) => agregarLineaCredito(clienteId, monto, notas));
 </script>
 {% endblock %}

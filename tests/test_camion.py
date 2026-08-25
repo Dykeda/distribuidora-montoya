@@ -11,6 +11,8 @@ from models import (
     RetornoCamionDetalle,
     RecargaCamion,
     RecargaCamionDetalle,
+    Cliente,
+    FacturaCartera,
 )
 from services.inventario import calcular_stock
 
@@ -31,6 +33,20 @@ def crear_producto(db, nombre="Coca-Cola 1.5L", precio=3000, unidades_por_caja=6
     db.session.add(ProductoPrecio(producto_id=p.id, precio_venta_unidad=precio, precio_venta_caja=precio * unidades_por_caja, vigente_desde=date(2026, 1, 1)))
     db.session.commit()
     return p
+
+
+def crear_cliente(db, nombre="Tienda Vieja"):
+    c = Cliente(nombre=nombre)
+    db.session.add(c)
+    db.session.commit()
+    return c
+
+
+def crear_factura_pendiente(db, cliente, monto, fecha=date(2026, 7, 1)):
+    f = FacturaCartera(cliente_id=cliente.id, fecha=fecha, monto=monto, estado="pendiente")
+    db.session.add(f)
+    db.session.commit()
+    return f
 
 
 def test_retorno_combina_cajas_y_unidades_sueltas(db, client):
@@ -153,6 +169,7 @@ def test_retorno_sin_conteo_de_caja_no_muestra_cuadre(db, client):
 
 def test_retorno_con_conteo_de_caja_muestra_sobrante(db, client):
     coca = crear_producto(db, unidades_por_caja=6, precio=3000)
+    cliente = crear_cliente(db)
     salida = SalidaCamion(fecha=date(2026, 8, 1))
     db.session.add(salida)
     db.session.flush()
@@ -166,7 +183,7 @@ def test_retorno_con_conteo_de_caja_muestra_sobrante(db, client):
             "fecha": HOY, "notas": "",
             f"regreso_cajas_{coca.id}": "0", f"regreso_unidades_{coca.id}": "0",
             "efectivo_contado": "75000", "monedas_contado": "3500",
-            "nuevos_creditos": "5000",
+            "credito_cliente_id[]": [str(cliente.id)], "credito_monto[]": ["5000"], "credito_notas[]": [""],
         },
         follow_redirects=True,
     )
@@ -408,6 +425,9 @@ def test_lista_de_camion_muestra_acceso_directo_al_cuadre_segun_estado(db, clien
 
 def test_cuadre_de_caja_incluye_gasto_creditos_pagados_y_nuevos_creditos(db, client):
     coca = crear_producto(db, unidades_por_caja=6, precio=3000)
+    cliente_viejo = crear_cliente(db, "Tienda Vieja")
+    cliente_nuevo = crear_cliente(db, "Tienda Nueva")
+    factura_pendiente = crear_factura_pendiente(db, cliente_viejo, 10000)
     salida = SalidaCamion(fecha=date(2026, 8, 1))
     db.session.add(salida)
     db.session.flush()
@@ -421,7 +441,9 @@ def test_cuadre_de_caja_incluye_gasto_creditos_pagados_y_nuevos_creditos(db, cli
             "fecha": HOY, "notas": "",
             f"regreso_cajas_{coca.id}": "0", f"regreso_unidades_{coca.id}": "0",
             "efectivo_contado": "70000", "monedas_contado": "0",
-            "gasto_categoria_id[]": [""], "gasto_monto[]": ["5000"], "creditos_pagados": "10000", "nuevos_creditos": "13000",
+            "gasto_categoria_id[]": [""], "gasto_monto[]": ["5000"],
+            "pagada_factura_id[]": [str(factura_pendiente.id)],
+            "credito_cliente_id[]": [str(cliente_nuevo.id)], "credito_monto[]": ["13000"], "credito_notas[]": [""],
         },
         follow_redirects=True,
     )
@@ -434,12 +456,20 @@ def test_cuadre_de_caja_incluye_gasto_creditos_pagados_y_nuevos_creditos(db, cli
     assert retorno.creditos_pagados == 10000
     assert retorno.nuevos_creditos == 13000
 
+    # la factura vieja quedó marcada pagada en Cartera, y la nueva venta fiada quedó pendiente
+    assert FacturaCartera.query.get(factura_pendiente.id).estado == "pagada"
+    nueva_factura = FacturaCartera.query.filter_by(cliente_id=cliente_nuevo.id).one()
+    assert nueva_factura.estado == "pendiente"
+    assert nueva_factura.monto == 13000
+    assert nueva_factura.salida_id == salida.id
+
     r = client.get(f"/camion/{salida.id}")
     body = r.get_data(as_text=True)
-    # esperado = contado(70000+0) + gasto(5000) + nuevos creditos(13000) = 88000
-    # venta total = 78000 + 10000 (creditos pagados) = 88000
-    # diferencia = 88000 - 88000 = 0 -> cuadra exacto
-    assert "88,000" in body
+    # venta implicita neta = 78000 - 13000 (nuevos creditos, ya restados vía Cartera) = 65000
+    # venta total = 65000 + 10000 (creditos pagados) = 75000
+    # esperado = contado(70000+0) + gasto(5000) = 75000
+    # diferencia = 75000 - 75000 = 0 -> cuadra exacto
+    assert "75,000" in body
     assert "Cuadra exacto" in body
 
 
@@ -482,6 +512,9 @@ def test_editar_retorno_permite_ajustar_gasto_en_ruta(db, client):
 
 def test_cuadre_muestra_venta_total_sumando_creditos_y_restando_gasto(db, client):
     coca = crear_producto(db, unidades_por_caja=6, precio=3000)
+    cliente_viejo = crear_cliente(db, "Tienda Vieja")
+    cliente_nuevo = crear_cliente(db, "Tienda Nueva")
+    factura_pendiente = crear_factura_pendiente(db, cliente_viejo, 10000)
     salida = SalidaCamion(fecha=date(2026, 8, 1))
     db.session.add(salida)
     db.session.flush()
@@ -495,16 +528,18 @@ def test_cuadre_muestra_venta_total_sumando_creditos_y_restando_gasto(db, client
             "fecha": HOY, "notas": "",
             f"regreso_cajas_{coca.id}": "0", f"regreso_unidades_{coca.id}": "0",
             "efectivo_contado": "70000", "monedas_contado": "0",
-            "gasto_categoria_id[]": [""], "gasto_monto[]": ["5000"], "creditos_pagados": "10000", "nuevos_creditos": "13000",
+            "gasto_categoria_id[]": [""], "gasto_monto[]": ["5000"],
+            "pagada_factura_id[]": [str(factura_pendiente.id)],
+            "credito_cliente_id[]": [str(cliente_nuevo.id)], "credito_monto[]": ["13000"], "credito_notas[]": [""],
         },
         follow_redirects=True,
     )
 
     r = client.get(f"/camion/{salida.id}")
     body = r.get_data(as_text=True)
-    # venta total = 78000 + 10000 (creditos pagados) = 88000
+    # venta implicita neta = 78000 - 13000 (nuevos creditos) = 65000; + 10000 (creditos pagados) = 75000
     assert "Venta total" in body
-    assert "88,000" in body
+    assert "75,000" in body
 
 
 def test_gasto_en_ruta_crea_salida_de_dinero(db, client):
