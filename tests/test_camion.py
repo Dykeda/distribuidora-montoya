@@ -473,6 +473,34 @@ def test_cuadre_de_caja_incluye_gasto_creditos_pagados_y_nuevos_creditos(db, cli
     assert "Cuadra exacto" in body
 
 
+def test_detalle_de_ruta_muestra_total_de_cartera_de_la_ruta(db, client):
+    coca = crear_producto(db, unidades_por_caja=6, precio=3000)
+    cliente_a = crear_cliente(db, "Tienda A")
+    cliente_b = crear_cliente(db, "Tienda B")
+    salida = SalidaCamion(fecha=date(2026, 8, 1))
+    db.session.add(salida)
+    db.session.flush()
+    db.session.add(SalidaCamionDetalle(salida_id=salida.id, producto_id=coca.id, cantidad_unidades=26))
+    db.session.commit()
+
+    client.post(
+        f"/camion/retorno/nueva/{salida.id}",
+        data={
+            "fecha": HOY, "notas": "",
+            f"regreso_cajas_{coca.id}": "0", f"regreso_unidades_{coca.id}": "0",
+            "credito_cliente_id[]": [str(cliente_a.id), str(cliente_b.id)],
+            "credito_monto[]": ["10000", "7000"],
+            "credito_notas[]": ["", ""],
+        },
+        follow_redirects=True,
+    )
+
+    r = client.get(f"/camion/{salida.id}")
+    body = r.get_data(as_text=True)
+    assert "Tienda A" in body and "Tienda B" in body
+    assert "17,000" in body  # total de la cartera de esta ruta (10000 + 7000)
+
+
 def test_cuadre_de_caja_incluye_montos_manuales_de_creditos(db, client):
     # cliente sin la cartera pendiente real cargada en el sistema todavia -- usa el
     # monto manual en vez del buscador/constructor ligado a Cartera

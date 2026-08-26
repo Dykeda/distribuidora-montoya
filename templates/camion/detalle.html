@@ -171,6 +171,13 @@
     </tr>
     {% endfor %}
   </tbody>
+  <tfoot>
+    <tr class="fw-bold border-top">
+      <td>Total</td>
+      <td class="text-end">${{ "{:,}".format(salida.facturas | sum(attribute="monto")) }}</td>
+      <td></td>
+    </tr>
+  </tfoot>
 </table>
 </div>
 {% else %}
