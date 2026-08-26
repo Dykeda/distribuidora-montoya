@@ -7,7 +7,7 @@
 <div class="alert alert-info">Ya hay un retorno registrado para esta ruta. Guardar aquí lo reemplaza con los valores que escribas.</div>
 {% endif %}
 
-<form method="post">
+<form method="post" id="form-retorno">
   <div class="row col-lg-6 mb-3">
     <div class="col-md-6">
       <label class="form-label">Fecha de regreso</label>
@@ -222,6 +222,19 @@
     return n.toLocaleString("en-US");
   }
 
+  function formatearInputMoneda(input) {
+    input.addEventListener("input", () => {
+      const digitos = input.value.replace(/[^\d]/g, "");
+      input.value = digitos ? "$" + formatoMonto(Number(digitos)) : "";
+    });
+  }
+
+  document.getElementById("form-retorno").addEventListener("submit", () => {
+    document.querySelectorAll(".input-moneda").forEach((input) => {
+      input.value = input.value.replace(/[^\d]/g, "");
+    });
+  });
+
   function renderSeleccionadasCredito() {
     cuerpoSeleccionadasCredito.querySelectorAll("tr[data-factura-id]").forEach((tr) => tr.remove());
     filaSinCreditos.style.display = seleccionadasCredito.size ? "none" : "";
@@ -235,13 +248,14 @@
         <td class="text-end">$${formatoMonto(f.saldo)}</td>
         <td>
           <input type="hidden" name="abono_factura_id[]" value="${id}">
-          <input type="number" step="1" min="1" name="abono_monto[]" class="form-control form-control-sm" value="${abonoInicial}">
+          <input type="text" inputmode="numeric" name="abono_monto[]" class="form-control form-control-sm input-moneda" value="$${formatoMonto(abonoInicial)}">
         </td>
         <td><button type="button" class="btn btn-sm btn-outline-danger btn-quitar-pagada">&times;</button></td>`;
       tr.querySelector(".btn-quitar-pagada").addEventListener("click", () => {
         seleccionadasCredito.delete(id);
         renderSeleccionadasCredito();
       });
+      formatearInputMoneda(tr.querySelector(".input-moneda"));
       cuerpoSeleccionadasCredito.appendChild(tr);
     });
   }
