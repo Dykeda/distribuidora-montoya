@@ -394,6 +394,24 @@ def test_eliminar_linea_de_carga(db, client):
     assert calcular_stock(agua.id) == -24
 
 
+def test_retorno_nueva_ofrece_crear_cliente_sin_salir_de_la_pagina(db, client):
+    # el formulario de retorno debe crear clientes por AJAX (endpoint /clientes/nuevo-ajax),
+    # no con un enlace que navega a otra página y pierde lo ya escrito en el cuadre de caja
+    coca = crear_producto(db, unidades_por_caja=6, precio=3000)
+    salida = SalidaCamion(fecha=date(2026, 8, 1))
+    db.session.add(salida)
+    db.session.flush()
+    db.session.add(SalidaCamionDetalle(salida_id=salida.id, producto_id=coca.id, cantidad_unidades=26))
+    db.session.commit()
+
+    r = client.get(f"/camion/retorno/nueva/{salida.id}")
+    body = r.get_data(as_text=True)
+    assert r.status_code == 200
+    assert "/clientes/nuevo-ajax" in body
+    assert 'data-bs-target="#modal-nuevo-cliente"' in body
+    assert 'target="_blank"' not in body
+
+
 def test_lista_de_camion_muestra_acceso_directo_al_cuadre_segun_estado(db, client):
     coca = crear_producto(db, unidades_por_caja=6, precio=3000)
 

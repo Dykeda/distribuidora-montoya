@@ -79,7 +79,7 @@
   </div>
   <div class="d-flex gap-2 mb-3">
     <button type="button" id="btn-agregar-credito" class="btn btn-outline-secondary btn-sm">+ Agregar crédito nuevo</button>
-    <a href="{{ url_for('clientes.nuevo', next=url_for('camion.retorno_nueva', salida_id=salida.id)) }}" target="_blank" class="btn btn-outline-secondary btn-sm">+ Nuevo cliente</a>
+    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#modal-nuevo-cliente">+ Nuevo cliente</button>
   </div>
   <div class="row col-lg-6 mb-4">
     <div class="col-md-6">
@@ -176,6 +176,33 @@
   <button type="submit" class="btn btn-primary">{{ "Guardar cambios" if retorno_existente else "Guardar retorno" }}</button>
   <a href="{{ url_for('camion.detalle', salida_id=salida.id) }}" class="btn btn-link">Cancelar</a>
 </form>
+
+<div class="modal fade" id="modal-nuevo-cliente" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Nuevo cliente</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <div id="error-nuevo-cliente" class="alert alert-danger d-none"></div>
+        <div class="mb-3">
+          <label class="form-label">Nombre</label>
+          <input type="text" id="input-nuevo-cliente-nombre" class="form-control">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Notas (opcional)</label>
+          <input type="text" id="input-nuevo-cliente-notas" class="form-control">
+        </div>
+        <p class="text-muted small mb-0">Se agrega directo a "Nuevos créditos" con lo ya escrito en el cuadre de caja intacto.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-link" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" id="btn-guardar-nuevo-cliente" class="btn btn-primary">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script>
   document.getElementById("buscar-producto-retorno").addEventListener("input", (e) => {
@@ -326,5 +353,67 @@
 
   const lineasCreditoIniciales = {{ lineas_credito_iniciales | tojson }};
   lineasCreditoIniciales.forEach(([clienteId, monto, notas]) => agregarLineaCredito(clienteId, monto, notas));
+
+  // "+ Nuevo cliente" crea el cliente por AJAX (sin salir de esta página) y lo agrega
+  // como una línea nueva de "Nuevos créditos" -- así no se pierde nada de lo ya escrito
+  // en el cuadre de caja, que es justo lo que pasaba antes al navegar a /clientes/nuevo.
+  const modalNuevoCliente = document.getElementById("modal-nuevo-cliente");
+  const inputNuevoClienteNombre = document.getElementById("input-nuevo-cliente-nombre");
+  const inputNuevoClienteNotas = document.getElementById("input-nuevo-cliente-notas");
+  const errorNuevoCliente = document.getElementById("error-nuevo-cliente");
+
+  function agregarOpcionClienteATodosLosSelect(id, nombre) {
+    const opcion = () => {
+      const opt = document.createElement("option");
+      opt.value = id;
+      opt.textContent = nombre;
+      return opt;
+    };
+    document.querySelectorAll('select[name="credito_cliente_id[]"]').forEach((select) => {
+      select.appendChild(opcion());
+    });
+    // también en la plantilla, para que las líneas que se agreguen después también la tengan
+    plantillaCredito.content.querySelector('select[name="credito_cliente_id[]"]').appendChild(opcion());
+  }
+
+  document.getElementById("btn-guardar-nuevo-cliente").addEventListener("click", async () => {
+    const nombre = inputNuevoClienteNombre.value.trim();
+    errorNuevoCliente.classList.add("d-none");
+    if (!nombre) {
+      errorNuevoCliente.textContent = "El nombre del cliente es obligatorio.";
+      errorNuevoCliente.classList.remove("d-none");
+      return;
+    }
+    let resp, data;
+    try {
+      resp = await fetch("{{ url_for('clientes.nuevo_ajax') }}", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nombre, notas: inputNuevoClienteNotas.value.trim() }),
+      });
+      data = await resp.json();
+    } catch (e) {
+      errorNuevoCliente.textContent = "No se pudo conectar con el servidor. Intenta de nuevo.";
+      errorNuevoCliente.classList.remove("d-none");
+      return;
+    }
+    if (!resp.ok) {
+      errorNuevoCliente.textContent = data.error || "No se pudo crear el cliente.";
+      errorNuevoCliente.classList.remove("d-none");
+      return;
+    }
+    agregarOpcionClienteATodosLosSelect(data.id, data.nombre);
+    agregarLineaCredito(data.id, 0, "");
+    inputNuevoClienteNombre.value = "";
+    inputNuevoClienteNotas.value = "";
+    bootstrap.Modal.getInstance(modalNuevoCliente).hide();
+  });
+
+  modalNuevoCliente.addEventListener("shown.bs.modal", () => inputNuevoClienteNombre.focus());
+  modalNuevoCliente.addEventListener("hidden.bs.modal", () => {
+    errorNuevoCliente.classList.add("d-none");
+    inputNuevoClienteNombre.value = "";
+    inputNuevoClienteNotas.value = "";
+  });
 </script>
 {% endblock %}

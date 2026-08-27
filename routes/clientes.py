@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 
 from extensions import db
 from models import Cliente
@@ -52,6 +52,27 @@ def nuevo():
         return redirect(f"{destino}{separador}cliente_id={cliente.id}")
 
     return render_template("clientes/formulario.html", cliente=None, form=None, next=destino)
+
+
+@bp.route("/nuevo-ajax", methods=["POST"])
+def nuevo_ajax():
+    """Crea un cliente sin navegar a otra página -- pensado para el cuadre de caja de una
+    ruta, un formulario largo donde salir a /clientes/nuevo y volver perdía todo lo que el
+    usuario ya había escrito. Devuelve JSON en vez de redirigir; el JS de la página que
+    llama agrega el cliente nuevo a los desplegables sin recargar nada."""
+    data = request.get_json(silent=True) or {}
+    nombre = (data.get("nombre") or "").strip()
+    notas = (data.get("notas") or "").strip() or None
+
+    if not nombre:
+        return jsonify({"error": "El nombre del cliente es obligatorio."}), 400
+    if Cliente.query.filter_by(nombre=nombre).first():
+        return jsonify({"error": f'Ya existe un cliente llamado "{nombre}".'}), 400
+
+    cliente = Cliente(nombre=nombre, notas=notas)
+    db.session.add(cliente)
+    db.session.commit()
+    return jsonify({"id": cliente.id, "nombre": cliente.nombre}), 201
 
 
 @bp.route("/<int:cliente_id>/editar", methods=["GET", "POST"])

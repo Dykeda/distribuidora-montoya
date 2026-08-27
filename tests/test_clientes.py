@@ -90,3 +90,30 @@ def test_desactivar_cliente_lo_saca_del_listado_activo(client, db):
     assert r.status_code == 200
     assert c.activo is False
     assert c.nombre not in [x.nombre for x in listar_clientes()]
+
+
+def test_crear_cliente_por_ajax_devuelve_json_sin_redirigir(client, db):
+    r = client.post(
+        "/clientes/nuevo-ajax",
+        json={"nombre": "Tienda AJAX", "notas": "creada desde el cuadre de caja"},
+    )
+    assert r.status_code == 201
+    body = r.get_json()
+    cliente = Cliente.query.filter_by(nombre="Tienda AJAX").one()
+    assert body == {"id": cliente.id, "nombre": "Tienda AJAX"}
+    assert cliente.notas == "creada desde el cuadre de caja"
+
+
+def test_crear_cliente_por_ajax_sin_nombre_da_error_json(client, db):
+    r = client.post("/clientes/nuevo-ajax", json={"nombre": "  ", "notas": ""})
+    assert r.status_code == 400
+    assert "obligatorio" in r.get_json()["error"]
+    assert Cliente.query.count() == 0
+
+
+def test_crear_cliente_por_ajax_no_permite_nombre_repetido(client, db):
+    crear_cliente(db, "Tienda Repetida AJAX")
+    r = client.post("/clientes/nuevo-ajax", json={"nombre": "Tienda Repetida AJAX", "notas": ""})
+    assert r.status_code == 400
+    assert "Ya existe" in r.get_json()["error"]
+    assert Cliente.query.filter_by(nombre="Tienda Repetida AJAX").count() == 1
