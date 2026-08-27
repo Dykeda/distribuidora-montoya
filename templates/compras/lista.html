@@ -12,6 +12,7 @@
     <tr>
       <th>Fecha</th>
       <th>Factura</th>
+      <th>Proveedor</th>
       <th class="text-end">Total a pagar</th>
       <th></th>
     </tr>
@@ -21,11 +22,12 @@
     <tr>
       <td>{{ f.compra.fecha.strftime("%Y-%m-%d") }}</td>
       <td>{{ f.compra.numero_factura or "-" }}</td>
+      <td>{{ f.compra.proveedor.nombre if f.compra.proveedor else "Postobón" }}</td>
       <td class="text-end">${{ "{:,}".format(f.total_a_pagar) }}</td>
       <td class="text-end"><a href="{{ url_for('compras.detalle', compra_id=f.compra.id) }}" class="btn btn-sm btn-outline-primary">Ver detalle</a></td>
     </tr>
     {% else %}
-    <tr><td colspan="4" class="text-center text-muted">No hay compras registradas todavía.</td></tr>
+    <tr><td colspan="5" class="text-center text-muted">No hay compras registradas todavía.</td></tr>
     {% endfor %}
   </tbody>
 </table>

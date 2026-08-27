@@ -13,7 +13,7 @@
   {% endfor %}
 </datalist>
 
-<form method="post">
+<form method="post" id="form-compra">
   <div class="row col-lg-8 mb-3">
     <div class="col-md-4">
       <label class="form-label">Fecha</label>
@@ -26,6 +26,22 @@
     <div class="col-md-4">
       <label class="form-label">Notas (opcional)</label>
       <input type="text" name="notas" class="form-control" value="{{ form.notas if form else '' }}">
+    </div>
+  </div>
+
+  <div class="row col-lg-8 mb-3">
+    <div class="col-md-6">
+      <label class="form-label">Proveedor</label>
+      <div class="d-flex gap-2">
+        {% set proveedor_preseleccion = (form.proveedor_id if form else None) | string %}
+        <select name="proveedor_id" id="select-proveedor" class="form-select">
+          {% for p in proveedores %}
+          <option value="{{ p.id }}" {% if p.id | string == proveedor_preseleccion or (not form and p.es_postobon) %}selected{% endif %}>{{ p.nombre }}</option>
+          {% endfor %}
+        </select>
+        <button type="button" class="btn btn-outline-secondary text-nowrap" data-bs-toggle="modal" data-bs-target="#modal-nuevo-proveedor">+ Nuevo proveedor</button>
+      </div>
+      <div class="form-text">Si el descuento de esta compra no es de Postobón, elige o crea el proveedor real -- así no se compara contra la tasa de descuento esperada de Postobón.</div>
     </div>
   </div>
 
@@ -53,6 +69,29 @@
   <button type="submit" class="btn btn-primary">Guardar compra</button>
   <a href="{{ url_for('compras.listar') }}" class="btn btn-link">Cancelar</a>
 </form>
+
+<div class="modal fade" id="modal-nuevo-proveedor" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Nuevo proveedor</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <div id="error-nuevo-proveedor" class="alert alert-danger d-none"></div>
+        <div class="mb-3">
+          <label class="form-label">Nombre</label>
+          <input type="text" id="input-nuevo-proveedor-nombre" class="form-control">
+        </div>
+        <p class="text-muted small mb-0">Se agrega al desplegable de Proveedor y queda elegido, sin perder lo que ya hayas escrito en esta compra.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-link" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" id="btn-guardar-nuevo-proveedor" class="btn btn-primary">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <template id="plantilla-linea">
   <tr>
@@ -149,5 +188,54 @@
 
   document.getElementById("btn-agregar-linea").addEventListener("click", agregarLinea);
   agregarLinea(); // arranca con una línea vacía
+
+  // "+ Nuevo proveedor" crea el proveedor por AJAX (sin salir de esta página) y lo agrega
+  // al desplegable ya seleccionado -- mismo patrón que "+ Nuevo cliente" en el cuadre de
+  // caja de una ruta, para no perder las líneas de producto ya escritas.
+  const selectProveedor = document.getElementById("select-proveedor");
+  const modalNuevoProveedor = document.getElementById("modal-nuevo-proveedor");
+  const inputNuevoProveedorNombre = document.getElementById("input-nuevo-proveedor-nombre");
+  const errorNuevoProveedor = document.getElementById("error-nuevo-proveedor");
+
+  document.getElementById("btn-guardar-nuevo-proveedor").addEventListener("click", async () => {
+    const nombre = inputNuevoProveedorNombre.value.trim();
+    errorNuevoProveedor.classList.add("d-none");
+    if (!nombre) {
+      errorNuevoProveedor.textContent = "El nombre del proveedor es obligatorio.";
+      errorNuevoProveedor.classList.remove("d-none");
+      return;
+    }
+    let resp, data;
+    try {
+      resp = await fetch("{{ url_for('proveedores.nuevo_ajax') }}", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nombre }),
+      });
+      data = await resp.json();
+    } catch (e) {
+      errorNuevoProveedor.textContent = "No se pudo conectar con el servidor. Intenta de nuevo.";
+      errorNuevoProveedor.classList.remove("d-none");
+      return;
+    }
+    if (!resp.ok) {
+      errorNuevoProveedor.textContent = data.error || "No se pudo crear el proveedor.";
+      errorNuevoProveedor.classList.remove("d-none");
+      return;
+    }
+    const opt = document.createElement("option");
+    opt.value = data.id;
+    opt.textContent = data.nombre;
+    selectProveedor.appendChild(opt);
+    selectProveedor.value = data.id;
+    inputNuevoProveedorNombre.value = "";
+    bootstrap.Modal.getInstance(modalNuevoProveedor).hide();
+  });
+
+  modalNuevoProveedor.addEventListener("shown.bs.modal", () => inputNuevoProveedorNombre.focus());
+  modalNuevoProveedor.addEventListener("hidden.bs.modal", () => {
+    errorNuevoProveedor.classList.add("d-none");
+    inputNuevoProveedorNombre.value = "";
+  });
 </script>
 {% endblock %}

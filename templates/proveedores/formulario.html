@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}{{ "Editar proveedor" if proveedor else "Nuevo proveedor" }}{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">{{ "Editar proveedor" if proveedor else "Nuevo proveedor" }}</h1>
+
+<form method="post" class="col-lg-6">
+  <div class="mb-3">
+    <label class="form-label">Nombre</label>
+    <input type="text" name="nombre" class="form-control" required
+           value="{{ (form.nombre if form else (proveedor.nombre if proveedor else '')) }}">
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Notas (opcional)</label>
+    <input type="text" name="notas" class="form-control"
+           value="{{ (form.notas if form else (proveedor.notas if proveedor else '')) or '' }}">
+  </div>
+  <div class="mb-3 form-check">
+    {% set es_postobon_actual = form.es_postobon if form else (proveedor.es_postobon if proveedor else false) %}
+    <input type="checkbox" name="es_postobon" class="form-check-input" id="check-es-postobon" {% if es_postobon_actual %}checked{% endif %}>
+    <label class="form-check-label" for="check-es-postobon">Es Postobón</label>
+    <div class="form-text">Marca esto solo para el proveedor Postobón real -- controla el detector de faltantes de descuento y el resaltado en el detalle de compra. No debería haber más de uno marcado así.</div>
+  </div>
+  <button type="submit" class="btn btn-primary">Guardar</button>
+  <a href="{{ url_for('proveedores.listar') }}" class="btn btn-link">Cancelar</a>
+</form>
+{% endblock %}

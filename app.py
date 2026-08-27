@@ -47,6 +47,7 @@ def create_app(config_overrides=None):
     from routes.venta_diaria import bp as venta_diaria_bp
     from routes.reportes import bp as reportes_bp
     from routes.postobon import bp as postobon_bp
+    from routes.proveedores import bp as proveedores_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
@@ -62,6 +63,7 @@ def create_app(config_overrides=None):
     app.register_blueprint(venta_diaria_bp)
     app.register_blueprint(reportes_bp)
     app.register_blueprint(postobon_bp)
+    app.register_blueprint(proveedores_bp)
 
     @app.before_request
     def exigir_login():
@@ -76,8 +78,11 @@ def create_app(config_overrides=None):
         with app.app_context():
             db.create_all()
             from services.gastos import asegurar_categorias_default
+            from services.proveedores import proveedor_postobon
 
             asegurar_categorias_default()
+            proveedor_postobon()
+            db.session.commit()
         print("Base de datos inicializada.")
 
     return app
@@ -89,8 +94,11 @@ if __name__ == "__main__":
     with app.app_context():
         db.create_all()
         from services.gastos import asegurar_categorias_default
+        from services.proveedores import proveedor_postobon
 
         asegurar_categorias_default()
+        proveedor_postobon()
+        db.session.commit()
 
     def abrir_navegador():
         webbrowser.open("http://127.0.0.1:5000")

@@ -71,6 +71,25 @@ class ProductoPrecio(db.Model):
     producto = db.relationship("Producto", back_populates="precios")
 
 
+class Proveedor(db.Model):
+    """Catálogo de proveedores de compra. Postobón es el proveedor principal (marcado
+    es_postobon=True) -- el detector de faltantes de descuento y el resaltado de filas en
+    el detalle de compra (ver services/postobon.py) solo aplican a compras de ese
+    proveedor, porque la tasa de referencia guardada en cada producto es la que Postobón
+    prometió, no la de otros proveedores con sus propios acuerdos de descuento en
+    producto."""
+
+    __tablename__ = "proveedor"
+
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(120), nullable=False, unique=True)
+    es_postobon = db.Column(db.Boolean, nullable=False, default=False)
+    notas = db.Column(db.String(255), nullable=True)
+    activo = db.Column(db.Boolean, nullable=False, default=True)
+
+    compras = db.relationship("Compra", back_populates="proveedor")
+
+
 class Compra(db.Model):
     __tablename__ = "compra"
 
@@ -78,7 +97,15 @@ class Compra(db.Model):
     fecha = db.Column(db.Date, nullable=False, default=date.today)
     numero_factura = db.Column(db.String(60), nullable=True)
     notas = db.Column(db.String(255), nullable=True)
+    # Nulo en compras viejas (de antes de que existiera este campo) o creadas sin elegir
+    # proveedor explícitamente -- se tratan como Postobón (el caso histórico/normal) en
+    # todo lo que filtra por es_postobon; no lleva un default a nivel de columna porque
+    # consultar/crear el proveedor Postobón desde ahí dispara un flush anidado que
+    # SQLAlchemy no permite. routes/compras.py::nueva() sí lo asigna siempre de forma
+    # explícita, resolviendo a Postobón si el usuario no eligió otro.
+    proveedor_id = db.Column(db.Integer, db.ForeignKey("proveedor.id"), nullable=True)
 
+    proveedor = db.relationship("Proveedor", back_populates="compras")
     detalles = db.relationship(
         "CompraDetalle", back_populates="compra", cascade="all, delete-orphan"
     )

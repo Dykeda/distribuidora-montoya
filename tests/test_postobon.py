@@ -2,7 +2,7 @@ from datetime import date
 
 import pytest
 
-from models import Producto, ProductoPrecio, Compra, CompraDetalle, AjustePostobon
+from models import Producto, ProductoPrecio, Compra, CompraDetalle, AjustePostobon, Proveedor
 from services.postobon import listar_faltantes, listar_faltantes_agrupados, total_pendiente_acumulado
 
 
@@ -22,8 +22,10 @@ def crear_producto(db, nombre="Coca-Cola 1.5L", precio=3000, tasa_referencia=10.
     return p
 
 
-def crear_compra_detalle(db, producto, fecha, costo_linea, tasa_aplicada, cantidad=60, numero_factura="F-001", es_descuento=False):
+def crear_compra_detalle(db, producto, fecha, costo_linea, tasa_aplicada, cantidad=60, numero_factura="F-001", es_descuento=False, proveedor=None):
     compra = Compra(fecha=fecha, numero_factura=numero_factura)
+    if proveedor is not None:
+        compra.proveedor = proveedor
     db.session.add(compra)
     db.session.flush()
     detalle = CompraDetalle(
@@ -35,6 +37,13 @@ def crear_compra_detalle(db, producto, fecha, costo_linea, tasa_aplicada, cantid
     return compra, detalle
 
 
+def crear_proveedor_externo(db, nombre="Distribuidora XYZ"):
+    p = Proveedor(nombre=nombre, es_postobon=False)
+    db.session.add(p)
+    db.session.commit()
+    return p
+
+
 def test_listar_faltantes_ignora_lineas_marcadas_como_descuento(db):
     # una linea marcada "es_descuento" con 0% no es un error de Postobon, es la parte
     # de descuento en producto de la factura -- no debe verse como faltante
@@ -42,6 +51,28 @@ def test_listar_faltantes_ignora_lineas_marcadas_como_descuento(db):
     crear_compra_detalle(db, coca, date(2026, 8, 17), costo_linea=100000, tasa_aplicada=0.0, es_descuento=True)
 
     assert listar_faltantes(date(2026, 8, 1), date(2026, 8, 31)) == []
+
+
+def test_listar_faltantes_ignora_compras_de_proveedores_distintos_a_postobon(db):
+    # otro proveedor le dio un descuento menor a proposito (su propio acuerdo) -- no es un
+    # faltante de Postobon, tasa_descuento_referencia solo aplica a lo que promete Postobon
+    coca = crear_producto(db, tasa_referencia=15.0)
+    externo = crear_proveedor_externo(db)
+    crear_compra_detalle(db, coca, date(2026, 8, 17), costo_linea=100000, tasa_aplicada=5.0, proveedor=externo)
+
+    assert listar_faltantes(date(2026, 8, 1), date(2026, 8, 31)) == []
+
+
+def test_listar_faltantes_agrupados_solo_incluye_compras_de_postobon(db):
+    coca = crear_producto(db, tasa_referencia=15.0)
+    externo = crear_proveedor_externo(db)
+    crear_compra_detalle(db, coca, date(2026, 8, 17), costo_linea=100000, tasa_aplicada=5.0, proveedor=externo, numero_factura="EXT-001")
+    crear_compra_detalle(db, coca, date(2026, 8, 18), costo_linea=100000, tasa_aplicada=5.0, numero_factura="AS002")
+
+    grupos = listar_faltantes_agrupados(date(2026, 8, 1), date(2026, 8, 31))
+
+    assert len(grupos) == 1
+    assert grupos[0]["compra"].numero_factura == "AS002"
 
 
 def test_listar_faltantes_detecta_tasa_aplicada_menor_a_la_esperada(db):
@@ -179,6 +210,21 @@ def test_detalle_de_compra_no_resalta_fila_sin_faltante(db, client):
     body = r.get_data(as_text=True)
     assert r.status_code == 200
     assert "table-danger" not in body
+
+
+def test_detalle_de_compra_no_resalta_fila_de_otro_proveedor_aunque_tenga_diferencia(db, client):
+    # el descuento aplicado (5%) es menor que la tasa de referencia del producto (15%,
+    # la que promete Postobon), pero como esta compra es de otro proveedor con su propio
+    # acuerdo, no debe verse como "faltante" en el detalle de la compra
+    coca = crear_producto(db, tasa_referencia=15.0)
+    externo = crear_proveedor_externo(db)
+    compra, _ = crear_compra_detalle(db, coca, date(2026, 8, 17), costo_linea=100000, tasa_aplicada=5.0, proveedor=externo)
+
+    r = client.get(f"/compras/{compra.id}")
+    body = r.get_data(as_text=True)
+    assert r.status_code == 200
+    assert "table-danger" not in body
+    assert "Distribuidora XYZ" in body
 
 
 def test_total_pendiente_acumulado_suma_faltantes_historicos_sin_ajustes(db):

@@ -2,9 +2,10 @@ from datetime import date
 
 import pytest
 
-from models import Producto, ProductoPrecio, Compra, CompraDetalle
+from models import Producto, ProductoPrecio, Compra, CompraDetalle, Proveedor
 from services.descuentos import total_descuento_periodo
 from services.inventario import calcular_stock
+from services.proveedores import proveedor_postobon
 
 
 @pytest.fixture
@@ -72,6 +73,63 @@ def test_nueva_compra_combina_cajas_y_unidades_sueltas(db, client):
     )
     assert r.status_code == 200
     assert calcular_stock(coca.id) == 15  # 2*6 + 3
+
+
+def test_nueva_compra_sin_proveedor_elegido_usa_postobon_por_defecto(db, client):
+    coca = crear_producto(db)
+
+    r = client.post(
+        "/compras/nueva",
+        data={
+            "fecha": "2026-08-16", "numero_factura": "", "notas": "",
+            "producto_id[]": [str(coca.id)], "cajas[]": ["1"], "unidades[]": ["0"],
+            "costo_linea[]": ["18000"], "tasa_descuento[]": ["0"],
+        },
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+
+    compra = Compra.query.one()
+    assert compra.proveedor.nombre == "Postobón"
+    assert compra.proveedor.es_postobon is True
+
+
+def test_nueva_compra_con_proveedor_elegido_lo_guarda(db, client):
+    coca = crear_producto(db)
+    externo = Proveedor(nombre="Distribuidora XYZ", es_postobon=False)
+    db.session.add(externo)
+    db.session.commit()
+
+    r = client.post(
+        "/compras/nueva",
+        data={
+            "fecha": "2026-08-16", "numero_factura": "", "notas": "",
+            "proveedor_id": str(externo.id),
+            "producto_id[]": [str(coca.id)], "cajas[]": ["1"], "unidades[]": ["0"],
+            "costo_linea[]": ["18000"], "tasa_descuento[]": ["0"],
+        },
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+
+    compra = Compra.query.one()
+    assert compra.proveedor_id == externo.id
+    assert compra.proveedor.nombre == "Distribuidora XYZ"
+    assert compra.proveedor.es_postobon is False
+
+
+def test_lista_de_compras_muestra_el_proveedor(db, client):
+    coca = crear_producto(db)
+    compra = Compra(fecha=date(2026, 8, 16), proveedor_id=proveedor_postobon().id)
+    db.session.add(compra)
+    db.session.flush()
+    db.session.add(CompraDetalle(
+        compra_id=compra.id, producto_id=coca.id, cantidad_comprada_unidades=6, costo_linea=18000,
+    ))
+    db.session.commit()
+
+    r = client.get("/compras/")
+    assert "Postobón" in r.get_data(as_text=True)
 
 
 def test_nueva_compra_calcula_neto_cuando_costo_incluye_iva(db, client):

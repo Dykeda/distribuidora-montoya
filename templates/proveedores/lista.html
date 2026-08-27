@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Proveedores{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Proveedores</h1>
+  <a href="{{ url_for('proveedores.nuevo') }}" class="btn btn-primary">+ Nuevo proveedor</a>
+</div>
+<p class="text-muted">Postobón queda marcado aparte porque el detector de faltantes de
+  descuento (pantalla Postobón) y el resaltado en el detalle de una compra solo aplican a
+  sus facturas -- otros proveedores tienen sus propios acuerdos de descuento.</p>
+
+<div class="table-responsive">
+<table class="table table-striped align-middle">
+  <thead>
+    <tr>
+      <th>Proveedor</th>
+      <th></th>
+      <th class="text-end">Compras</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for f in filas %}
+    <tr>
+      <td>{{ f.proveedor.nombre }}</td>
+      <td>{% if f.proveedor.es_postobon %}<span class="badge bg-primary">Postobón</span>{% endif %}</td>
+      <td class="text-end">{{ f.cantidad_compras }}</td>
+      <td class="text-end">
+        <a href="{{ url_for('proveedores.editar', proveedor_id=f.proveedor.id) }}" class="btn btn-sm btn-outline-primary">Editar</a>
+        <form method="post" action="{{ url_for('proveedores.desactivar', proveedor_id=f.proveedor.id) }}" class="d-inline"
+              onsubmit="return confirm('¿Desactivar {{ f.proveedor.nombre }}?');">
+          <button type="submit" class="btn btn-sm btn-outline-danger">Desactivar</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="4" class="text-center text-muted">No hay proveedores registrados todavía.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

@@ -8,7 +8,12 @@
     <button type="submit" class="btn btn-outline-danger btn-sm">Eliminar compra</button>
   </form>
 </div>
-<p>Factura: {{ compra.numero_factura or "-" }} {% if compra.notas %}&mdash; {{ compra.notas }}{% endif %}</p>
+<p>
+  Factura: {{ compra.numero_factura or "-" }}
+  &mdash; Proveedor: {{ compra.proveedor.nombre if compra.proveedor else "Postobón" }}
+  {% if compra.proveedor and not compra.proveedor.es_postobon %}<span class="badge bg-secondary">No es Postobón</span>{% endif %}
+  {% if compra.notas %}&mdash; {{ compra.notas }}{% endif %}
+</p>
 
 <div class="table-responsive">
 <table class="table table-striped align-middle">
@@ -28,7 +33,7 @@
   </thead>
   <tbody>
     {% for f in filas %}
-    {% set es_faltante = (not f.detalle.es_descuento) and ((f.detalle.producto.tasa_descuento_referencia - f.detalle.tasa_descuento_aplicada) | round(1) > 0) %}
+    {% set es_faltante = (not compra.proveedor or compra.proveedor.es_postobon) and (not f.detalle.es_descuento) and ((f.detalle.producto.tasa_descuento_referencia - f.detalle.tasa_descuento_aplicada) | round(1) > 0) %}
     <tr class="{{ 'table-danger' if es_faltante else '' }}">
       <td>
         {{ f.detalle.producto.nombre }}

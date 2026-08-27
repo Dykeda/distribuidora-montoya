@@ -110,10 +110,11 @@ def construir_workbook():
                 c.fecha, c.numero_factura or "", d.producto.nombre, d.notas or "",
                 d.cantidad_comprada_unidades, d.costo_linea, d.tasa_descuento_aplicada,
                 "Sí" if d.es_descuento else "No", d.porcentaje_iva, d.valor_iva,
+                c.proveedor.nombre if c.proveedor else "Postobón",
             ])
     _hoja(
         wb, "Compras",
-        ["Fecha", "Factura", "Producto", "Notas", "Cantidad (unid.)", "Costo", "Tasa descuento %", "Es descuento", "% IVA", "Valor IVA"],
+        ["Fecha", "Factura", "Producto", "Notas", "Cantidad (unid.)", "Costo", "Tasa descuento %", "Es descuento", "% IVA", "Valor IVA", "Proveedor"],
         filas_compras,
     )
 
@@ -162,10 +163,11 @@ def construir_workbook():
     )
     _hoja(
         wb, "Descuentos",
-        ["Fecha", "Factura", "Producto", "Cantidad (unid.)", "Costo"],
+        ["Fecha", "Factura", "Producto", "Cantidad (unid.)", "Costo", "Proveedor"],
         [
             [d.compra.fecha, d.compra.numero_factura or "", d.producto.nombre,
-             d.cantidad_comprada_unidades, d.costo_linea]
+             d.cantidad_comprada_unidades, d.costo_linea,
+             d.compra.proveedor.nombre if d.compra.proveedor else "Postobón"]
             for d in descuentos
         ],
     )

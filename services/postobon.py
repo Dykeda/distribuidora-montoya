@@ -4,10 +4,10 @@ from datetime import date
 
 from openpyxl import Workbook
 from openpyxl.styles import Font
-from sqlalchemy import func
+from sqlalchemy import func, or_
 
 from extensions import db
-from models import CompraDetalle, Compra, Producto, AjustePostobon
+from models import CompraDetalle, Compra, Producto, AjustePostobon, Proveedor
 
 # Fecha de arranque para sumas "históricas" (todo lo que haya, no acotado a un mes).
 DESDE_SIEMPRE = date(2000, 1, 1)
@@ -15,15 +15,20 @@ DESDE_SIEMPRE = date(2000, 1, 1)
 
 def listar_faltantes(fecha_inicio, fecha_fin):
     """Líneas de compra en el período donde el % de descuento aplicado fue menor al
-    acordado por producto -- para reclamarle a Postobón. Solo considera compras con
-    número de factura (una factura real de Postobón que se le puede reclamar) -- un
-    ingreso de inventario físico sin factura (ej. un conteo de bodega) no aplica."""
+    acordado por producto -- para reclamarle a Postobón. Solo considera compras de
+    Postobón (otros proveedores tienen sus propios acuerdos de descuento, distintos a la
+    tasa_descuento_referencia guardada por producto) con número de factura (una factura
+    real que se le puede reclamar) -- un ingreso de inventario físico sin factura (ej. un
+    conteo de bodega) no aplica. Una compra sin proveedor asignado (dato viejo, de antes
+    de que existiera este campo) se trata como Postobón, el caso histórico normal."""
     detalles = (
         CompraDetalle.query.join(Compra)
         .join(Producto)
+        .outerjoin(Proveedor, Compra.proveedor_id == Proveedor.id)
         .filter(Compra.fecha >= fecha_inicio, Compra.fecha <= fecha_fin)
         .filter(Compra.numero_factura.isnot(None))
         .filter(CompraDetalle.es_descuento.is_(False))
+        .filter(or_(Proveedor.id.is_(None), Proveedor.es_postobon.is_(True)))
         .order_by(Compra.fecha.desc())
         .all()
     )
@@ -46,13 +51,18 @@ def listar_faltantes(fecha_inicio, fecha_fin):
 
 
 def listar_faltantes_de_compra(compra_id):
-    """Igual que listar_faltantes(), pero para una sola compra (factura) puntual."""
+    """Igual que listar_faltantes(), pero para una sola compra (factura) puntual. Si esa
+    compra es de otro proveedor (no Postobón, y no un dato viejo sin proveedor asignado),
+    devuelve una lista vacía -- no hay nada que reclamarle a Postobón por una factura de
+    otro proveedor."""
     detalles = (
         CompraDetalle.query.join(Compra)
         .join(Producto)
+        .outerjoin(Proveedor, Compra.proveedor_id == Proveedor.id)
         .filter(Compra.id == compra_id)
         .filter(Compra.numero_factura.isnot(None))
         .filter(CompraDetalle.es_descuento.is_(False))
+        .filter(or_(Proveedor.id.is_(None), Proveedor.es_postobon.is_(True)))
         .all()
     )
     filas = []

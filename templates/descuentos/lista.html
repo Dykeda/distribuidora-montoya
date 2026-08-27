@@ -2,10 +2,10 @@
 {% block title %}Descuentos{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <h1 class="h3 mb-0">Descuentos de Postobón</h1>
+  <h1 class="h3 mb-0">Descuentos en producto</h1>
   <a href="{{ url_for('descuentos.exportar_excel', anio=anio, mes=mes) }}" class="btn btn-outline-secondary">Descargar Excel</a>
 </div>
-<p class="text-muted">Líneas de compra marcadas como "es descuento" — la parte de cada factura que representa el descuento en producto, agrupada por factura.</p>
+<p class="text-muted">Líneas de compra marcadas como "es descuento" — la parte de cada factura (de cualquier proveedor) que representa el descuento en producto, agrupada por factura.</p>
 
 <form method="get" class="row col-lg-6 mb-3">
   <div class="col-6">
@@ -33,6 +33,7 @@
   {% for g in grupos %}
   <div class="mb-4">
     <h2 class="h6 mb-2">Factura {{ g.compra.numero_factura or "-" }} — {{ g.compra.fecha.strftime("%Y-%m-%d") }}
+      <span class="text-muted fw-normal">({{ g.compra.proveedor.nombre if g.compra.proveedor else "Postobón" }})</span>
       <a href="{{ url_for('compras.detalle', compra_id=g.compra.id) }}" class="btn btn-sm btn-outline-primary ms-2">Ver compra</a>
     </h2>
     <div class="table-responsive">

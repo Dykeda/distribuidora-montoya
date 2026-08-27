@@ -3,8 +3,9 @@ from datetime import date, datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 
 from extensions import db
-from models import Producto, Compra, CompraDetalle
+from models import Producto, Compra, CompraDetalle, Proveedor
 from services.inventario import cajas_y_unidades
+from services.proveedores import listar_proveedores, proveedor_postobon
 
 bp = Blueprint("compras", __name__, url_prefix="/compras")
 
@@ -177,6 +178,7 @@ def linea_editar(compra_id, detalle_id):
 @bp.route("/nueva", methods=["GET", "POST"])
 def nueva():
     productos = Producto.query.filter_by(activo=True).order_by(Producto.nombre).all()
+    proveedores = listar_proveedores()
 
     if request.method == "POST":
         fecha_str = request.form.get("fecha")
@@ -184,6 +186,11 @@ def nueva():
             fecha = datetime.strptime(fecha_str, "%Y-%m-%d").date() if fecha_str else date.today()
         except ValueError:
             fecha = date.today()
+
+        proveedor_id_str = request.form.get("proveedor_id")
+        proveedor = db.session.get(Proveedor, int(proveedor_id_str)) if proveedor_id_str else None
+        if proveedor is None:
+            proveedor = proveedor_postobon()
 
         producto_ids = request.form.getlist("producto_id[]")
         cajas_lista = request.form.getlist("cajas[]")
@@ -242,12 +249,13 @@ def nueva():
         if errores:
             for e in errores:
                 flash(e, "error")
-            return render_template("compras/formulario.html", productos=productos, form=request.form)
+            return render_template("compras/formulario.html", productos=productos, proveedores=proveedores, form=request.form)
 
         compra = Compra(
             fecha=fecha,
             numero_factura=request.form.get("numero_factura") or None,
             notas=request.form.get("notas") or None,
+            proveedor_id=proveedor.id,
         )
         compra.detalles = lineas_validas
         db.session.add(compra)
@@ -255,4 +263,4 @@ def nueva():
         flash("Compra registrada.", "success")
         return redirect(url_for("compras.listar"))
 
-    return render_template("compras/formulario.html", productos=productos, form=None)
+    return render_template("compras/formulario.html", productos=productos, proveedores=proveedores, form=None)

@@ -93,7 +93,7 @@ def construir_workbook_descuentos(fecha_inicio, fecha_fin):
     ws = wb.active
     ws.title = "Descuentos"
 
-    encabezados = ["Factura", "Fecha", "Producto", "Cantidad", "Costo"]
+    encabezados = ["Factura", "Fecha", "Producto", "Cantidad", "Costo", "Proveedor"]
     ws.append(encabezados)
     for celda in ws[1]:
         celda.font = Font(bold=True)
@@ -101,17 +101,18 @@ def construir_workbook_descuentos(fecha_inicio, fecha_fin):
     total_general = 0
     for grupo in listar_descuentos_agrupados(fecha_inicio, fecha_fin):
         compra = grupo["compra"]
+        proveedor_nombre = compra.proveedor.nombre if compra.proveedor else "Postobón"
         for f in grupo["lineas"]:
             ws.append([
                 compra.numero_factura or "-", compra.fecha, f["producto"].nombre,
-                f["detalle"].cantidad_comprada_unidades, f["detalle"].costo_linea,
+                f["detalle"].cantidad_comprada_unidades, f["detalle"].costo_linea, proveedor_nombre,
             ])
-        ws.append(["", "", "", "Subtotal factura", grupo["subtotal"]])
+        ws.append(["", "", "", "Subtotal factura", grupo["subtotal"], ""])
         for celda in ws[ws.max_row]:
             celda.font = Font(bold=True)
         total_general += grupo["subtotal"]
 
-    ws.append(["", "", "", "TOTAL", total_general])
+    ws.append(["", "", "", "TOTAL", total_general, ""])
     for celda in ws[ws.max_row]:
         celda.font = Font(bold=True)
 
