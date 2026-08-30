@@ -4,6 +4,7 @@
 <h1 class="h3 mb-1">Editar producto de la compra</h1>
 <p class="text-muted">{{ compra.fecha.strftime("%Y-%m-%d") }} &mdash; {{ producto.nombre }}</p>
 
+{% if es_postobon %}
 <form method="post">
   <div class="row col-lg-8 mb-3">
     <div class="col-md-3">
@@ -80,4 +81,40 @@
   ivaInput.addEventListener("input", actualizarPreviewNeto);
   incluyeIvaInput.addEventListener("change", actualizarPreviewNeto);
 </script>
+
+{% else %}
+<p class="text-muted small">Cuántas cajas/unidades pagaste y cuántas llegaron de descuento (regalo) -- sin tasas ni IVA. Esto reemplaza junto lo que haya guardado de este producto en la compra (la parte pagada y la de descuento).</p>
+<form method="post">
+  <div class="row col-lg-8 mb-3">
+    <div class="col-md-3">
+      <label class="form-label">Cajas pagadas</label>
+      <input type="number" step="1" min="0" name="cajas_pagadas" class="form-control" value="{{ cajas_pagadas_actual }}">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Unid. sueltas pagadas</label>
+      <input type="number" step="1" min="0" name="unidades_pagadas" class="form-control" value="{{ unidades_pagadas_actual }}">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Cajas descuento</label>
+      <input type="number" step="1" min="0" name="cajas_descuento" class="form-control" value="{{ cajas_descuento_actual }}">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Unid. sueltas descuento</label>
+      <input type="number" step="1" min="0" name="unidades_descuento" class="form-control" value="{{ unidades_descuento_actual }}">
+    </div>
+  </div>
+  <div class="row col-lg-8 mb-3">
+    <div class="col-md-4">
+      <label class="form-label">Total pagado ($)</label>
+      <input type="number" min="0" name="costo_pagado" class="form-control" value="{{ costo_pagado_actual }}">
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">Notas (opcional)</label>
+      <input type="text" name="notas" class="form-control" placeholder="opcional" value="{{ notas_actual }}">
+    </div>
+  </div>
+  <button type="submit" class="btn btn-primary">Guardar cambios</button>
+  <a href="{{ url_for('compras.detalle', compra_id=compra.id) }}" class="btn btn-link">Cancelar</a>
+</form>
+{% endif %}
 {% endblock %}

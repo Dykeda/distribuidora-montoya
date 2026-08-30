@@ -605,3 +605,95 @@ def test_detalle_de_compra_modo_simple_muestra_subtotal_descuento_y_total_correc
     assert "3,000,000" in body  # subtotal (bruto)
     assert "420,000" in body  # descuento
     assert "2,580,000" in body  # total a pagar (sin IVA)
+
+
+def _crear_compra_canasto_con_un_producto(db):
+    hit = crear_producto(db, "Hit 500ml", 1500)
+    canasto = Proveedor(nombre="Canasto", es_postobon=False)
+    db.session.add(canasto)
+    db.session.flush()
+    compra = Compra(fecha=date(2026, 8, 16), proveedor_id=canasto.id)
+    db.session.add(compra)
+    db.session.flush()
+    db.session.add(CompraDetalle(
+        compra_id=compra.id, producto_id=hit.id, cantidad_comprada_unidades=86 * 6,
+        costo_linea=2580000, tasa_descuento_aplicada=14.0, es_descuento=False,
+    ))
+    db.session.add(CompraDetalle(
+        compra_id=compra.id, producto_id=hit.id, cantidad_comprada_unidades=14 * 6,
+        costo_linea=0, tasa_descuento_aplicada=0.0, es_descuento=True,
+    ))
+    db.session.commit()
+    return compra, hit
+
+
+def test_agregar_linea_a_compra_no_postobon_usa_modo_simple(db, client):
+    compra, hit = _crear_compra_canasto_con_un_producto(db)
+    agua = crear_producto(db, "Agua Cristal", 2000)
+
+    r = client.get(f"/compras/{compra.id}/linea/nueva")
+    assert r.status_code == 200
+    body = r.get_data(as_text=True)
+    assert "Cajas pagadas" in body
+    assert "Descuento %" not in body
+
+    r = client.post(
+        f"/compras/{compra.id}/linea/nueva",
+        data={
+            "producto_id_simple": str(agua.id),
+            "cajas_pagadas": "10", "unidades_pagadas": "0",
+            "cajas_descuento": "2", "unidades_descuento": "0",
+            "costo_pagado": "50000",
+        },
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+
+    actualizado = Compra.query.get(compra.id)
+    assert len(actualizado.detalles) == 4  # 2 de Hit + 2 nuevas de Agua
+    lineas_agua = [d for d in actualizado.detalles if d.producto_id == agua.id]
+    pagada = next(d for d in lineas_agua if not d.es_descuento)
+    descuento = next(d for d in lineas_agua if d.es_descuento)
+    assert pagada.cantidad_comprada_unidades == 60  # 10 cajas * 6
+    assert pagada.costo_linea == 50000
+    assert pagada.tasa_descuento_aplicada == round(12 / 72 * 100, 2)  # 2 de 12 cajas totales
+    assert descuento.cantidad_comprada_unidades == 12  # 2 cajas * 6
+
+
+def test_editar_linea_de_compra_no_postobon_reemplaza_el_par_pagada_descuento(db, client):
+    compra, hit = _crear_compra_canasto_con_un_producto(db)
+    detalle_pagada = next(d for d in compra.detalles if not d.es_descuento)
+
+    r = client.get(f"/compras/{compra.id}/linea/{detalle_pagada.id}/editar")
+    assert r.status_code == 200
+    body = r.get_data(as_text=True)
+    assert "Cajas pagadas" in body
+    assert "value=\"86\"" in body  # precarga la cantidad pagada actual
+
+    # Cambia a 80 cajas pagadas ($2,400,000) + 20 cajas de descuento
+    r = client.post(
+        f"/compras/{compra.id}/linea/{detalle_pagada.id}/editar",
+        data={
+            "cajas_pagadas": "80", "unidades_pagadas": "0",
+            "cajas_descuento": "20", "unidades_descuento": "0",
+            "costo_pagado": "2400000",
+        },
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+
+    actualizado = Compra.query.get(compra.id)
+    assert len(actualizado.detalles) == 2  # sigue habiendo solo el par pagada/descuento
+    pagada = next(d for d in actualizado.detalles if not d.es_descuento)
+    descuento = next(d for d in actualizado.detalles if d.es_descuento)
+    assert pagada.cantidad_comprada_unidades == 480  # 80 cajas * 6
+    assert pagada.costo_linea == 2400000
+    assert pagada.tasa_descuento_aplicada == 20.0  # 20 de 100 cajas totales
+    assert descuento.cantidad_comprada_unidades == 120  # 20 cajas * 6
+
+    r = client.get(f"/compras/{compra.id}")
+    body = r.get_data(as_text=True)
+    # bruto = 2,400,000 / 0.80 = 3,000,000 ; descuento = 600,000
+    assert "3,000,000" in body
+    assert "600,000" in body
+    assert "2,400,000" in body

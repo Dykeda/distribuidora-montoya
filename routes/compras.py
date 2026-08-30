@@ -10,6 +10,12 @@ from services.proveedores import listar_proveedores, proveedor_postobon
 bp = Blueprint("compras", __name__, url_prefix="/compras")
 
 
+def _es_postobon_compra(compra):
+    """Nulo (compras viejas o sin proveedor elegido) se trata como Postobón -- mismo
+    criterio que usa nueva() al elegir el parser y services/postobon.py al filtrar."""
+    return compra.proveedor.es_postobon if compra.proveedor else True
+
+
 def _bruto_linea(detalle):
     """Reconstruye el valor bruto (antes de descuento) de una línea a partir del costo
     neto guardado y la tasa aplicada -- para que el detalle de la compra se pueda ver
@@ -86,8 +92,9 @@ def linea_eliminar(compra_id, detalle_id):
 def linea_nueva(compra_id):
     compra = Compra.query.get_or_404(compra_id)
     productos = Producto.query.filter_by(activo=True).order_by(Producto.nombre).all()
+    es_postobon = _es_postobon_compra(compra)
 
-    if request.method == "POST":
+    if request.method == "POST" and es_postobon:
         producto = db.session.get(Producto, int(request.form.get("producto_id") or 0))
         try:
             cajas = float(request.form.get("cajas") or 0)
@@ -103,12 +110,12 @@ def linea_nueva(compra_id):
 
         if producto is None:
             flash("Selecciona un producto válido.", "error")
-            return render_template("compras/linea_nueva_formulario.html", compra=compra, productos=productos, form=request.form)
+            return render_template("compras/linea_nueva_formulario.html", compra=compra, productos=productos, es_postobon=True, form=request.form)
 
         cantidad_unidades = round(cajas * producto.unidades_por_caja + unidades)
         if cantidad_unidades <= 0:
             flash("La cantidad debe ser mayor a cero.", "error")
-            return render_template("compras/linea_nueva_formulario.html", compra=compra, productos=productos, form=request.form)
+            return render_template("compras/linea_nueva_formulario.html", compra=compra, productos=productos, es_postobon=True, form=request.form)
 
         compra.detalles.append(
             CompraDetalle(
@@ -125,7 +132,38 @@ def linea_nueva(compra_id):
         flash("Producto agregado a la compra.", "success")
         return redirect(url_for("compras.detalle", compra_id=compra.id))
 
-    return render_template("compras/linea_nueva_formulario.html", compra=compra, productos=productos, form=None)
+    if request.method == "POST":
+        producto = db.session.get(Producto, int(request.form.get("producto_id_simple") or 0))
+        if producto is None:
+            flash("Selecciona un producto válido.", "error")
+            return render_template("compras/linea_nueva_formulario.html", compra=compra, productos=productos, es_postobon=False, form=request.form)
+        try:
+            cajas_pagadas = float(request.form.get("cajas_pagadas") or 0)
+            unidades_pagadas = float(request.form.get("unidades_pagadas") or 0)
+            cajas_descuento = float(request.form.get("cajas_descuento") or 0)
+            unidades_descuento = float(request.form.get("unidades_descuento") or 0)
+            costo_pagado = int(request.form.get("costo_pagado") or 0)
+        except ValueError:
+            flash("Datos inválidos.", "error")
+            return render_template("compras/linea_nueva_formulario.html", compra=compra, productos=productos, es_postobon=False, form=request.form)
+
+        errores = []
+        notas = request.form.get("notas") or None
+        lineas_nuevas = _construir_lineas_simple(
+            producto, cajas_pagadas, unidades_pagadas, cajas_descuento, unidades_descuento,
+            costo_pagado, notas, errores, "Producto",
+        )
+        if errores:
+            for e in errores:
+                flash(e, "error")
+            return render_template("compras/linea_nueva_formulario.html", compra=compra, productos=productos, es_postobon=False, form=request.form)
+
+        compra.detalles.extend(lineas_nuevas)
+        db.session.commit()
+        flash("Producto agregado a la compra.", "success")
+        return redirect(url_for("compras.detalle", compra_id=compra.id))
+
+    return render_template("compras/linea_nueva_formulario.html", compra=compra, productos=productos, es_postobon=es_postobon, form=None)
 
 
 @bp.route("/<int:compra_id>/linea/<int:detalle_id>/editar", methods=["GET", "POST"])
@@ -133,8 +171,9 @@ def linea_editar(compra_id, detalle_id):
     compra = Compra.query.get_or_404(compra_id)
     detalle = CompraDetalle.query.filter_by(id=detalle_id, compra_id=compra_id).first_or_404()
     producto = detalle.producto
+    es_postobon = _es_postobon_compra(compra)
 
-    if request.method == "POST":
+    if request.method == "POST" and es_postobon:
         try:
             cajas = float(request.form.get("cajas") or 0)
             unidades = float(request.form.get("unidades") or 0)
@@ -162,16 +201,65 @@ def linea_editar(compra_id, detalle_id):
             return redirect(url_for("compras.detalle", compra_id=compra_id))
 
         return render_template(
-            "compras/linea_formulario.html", compra=compra, detalle=detalle, producto=producto,
+            "compras/linea_formulario.html", compra=compra, detalle=detalle, producto=producto, es_postobon=True,
             cajas_actual=cajas, unidades_actual=unidades, es_descuento_actual=es_descuento, iva_actual=iva,
             notas_actual=request.form.get("notas") or "",
         )
 
-    cajas_actual, unidades_actual = cajas_y_unidades(producto, detalle.cantidad_comprada_unidades)
+    if request.method == "POST":
+        try:
+            cajas_pagadas = float(request.form.get("cajas_pagadas") or 0)
+            unidades_pagadas = float(request.form.get("unidades_pagadas") or 0)
+            cajas_descuento = float(request.form.get("cajas_descuento") or 0)
+            unidades_descuento = float(request.form.get("unidades_descuento") or 0)
+            costo_pagado = int(request.form.get("costo_pagado") or 0)
+        except ValueError:
+            cajas_pagadas = unidades_pagadas = cajas_descuento = unidades_descuento = costo_pagado = 0
+        notas = request.form.get("notas") or None
+
+        errores = []
+        lineas_nuevas = _construir_lineas_simple(
+            producto, cajas_pagadas, unidades_pagadas, cajas_descuento, unidades_descuento,
+            costo_pagado, notas, errores, "Producto",
+        )
+        if errores:
+            for e in errores:
+                flash(e, "error")
+            return render_template(
+                "compras/linea_formulario.html", compra=compra, detalle=detalle, producto=producto, es_postobon=False,
+                cajas_pagadas_actual=cajas_pagadas, unidades_pagadas_actual=unidades_pagadas,
+                cajas_descuento_actual=cajas_descuento, unidades_descuento_actual=unidades_descuento,
+                costo_pagado_actual=costo_pagado, notas_actual=notas or "",
+            )
+
+        # las hasta 2 lineas de este producto en la compra (pagada + descuento) se
+        # reemplazan juntas -- el modo simple las trata como una sola entrada por producto
+        for d in [d for d in compra.detalles if d.producto_id == detalle.producto_id]:
+            compra.detalles.remove(d)
+        compra.detalles.extend(lineas_nuevas)
+        db.session.commit()
+        flash("Producto de la compra actualizado.", "success")
+        return redirect(url_for("compras.detalle", compra_id=compra_id))
+
+    if es_postobon:
+        cajas_actual, unidades_actual = cajas_y_unidades(producto, detalle.cantidad_comprada_unidades)
+        return render_template(
+            "compras/linea_formulario.html", compra=compra, detalle=detalle, producto=producto, es_postobon=True,
+            cajas_actual=cajas_actual, unidades_actual=unidades_actual, es_descuento_actual=detalle.es_descuento,
+            iva_actual=detalle.porcentaje_iva, notas_actual=detalle.notas or "",
+        )
+
+    lineas_producto = [d for d in compra.detalles if d.producto_id == detalle.producto_id]
+    pagada = next((d for d in lineas_producto if not d.es_descuento), None)
+    descuento = next((d for d in lineas_producto if d.es_descuento), None)
+    cajas_pagadas_actual, unidades_pagadas_actual = cajas_y_unidades(producto, pagada.cantidad_comprada_unidades) if pagada else (0, 0)
+    cajas_descuento_actual, unidades_descuento_actual = cajas_y_unidades(producto, descuento.cantidad_comprada_unidades) if descuento else (0, 0)
+    notas_actual = (pagada.notas if pagada else None) or (descuento.notas if descuento else None) or ""
     return render_template(
-        "compras/linea_formulario.html", compra=compra, detalle=detalle, producto=producto,
-        cajas_actual=cajas_actual, unidades_actual=unidades_actual, es_descuento_actual=detalle.es_descuento,
-        iva_actual=detalle.porcentaje_iva, notas_actual=detalle.notas or "",
+        "compras/linea_formulario.html", compra=compra, detalle=detalle, producto=producto, es_postobon=False,
+        cajas_pagadas_actual=cajas_pagadas_actual, unidades_pagadas_actual=unidades_pagadas_actual,
+        cajas_descuento_actual=cajas_descuento_actual, unidades_descuento_actual=unidades_descuento_actual,
+        costo_pagado_actual=pagada.costo_linea if pagada else 0, notas_actual=notas_actual,
     )
 
 
@@ -228,15 +316,45 @@ def _parsear_lineas_postobon(request, errores):
     return lineas_validas
 
 
+def _construir_lineas_simple(producto, cajas_pagadas, unidades_pagadas, cajas_descuento,
+                              unidades_descuento, costo_pagado, notas, errores, etiqueta):
+    """Modo simple (proveedores que no son Postobón, ej. Canasto): a partir de cajas/
+    unidades pagadas + cajas/unidades de descuento (regalo) + lo que realmente se pagó --
+    sin tasa % ni IVA -- arma hasta dos CompraDetalle: una "pagada" (con una
+    tasa_descuento_aplicada calculada para que el Subtotal/Descuento reconstruido en el
+    detalle de la compra cuadre) y una "de descuento" a costo $0 (el producto que llegó
+    sin cobro), marcada es_descuento=True solo como registro de cantidad -- a propósito NO
+    se contabiliza en la pantalla Descuentos/ganancia neta, que es específica del sistema
+    de crédito de Postobón."""
+    cantidad_pagada = round(cajas_pagadas * producto.unidades_por_caja + unidades_pagadas)
+    cantidad_descuento = round(cajas_descuento * producto.unidades_por_caja + unidades_descuento)
+    cantidad_total = cantidad_pagada + cantidad_descuento
+    if cantidad_total <= 0:
+        errores.append(f"{etiqueta}: la cantidad debe ser mayor a cero.")
+        return []
+
+    lineas = []
+    if cantidad_pagada > 0:
+        # tasa para que bruto = costo_pagado/(1-tasa/100) reconstruya el valor de
+        # TODAS las unidades (pagadas + descuento) al mismo precio por unidad -- así el
+        # Subtotal/Descuento que se ve en el detalle de la compra cuadra con "cuánto
+        # valían todas" vs "cuánto se pagó realmente".
+        tasa = round(cantidad_descuento / cantidad_total * 100, 2)
+        lineas.append(CompraDetalle(
+            producto_id=producto.id, cantidad_comprada_unidades=cantidad_pagada,
+            costo_linea=costo_pagado, tasa_descuento_aplicada=tasa,
+            es_descuento=False, porcentaje_iva=0.0, notas=notas,
+        ))
+    if cantidad_descuento > 0:
+        lineas.append(CompraDetalle(
+            producto_id=producto.id, cantidad_comprada_unidades=cantidad_descuento,
+            costo_linea=0, tasa_descuento_aplicada=0.0,
+            es_descuento=True, porcentaje_iva=0.0, notas=notas,
+        ))
+    return lineas
+
+
 def _parsear_lineas_simple(request, errores):
-    """Modo simple (proveedores que no son Postobón, ej. Canasto): por producto, solo
-    cajas/unidades pagadas + cajas/unidades de descuento (regalo) + lo que realmente se
-    pagó -- sin pedir tasa % ni IVA. Arma automáticamente hasta dos CompraDetalle por
-    línea: una "pagada" (con una tasa_descuento_aplicada calculada para que el Subtotal/
-    Descuento reconstruido en el detalle de la compra cuadre) y una "de descuento" a costo
-    $0 (el producto que llegó sin cobro), marcada es_descuento=True solo como registro de
-    cantidad -- a propósito NO se contabiliza en la pantalla Descuentos/ganancia neta, que
-    es específica del sistema de crédito de Postobón."""
     producto_ids = request.form.getlist("producto_id_simple[]")
     cajas_pagadas_lista = request.form.getlist("cajas_pagadas[]")
     unidades_pagadas_lista = request.form.getlist("unidades_pagadas[]")
@@ -264,44 +382,11 @@ def _parsear_lineas_simple(request, errores):
             errores.append(f"Línea {i + 1}: producto no encontrado.")
             continue
 
-        cantidad_pagada = round(cajas_pagadas * producto.unidades_por_caja + unidades_pagadas)
-        cantidad_descuento = round(cajas_descuento * producto.unidades_por_caja + unidades_descuento)
-        cantidad_total = cantidad_pagada + cantidad_descuento
-        if cantidad_total <= 0:
-            errores.append(f"Línea {i + 1}: la cantidad debe ser mayor a cero.")
-            continue
-
         notas_linea = notas_lineas[i].strip() if i < len(notas_lineas) and notas_lineas[i].strip() else None
-
-        if cantidad_pagada > 0:
-            # tasa para que bruto = costo_pagado/(1-tasa/100) reconstruya el valor de
-            # TODAS las unidades (pagadas + descuento) al mismo precio por unidad --
-            # así el Subtotal/Descuento que se ve en el detalle de la compra cuadra con
-            # "cuánto valían todas" vs "cuánto se pagó realmente".
-            tasa = round(cantidad_descuento / cantidad_total * 100, 2)
-            lineas_validas.append(
-                CompraDetalle(
-                    producto_id=producto.id,
-                    cantidad_comprada_unidades=cantidad_pagada,
-                    costo_linea=costo_pagado,
-                    tasa_descuento_aplicada=tasa,
-                    es_descuento=False,
-                    porcentaje_iva=0.0,
-                    notas=notas_linea,
-                )
-            )
-        if cantidad_descuento > 0:
-            lineas_validas.append(
-                CompraDetalle(
-                    producto_id=producto.id,
-                    cantidad_comprada_unidades=cantidad_descuento,
-                    costo_linea=0,
-                    tasa_descuento_aplicada=0.0,
-                    es_descuento=True,
-                    porcentaje_iva=0.0,
-                    notas=notas_linea,
-                )
-            )
+        lineas_validas.extend(_construir_lineas_simple(
+            producto, cajas_pagadas, unidades_pagadas, cajas_descuento, unidades_descuento,
+            costo_pagado, notas_linea, errores, f"Línea {i + 1}",
+        ))
     return lineas_validas
 
 

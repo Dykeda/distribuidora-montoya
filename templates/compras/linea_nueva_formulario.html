@@ -14,6 +14,7 @@
   {% endfor %}
 </datalist>
 
+{% if es_postobon %}
 <form method="post">
   <div class="row col-lg-8 mb-3">
     <div class="col-md-6">
@@ -112,4 +113,62 @@
   ivaInput.addEventListener("input", actualizarPreviewNeto);
   incluyeIvaInput.addEventListener("change", actualizarPreviewNeto);
 </script>
+
+{% else %}
+<p class="text-muted small">Por producto: cuántas cajas/unidades pagaste y cuántas llegaron de descuento (regalo) -- sin tasas ni IVA, el sistema arma solo el desglose Subtotal/Descuento/Total.</p>
+<form method="post">
+  <div class="row col-lg-8 mb-3">
+    <div class="col-md-6">
+      <label class="form-label">Producto</label>
+      <input type="text" id="producto-buscar-simple" class="form-control" list="lista-productos" placeholder="Escribe para buscar..." autocomplete="off" value="{{ form.producto_nombre if form else '' }}">
+      <input type="hidden" id="producto_id_simple" name="producto_id_simple">
+    </div>
+  </div>
+  <div class="row col-lg-8 mb-3">
+    <div class="col-md-3">
+      <label class="form-label">Cajas pagadas</label>
+      <input type="number" step="1" min="0" name="cajas_pagadas" class="form-control" value="{{ form.cajas_pagadas if form else 0 }}">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Unid. sueltas pagadas</label>
+      <input type="number" step="1" min="0" name="unidades_pagadas" class="form-control" value="{{ form.unidades_pagadas if form else 0 }}">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Cajas descuento</label>
+      <input type="number" step="1" min="0" name="cajas_descuento" class="form-control" value="{{ form.cajas_descuento if form else 0 }}">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Unid. sueltas descuento</label>
+      <input type="number" step="1" min="0" name="unidades_descuento" class="form-control" value="{{ form.unidades_descuento if form else 0 }}">
+    </div>
+  </div>
+  <div class="row col-lg-8 mb-3">
+    <div class="col-md-4">
+      <label class="form-label">Total pagado ($)</label>
+      <input type="number" min="0" name="costo_pagado" class="form-control" value="{{ form.costo_pagado if form else '' }}">
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">Notas (opcional)</label>
+      <input type="text" name="notas" class="form-control" placeholder="opcional" value="{{ form.notas if form else '' }}">
+    </div>
+  </div>
+  <button type="submit" class="btn btn-primary">Agregar</button>
+  <a href="{{ url_for('compras.detalle', compra_id=compra.id) }}" class="btn btn-link">Cancelar</a>
+</form>
+
+<script>
+  const PRODUCTOS = [
+    {% for p in productos %}
+    {id: {{ p.id }}, nombre: {{ p.nombre | tojson }}},
+    {% endfor %}
+  ];
+
+  const buscarInputSimple = document.getElementById("producto-buscar-simple");
+  const idInputSimple = document.getElementById("producto_id_simple");
+  buscarInputSimple.addEventListener("input", () => {
+    const prod = PRODUCTOS.find((p) => p.nombre === buscarInputSimple.value);
+    idInputSimple.value = prod ? prod.id : "";
+  });
+</script>
+{% endif %}
 {% endblock %}
