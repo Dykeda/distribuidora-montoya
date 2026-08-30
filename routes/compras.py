@@ -4,6 +4,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 
 from extensions import db
 from models import Producto, Compra, CompraDetalle, Proveedor
+from services.compras import bruto_linea as _bruto_linea
 from services.inventario import cajas_y_unidades
 from services.proveedores import listar_proveedores, proveedor_postobon
 
@@ -14,16 +15,6 @@ def _es_postobon_compra(compra):
     """Nulo (compras viejas o sin proveedor elegido) se trata como Postobón -- mismo
     criterio que usa nueva() al elegir el parser y services/postobon.py al filtrar."""
     return compra.proveedor.es_postobon if compra.proveedor else True
-
-
-def _bruto_linea(detalle):
-    """Reconstruye el valor bruto (antes de descuento) de una línea a partir del costo
-    neto guardado y la tasa aplicada -- para que el detalle de la compra se pueda ver
-    con la misma estructura que la factura real de Postobón (Subtotal/Descuento/IVA/Total),
-    sin tener que guardar el bruto como un campo aparte."""
-    if detalle.tasa_descuento_aplicada >= 100:
-        return detalle.costo_linea
-    return round(detalle.costo_linea / (1 - detalle.tasa_descuento_aplicada / 100))
 
 
 @bp.route("/")

@@ -1,15 +1,45 @@
+import calendar
+from datetime import date
+
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 
 from extensions import db
 from models import Proveedor
-from services.proveedores import resumen_proveedores
+from services.proveedores import (
+    resumen_proveedores, resumen_compras_proveedor, total_descuento_proveedor, DESDE_SIEMPRE,
+)
+from services.fechas import MESES_ES
 
 bp = Blueprint("proveedores", __name__, url_prefix="/proveedores")
+
+
+def _rango_mes(anio, mes):
+    ultimo_dia = calendar.monthrange(anio, mes)[1]
+    return date(anio, mes, 1), date(anio, mes, ultimo_dia)
 
 
 @bp.route("/")
 def listar():
     return render_template("proveedores/lista.html", filas=resumen_proveedores())
+
+
+@bp.route("/<int:proveedor_id>")
+def detalle(proveedor_id):
+    proveedor = Proveedor.query.get_or_404(proveedor_id)
+    hoy = date.today()
+    anio = int(request.args.get("anio", hoy.year))
+    mes = int(request.args.get("mes", hoy.month))
+
+    fecha_inicio, fecha_fin = _rango_mes(anio, mes)
+    filas = resumen_compras_proveedor(proveedor_id, fecha_inicio, fecha_fin)
+    descuento_mes = total_descuento_proveedor(proveedor_id, fecha_inicio, fecha_fin)
+    descuento_acumulado = total_descuento_proveedor(proveedor_id, DESDE_SIEMPRE, fecha_fin)
+
+    return render_template(
+        "proveedores/detalle.html", proveedor=proveedor, filas=filas,
+        descuento_mes=descuento_mes, descuento_acumulado=descuento_acumulado,
+        anio=anio, mes=mes, meses=MESES_ES,
+    )
 
 
 @bp.route("/nuevo", methods=["GET", "POST"])

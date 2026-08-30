@@ -22,10 +22,11 @@
   <tbody>
     {% for f in filas %}
     <tr>
-      <td>{{ f.proveedor.nombre }}</td>
+      <td><a href="{{ url_for('proveedores.detalle', proveedor_id=f.proveedor.id) }}">{{ f.proveedor.nombre }}</a></td>
       <td>{% if f.proveedor.es_postobon %}<span class="badge bg-primary">Postobón</span>{% endif %}</td>
       <td class="text-end">{{ f.cantidad_compras }}</td>
       <td class="text-end">
+        <a href="{{ url_for('proveedores.detalle', proveedor_id=f.proveedor.id) }}" class="btn btn-sm btn-outline-secondary">Ver resumen</a>
         <a href="{{ url_for('proveedores.editar', proveedor_id=f.proveedor.id) }}" class="btn btn-sm btn-outline-primary">Editar</a>
         <form method="post" action="{{ url_for('proveedores.desactivar', proveedor_id=f.proveedor.id) }}" class="d-inline"
               onsubmit="return confirm('¿Desactivar {{ f.proveedor.nombre }}?');">

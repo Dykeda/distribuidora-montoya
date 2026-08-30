@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}{{ proveedor.nombre }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">{{ proveedor.nombre }}</h1>
+  <a href="{{ url_for('proveedores.listar') }}" class="btn btn-outline-secondary btn-sm">&larr; Proveedores</a>
+</div>
+
+<form method="get" class="row col-lg-6 mb-3">
+  <div class="col-6">
+    <label class="form-label">Mes</label>
+    <select name="mes" class="form-select" onchange="this.form.submit()">
+      {% for nombre in meses %}
+      <option value="{{ loop.index }}" {% if loop.index == mes %}selected{% endif %}>{{ nombre }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-6">
+    <label class="form-label">Año</label>
+    <input type="number" name="anio" class="form-control" value="{{ anio }}" onchange="this.form.submit()">
+  </div>
+</form>
+
+<div class="row mb-4">
+  <div class="col-auto">
+    <div class="card card-metric" style="max-width: 320px;">
+      <div class="card-body">
+        <div class="text-muted small">Descuento del mes</div>
+        <div class="fs-3 fw-bold">${{ "{:,}".format(descuento_mes) }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-auto">
+    <div class="card card-metric" style="max-width: 320px;">
+      <div class="card-body">
+        <div class="text-muted small">Descuento acumulado histórico</div>
+        <div class="fs-3 fw-bold">${{ "{:,}".format(descuento_acumulado) }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h2 class="h6 mb-2">Compras del mes, por producto</h2>
+{% if filas %}
+<div class="table-responsive">
+<table class="table table-sm table-striped mb-0">
+  <thead>
+    <tr>
+      <th>Producto</th>
+      <th class="text-end">Cajas</th>
+      <th class="text-end">Unidades sueltas</th>
+      <th class="text-end">Costo pagado</th>
+      <th class="text-end">Descuento</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for f in filas %}
+    <tr>
+      <td>{{ f.producto.nombre }}</td>
+      <td class="text-end">{{ f.cajas }}</td>
+      <td class="text-end">{{ f.unidades_sueltas }}</td>
+      <td class="text-end">${{ "{:,}".format(f.costo_pagado) }}</td>
+      <td class="text-end">${{ "{:,}".format(f.descuento) }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+  <tfoot>
+    <tr class="fw-bold">
+      <td colspan="3">Total</td>
+      <td class="text-end">${{ "{:,}".format(filas | sum(attribute="costo_pagado")) }}</td>
+      <td class="text-end">${{ "{:,}".format(descuento_mes) }}</td>
+    </tr>
+  </tfoot>
+</table>
+</div>
+{% else %}
+<div class="alert alert-info">No hay compras a este proveedor en este mes.</div>
+{% endif %}
+{% endblock %}
