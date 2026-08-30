@@ -489,15 +489,17 @@ def test_cuadre_de_caja_incluye_gasto_creditos_pagados_y_nuevos_creditos(db, cli
     r = client.get(f"/camion/{salida.id}")
     body = r.get_data(as_text=True)
     # venta implicita neta = 78000 - 13000 (nuevos creditos, ya restados vía Cartera) = 65000
-    # venta total = 65000 + 13000 (nuevos creditos, detallados) + 10000 (creditos pagados) = 88000
+    # total vendido (venta implicita + nuevos creditos) = 65000 + 13000 = 78000
+    # venta total = 78000 (total vendido) + 10000 (creditos pagados) = 88000
     # esperado = contado(70000+0) + gasto(5000) + 13000 (nuevos creditos, detallados) = 88000
     # diferencia = 88000 - 88000 = 0 -> cuadra exacto
     assert "88,000" in body
     assert "Cuadra exacto" in body
 
-    # los nuevos créditos deben verse detallados como fila propia tanto en la tabla de
-    # "Efectivo esperado" como en la de "Venta total" -- no solo en una nota al pie
-    assert body.count("Nuevos créditos") >= 2
+    # los nuevos créditos se ven detallados como fila propia en "Efectivo esperado", y ya
+    # sumados dentro de "Total vendido" en "Venta total" (no una fila aparte ahí)
+    assert "Nuevos créditos" in body
+    assert "Total vendido" in body
 
 
 def test_detalle_de_ruta_muestra_total_de_cartera_de_la_ruta(db, client):

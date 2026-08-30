@@ -152,8 +152,14 @@ def detalle(salida_id):
         # solo hace más grande y más detallado cada total.
         efectivo_esperado = efectivo_real + gasto_en_ruta + nuevos_creditos
         venta_total = venta_implicita + nuevos_creditos + creditos_pagados
+        # venta_implicita + nuevos_creditos = el bruto de mercancía vendida (el mismo
+        # "Total vendido" que ya se ve arriba de la página) -- se precalcula aparte para
+        # que la tabla de "Venta total" muestre una sola fila unida, en vez de las dos
+        # que sumaban lo mismo por separado.
+        total_vendido = venta_implicita + nuevos_creditos
         cuadre = {
             "venta_implicita": venta_implicita,
+            "total_vendido": total_vendido,
             "gasto_en_ruta": gasto_en_ruta,
             "gastos_ruta": gastos_ruta,
             "creditos_pagados": creditos_pagados,
