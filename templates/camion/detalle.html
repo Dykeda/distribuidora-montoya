@@ -73,7 +73,7 @@
   </tbody>
   <tfoot>
     <tr class="fw-bold">
-      <td colspan="3">Total venta de la ruta</td>
+      <td colspan="3">Total vendido (mercancía)</td>
       <td class="text-end">${{ "{:,}".format(venta | sum(attribute="valor")) }}</td>
     </tr>
   </tfoot>
@@ -100,7 +100,7 @@
   <div class="table-responsive">
   <table class="table table-sm w-auto">
     <tbody>
-      <tr><td>Venta implícita de la ruta</td><td class="text-end">${{ "{:,}".format(cuadre.venta_implicita) }}</td></tr>
+      <tr><td>Total venta de la ruta</td><td class="text-end">${{ "{:,}".format(cuadre.venta_implicita) }}</td></tr>
       {% if cuadre.nuevos_creditos %}<tr><td>Nuevos créditos</td><td class="text-end">+${{ "{:,}".format(cuadre.nuevos_creditos) }}</td></tr>{% endif %}
       {% if cuadre.creditos_pagados %}<tr><td>Créditos pagados</td><td class="text-end">+${{ "{:,}".format(cuadre.creditos_pagados) }}</td></tr>{% endif %}
       <tr class="fw-bold border-top"><td>Venta total</td><td class="text-end">${{ "{:,}".format(cuadre.venta_total) }}</td></tr>
