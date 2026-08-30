@@ -5,13 +5,14 @@ from io import BytesIO
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file
 
 from extensions import db
-from models import Compra, AjustePostobon
+from models import Compra, AjustePostobon, Producto, PagoFaltantePostobon, PagoFaltantePostobonDetalle
 
 from services.postobon import (
     listar_faltantes_agrupados,
     construir_workbook_faltantes,
     construir_workbook_faltantes_de_compra,
     listar_ajustes,
+    listar_pagos_faltante,
     total_pendiente_acumulado,
 )
 from services.fechas import MESES_ES
@@ -35,11 +36,12 @@ def index():
     total_faltante = sum(g["subtotal"] for g in grupos)
     pendiente_acumulado = total_pendiente_acumulado()
     ajustes = listar_ajustes()
+    pagos = listar_pagos_faltante()
 
     return render_template(
         "postobon/informe.html", grupos=grupos, total_faltante=total_faltante,
         anio=anio, mes=mes, meses=MESES_ES,
-        pendiente_acumulado=pendiente_acumulado, ajustes=ajustes,
+        pendiente_acumulado=pendiente_acumulado, ajustes=ajustes, pagos=pagos,
     )
 
 
@@ -75,6 +77,72 @@ def ajuste_eliminar(ajuste_id):
     db.session.delete(ajuste)
     db.session.commit()
     flash("Ajuste eliminado.", "success")
+    return redirect(url_for("postobon.index"))
+
+
+@bp.route("/pagos/nuevo", methods=["GET", "POST"])
+def pago_nuevo():
+    productos = Producto.query.filter_by(activo=True).order_by(Producto.nombre).all()
+
+    if request.method == "POST":
+        fecha_str = request.form.get("fecha")
+        try:
+            fecha = datetime.strptime(fecha_str, "%Y-%m-%d").date() if fecha_str else date.today()
+        except ValueError:
+            fecha = date.today()
+
+        producto_ids = request.form.getlist("producto_id[]")
+        cajas_lista = request.form.getlist("cajas[]")
+        unidades_lista = request.form.getlist("unidades[]")
+
+        errores = []
+        lineas = []
+        for i, pid in enumerate(producto_ids):
+            if not pid:
+                continue
+            try:
+                producto = db.session.get(Producto, int(pid))
+                cajas = float(cajas_lista[i] or 0)
+                unidades = float(unidades_lista[i] or 0)
+            except (ValueError, IndexError, TypeError):
+                errores.append(f"Línea {i + 1}: datos inválidos.")
+                continue
+            if producto is None:
+                errores.append(f"Línea {i + 1}: producto no encontrado.")
+                continue
+            cantidad = round(cajas * producto.unidades_por_caja + unidades)
+            if cantidad <= 0:
+                errores.append(f"Línea {i + 1}: la cantidad debe ser mayor a cero.")
+                continue
+            valor = round(cantidad * (producto.precio_actual() or 0))
+            lineas.append(PagoFaltantePostobonDetalle(
+                producto_id=producto.id, cantidad_unidades=cantidad, valor=valor,
+            ))
+
+        if not lineas:
+            errores.append("Debes agregar al menos una línea de producto válida.")
+
+        if errores:
+            for e in errores:
+                flash(e, "error")
+            return render_template("postobon/pago_formulario.html", productos=productos, form=request.form)
+
+        pago = PagoFaltantePostobon(fecha=fecha, notas=request.form.get("notas") or None)
+        pago.detalles = lineas
+        db.session.add(pago)
+        db.session.commit()
+        flash("Pago de faltante registrado.", "success")
+        return redirect(url_for("postobon.index"))
+
+    return render_template("postobon/pago_formulario.html", productos=productos, form=None)
+
+
+@bp.route("/pagos/<int:pago_id>/eliminar", methods=["POST"])
+def pago_eliminar(pago_id):
+    pago = PagoFaltantePostobon.query.get_or_404(pago_id)
+    db.session.delete(pago)
+    db.session.commit()
+    flash("Pago eliminado.", "success")
     return redirect(url_for("postobon.index"))
 
 

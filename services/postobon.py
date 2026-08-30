@@ -7,7 +7,10 @@ from openpyxl.styles import Font
 from sqlalchemy import func, or_
 
 from extensions import db
-from models import CompraDetalle, Compra, Producto, AjustePostobon, Proveedor
+from models import (
+    CompraDetalle, Compra, Producto, AjustePostobon, Proveedor,
+    PagoFaltantePostobon, PagoFaltantePostobonDetalle,
+)
 
 # Fecha de arranque para sumas "históricas" (todo lo que haya, no acotado a un mes).
 DESDE_SIEMPRE = date(2000, 1, 1)
@@ -146,14 +149,32 @@ def total_ajustes_hasta(fecha_corte):
     return round(total)
 
 
+def listar_pagos_faltante():
+    return (
+        PagoFaltantePostobon.query
+        .order_by(PagoFaltantePostobon.fecha.desc(), PagoFaltantePostobon.id.desc())
+        .all()
+    )
+
+
+def total_pagos_faltante_hasta(fecha_corte):
+    total = (
+        db.session.query(func.coalesce(func.sum(PagoFaltantePostobonDetalle.valor), 0))
+        .join(PagoFaltantePostobon, PagoFaltantePostobonDetalle.pago_id == PagoFaltantePostobon.id)
+        .filter(PagoFaltantePostobon.fecha <= fecha_corte)
+        .scalar()
+    )
+    return round(total)
+
+
 def total_pendiente_acumulado(fecha_corte=None):
     """Saldo pendiente de Postobón de todo el tiempo hasta la fecha de corte: la suma de
     todos los faltantes detectados en las facturas + los ajustes manuales (deuda anterior
-    a esta pantalla, o abonos que Postobón haya hecho). No se acota por mes -- es el
-    saldo que se le puede reclamar hoy."""
+    a esta pantalla, o abonos que Postobón haya hecho) - los pagos que Postobón ya hizo en
+    producto. No se acota por mes -- es el saldo que se le puede reclamar hoy."""
     fecha_corte = fecha_corte or date.today()
     faltante_historico = sum(f["monto_faltante"] for f in listar_faltantes(DESDE_SIEMPRE, fecha_corte))
-    return faltante_historico + total_ajustes_hasta(fecha_corte)
+    return faltante_historico + total_ajustes_hasta(fecha_corte) - total_pagos_faltante_hasta(fecha_corte)
 
 
 def construir_workbook_faltantes_de_compra(compra_id):

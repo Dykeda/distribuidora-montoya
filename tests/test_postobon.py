@@ -2,8 +2,12 @@ from datetime import date
 
 import pytest
 
-from models import Producto, ProductoPrecio, Compra, CompraDetalle, AjustePostobon, Proveedor
+from models import (
+    Producto, ProductoPrecio, Compra, CompraDetalle, AjustePostobon, Proveedor,
+    PagoFaltantePostobon, PagoFaltantePostobonDetalle,
+)
 from services.postobon import listar_faltantes, listar_faltantes_agrupados, total_pendiente_acumulado
+from services.inventario import calcular_stock
 
 
 @pytest.fixture
@@ -275,3 +279,68 @@ def test_eliminar_ajuste_lo_quita_del_informe(db, client):
     r = client.post(f"/postobon/ajustes/{ajuste.id}/eliminar", follow_redirects=True)
     assert r.status_code == 200
     assert AjustePostobon.query.count() == 0
+
+
+def test_total_pendiente_acumulado_resta_pagos_de_faltante_en_producto(db):
+    coca = crear_producto(db, tasa_referencia=15.0)
+    crear_compra_detalle(db, coca, date(2026, 8, 17), costo_linea=100000, tasa_aplicada=10.0)
+
+    pago = PagoFaltantePostobon(fecha=date(2026, 8, 20), notas="Camión de reposición")
+    pago.detalles = [PagoFaltantePostobonDetalle(producto_id=coca.id, cantidad_unidades=12, valor=2000)]
+    db.session.add(pago)
+    db.session.commit()
+
+    assert total_pendiente_acumulado(date(2026, 8, 31)) == 5000 - 2000
+
+
+def test_total_pendiente_acumulado_ignora_pagos_despues_de_la_fecha_de_corte(db):
+    coca = crear_producto(db)
+    pago = PagoFaltantePostobon(fecha=date(2026, 9, 1))
+    pago.detalles = [PagoFaltantePostobonDetalle(producto_id=coca.id, cantidad_unidades=12, valor=2000)]
+    db.session.add(pago)
+    db.session.commit()
+
+    assert total_pendiente_acumulado(date(2026, 8, 31)) == 0
+
+
+def test_registrar_pago_de_faltante_suma_inventario_y_resta_pendiente(db, client):
+    coca = crear_producto(db, tasa_referencia=15.0)
+    crear_compra_detalle(db, coca, date(2026, 8, 17), costo_linea=100000, tasa_aplicada=10.0)
+    stock_antes = calcular_stock(coca.id)
+
+    r = client.post(
+        "/postobon/pagos/nuevo",
+        data={
+            "fecha": "2026-08-20", "notas": "Camión de reposición",
+            "producto_id[]": [str(coca.id)], "cajas[]": ["2"], "unidades[]": ["0"],
+        },
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+    body = r.get_data(as_text=True)
+    assert "Camión de reposición" in body
+
+    pago = PagoFaltantePostobon.query.one()
+    assert pago.notas == "Camión de reposición"
+    detalle = pago.detalles[0]
+    assert detalle.cantidad_unidades == 12  # 2 cajas * 6 unidades/caja
+    assert detalle.valor == 12 * 3000  # cantidad * precio_actual()
+    assert pago.valor_total == 36000
+
+    assert calcular_stock(coca.id) == stock_antes + 12
+    assert total_pendiente_acumulado(date(2026, 8, 31)) == 5000 - 36000
+
+
+def test_eliminar_pago_de_faltante_revierte_inventario_y_pendiente(db, client):
+    coca = crear_producto(db)
+    stock_antes = calcular_stock(coca.id)
+    pago = PagoFaltantePostobon(fecha=date(2026, 8, 20))
+    pago.detalles = [PagoFaltantePostobonDetalle(producto_id=coca.id, cantidad_unidades=12, valor=36000)]
+    db.session.add(pago)
+    db.session.commit()
+    assert calcular_stock(coca.id) == stock_antes + 12
+
+    r = client.post(f"/postobon/pagos/{pago.id}/eliminar", follow_redirects=True)
+    assert r.status_code == 200
+    assert PagoFaltantePostobon.query.count() == 0
+    assert calcular_stock(coca.id) == stock_antes

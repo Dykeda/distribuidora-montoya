@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Registrar pago de faltante{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">Registrar pago de faltante (en producto)</h1>
+<p class="text-muted">Para cuando Postobón salda parte del saldo pendiente entregando mercancía en vez de dinero. El producto entra al inventario y su valor (a precio de venta actual) se resta del saldo pendiente acumulado.</p>
+
+{% if not productos %}
+<div class="alert alert-warning">No hay productos activos todavía. <a href="{{ url_for('productos.nuevo') }}">Crea un producto primero</a>.</div>
+{% endif %}
+
+<datalist id="lista-productos">
+  {% for p in productos %}
+  <option value="{{ p.nombre }}">
+  {% endfor %}
+</datalist>
+
+<form method="post" id="form-pago">
+  <div class="row col-lg-8 mb-3">
+    <div class="col-md-6">
+      <label class="form-label">Fecha</label>
+      <input type="date" name="fecha" class="form-control" value="{{ form.fecha if form else '' }}" required>
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">Notas (opcional)</label>
+      <input type="text" name="notas" class="form-control" value="{{ form.notas if form else '' }}">
+    </div>
+  </div>
+
+  <div class="table-responsive">
+  <table class="table" id="tabla-lineas">
+    <thead>
+      <tr>
+        <th>Producto</th>
+        <th style="width:110px">Cajas</th>
+        <th style="width:130px">Unidades sueltas</th>
+        <th style="width:160px">Valor estimado</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="cuerpo-lineas"></tbody>
+  </table>
+  </div>
+  <button type="button" id="btn-agregar-linea" class="btn btn-outline-secondary btn-sm mb-3">+ Agregar producto</button>
+
+  <br>
+  <button type="submit" class="btn btn-primary">Guardar pago</button>
+  <a href="{{ url_for('postobon.index') }}" class="btn btn-link">Cancelar</a>
+</form>
+
+<template id="plantilla-linea">
+  <tr>
+    <td>
+      <input type="text" class="form-control producto-buscar" list="lista-productos" placeholder="Escribe para buscar..." autocomplete="off">
+      <input type="hidden" name="producto_id[]" class="producto-id-oculto">
+    </td>
+    <td><input type="number" step="1" min="0" name="cajas[]" class="form-control cajas-input" value="0"></td>
+    <td><input type="number" step="1" min="0" name="unidades[]" class="form-control unidades-input" value="0"></td>
+    <td class="valor-preview text-muted">$0</td>
+    <td><button type="button" class="btn btn-sm btn-outline-danger btn-quitar-linea">&times;</button></td>
+  </tr>
+</template>
+
+<script>
+  const PRODUCTOS = [
+    {% for p in productos %}
+    {id: {{ p.id }}, nombre: {{ p.nombre | tojson }}, precioCaja: {{ p.precio_caja_actual() or 0 }}, precioUnidad: {{ p.precio_actual() or 0 }}},
+    {% endfor %}
+  ];
+
+  const cuerpo = document.getElementById("cuerpo-lineas");
+  const plantilla = document.getElementById("plantilla-linea");
+
+  function actualizarPreview(fila) {
+    const idInput = fila.querySelector(".producto-id-oculto");
+    const preview = fila.querySelector(".valor-preview");
+    const prod = PRODUCTOS.find((p) => String(p.id) === idInput.value);
+    if (!prod) {
+      preview.textContent = "$0";
+      return;
+    }
+    const cajas = parseFloat(fila.querySelector(".cajas-input").value) || 0;
+    const unidades = parseFloat(fila.querySelector(".unidades-input").value) || 0;
+    const valor = Math.round(cajas * prod.precioCaja + unidades * prod.precioUnidad);
+    preview.textContent = `$${valor.toLocaleString("es-CO")}`;
+  }
+
+  function agregarLinea() {
+    const nodo = plantilla.content.cloneNode(true);
+    nodo.querySelector(".btn-quitar-linea").addEventListener("click", (e) => {
+      e.target.closest("tr").remove();
+    });
+    const fila = nodo.querySelector("tr");
+    const buscarInput = fila.querySelector(".producto-buscar");
+    const idInput = fila.querySelector(".producto-id-oculto");
+    buscarInput.addEventListener("input", () => {
+      const prod = PRODUCTOS.find((p) => p.nombre === buscarInput.value);
+      idInput.value = prod ? prod.id : "";
+      actualizarPreview(fila);
+    });
+    fila.querySelector(".cajas-input").addEventListener("input", () => actualizarPreview(fila));
+    fila.querySelector(".unidades-input").addEventListener("input", () => actualizarPreview(fila));
+    cuerpo.appendChild(nodo);
+  }
+
+  document.getElementById("btn-agregar-linea").addEventListener("click", agregarLinea);
+  agregarLinea();
+</script>
+{% endblock %}

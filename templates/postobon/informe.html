@@ -34,7 +34,7 @@
   <div class="col-auto">
     <div class="card card-metric" style="max-width: 320px;">
       <div class="card-body">
-        <div class="text-muted small">Saldo pendiente acumulado (con ajustes)</div>
+        <div class="text-muted small">Saldo pendiente acumulado (con ajustes y pagos)</div>
         <div class="fs-3 fw-bold text-danger">${{ "{:,}".format(pendiente_acumulado) }}</div>
       </div>
     </div>
@@ -76,6 +76,46 @@
   </div>
   {% else %}
   <p class="text-muted small mb-0">No hay ajustes registrados todavía.</p>
+  {% endif %}
+</div>
+
+<div class="mb-4">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h2 class="h6 mb-0">Pagos de faltante en producto</h2>
+    <a href="{{ url_for('postobon.pago_nuevo') }}" class="btn btn-sm btn-outline-primary">+ Registrar pago</a>
+  </div>
+  {% if pagos %}
+  <div class="table-responsive">
+  <table class="table table-sm mb-0">
+    <thead>
+      <tr>
+        <th>Fecha</th>
+        <th>Productos</th>
+        <th>Notas</th>
+        <th class="text-end">Valor</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in pagos %}
+      <tr>
+        <td>{{ p.fecha.strftime("%Y-%m-%d") }}</td>
+        <td>{% for d in p.detalles %}{{ d.producto.nombre }} ({{ d.cantidad_unidades }} unid.){% if not loop.last %}, {% endif %}{% endfor %}</td>
+        <td>{{ p.notas or "-" }}</td>
+        <td class="text-end text-success">${{ "{:,}".format(p.valor_total) }}</td>
+        <td class="text-end">
+          <form method="post" action="{{ url_for('postobon.pago_eliminar', pago_id=p.id) }}" class="d-inline"
+                onsubmit="return confirm('¿Eliminar este pago de ${{ '{:,}'.format(p.valor_total) }}? Esto también reduce el inventario que sumó.');">
+            <button type="submit" class="btn btn-sm btn-outline-danger">Eliminar</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="text-muted small mb-0">No hay pagos de faltante registrados todavía.</p>
   {% endif %}
 </div>
 

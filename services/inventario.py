@@ -7,6 +7,7 @@ from models import (
     RetornoCamionDetalle,
     RecargaCamionDetalle,
     VentaBodegaDetalle,
+    PagoFaltantePostobonDetalle,
     Producto,
 )
 
@@ -30,6 +31,7 @@ def tiene_movimientos(producto_id):
         RetornoCamionDetalle,
         RecargaCamionDetalle,
         VentaBodegaDetalle,
+        PagoFaltantePostobonDetalle,
     ]
     return any(modelo.query.filter_by(producto_id=producto_id).first() is not None for modelo in modelos)
 
@@ -40,7 +42,8 @@ def calcular_stock(producto_id):
     recargado = _sumar(RecargaCamionDetalle, RecargaCamionDetalle.cantidad_unidades, producto_id)
     regresado = _sumar(RetornoCamionDetalle, RetornoCamionDetalle.cantidad_unidades, producto_id)
     vendido_bodega = _sumar(VentaBodegaDetalle, VentaBodegaDetalle.cantidad_unidades, producto_id)
-    return comprado - salido - recargado + regresado - vendido_bodega
+    pagado_en_producto = _sumar(PagoFaltantePostobonDetalle, PagoFaltantePostobonDetalle.cantidad_unidades, producto_id)
+    return comprado - salido - recargado + regresado - vendido_bodega + pagado_en_producto
 
 
 def cajas_y_unidades(producto, stock):

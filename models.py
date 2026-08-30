@@ -389,3 +389,42 @@ class AjustePostobon(db.Model):
     fecha = db.Column(db.Date, nullable=False, default=date.today)
     monto = db.Column(db.Integer, nullable=False)
     notas = db.Column(db.String(255), nullable=True)
+
+
+class PagoFaltantePostobon(db.Model):
+    """Cuando Postobón salda parte del saldo pendiente de descuentos faltantes
+    entregando producto en vez de dinero (un camión de mercancía como abono). A
+    diferencia de una Compra, este producto no se pagó -- llega gratis como pago de una
+    deuda -- así que no debe aparecer en el historial de compras ni contarse como un
+    nuevo faltante. Sí debe sumar al inventario real y restar del saldo pendiente
+    acumulado de Postobón (ver services/postobon.py::total_pendiente_acumulado)."""
+
+    __tablename__ = "pago_faltante_postobon"
+
+    id = db.Column(db.Integer, primary_key=True)
+    fecha = db.Column(db.Date, nullable=False, default=date.today)
+    notas = db.Column(db.String(255), nullable=True)
+
+    detalles = db.relationship(
+        "PagoFaltantePostobonDetalle", back_populates="pago", cascade="all, delete-orphan"
+    )
+
+    @property
+    def valor_total(self):
+        return sum(d.valor for d in self.detalles)
+
+
+class PagoFaltantePostobonDetalle(db.Model):
+    __tablename__ = "pago_faltante_postobon_detalle"
+
+    id = db.Column(db.Integer, primary_key=True)
+    pago_id = db.Column(db.Integer, db.ForeignKey("pago_faltante_postobon.id"), nullable=False)
+    producto_id = db.Column(db.Integer, db.ForeignKey("producto.id"), nullable=False)
+    cantidad_unidades = db.Column(db.Integer, nullable=False)
+    # Valor en pesos de esta línea al momento de registrar el pago (cantidad × precio de
+    # venta vigente ese día) -- se guarda como una foto fija, no se recalcula después, para
+    # que el saldo pendiente no cambie solo si el precio de venta del producto cambia luego.
+    valor = db.Column(db.Integer, nullable=False)
+
+    pago = db.relationship("PagoFaltantePostobon", back_populates="detalles")
+    producto = db.relationship("Producto")
