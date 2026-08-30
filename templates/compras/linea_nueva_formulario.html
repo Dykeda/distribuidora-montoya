@@ -127,11 +127,11 @@
   <div class="row col-lg-8 mb-3">
     <div class="col-md-3">
       <label class="form-label">Cajas pagadas</label>
-      <input type="number" step="1" min="0" name="cajas_pagadas" class="form-control" value="{{ form.cajas_pagadas if form else 0 }}">
+      <input type="number" step="1" min="0" id="cajas_pagadas" name="cajas_pagadas" class="form-control" value="{{ form.cajas_pagadas if form else 0 }}">
     </div>
     <div class="col-md-3">
       <label class="form-label">Unid. sueltas pagadas</label>
-      <input type="number" step="1" min="0" name="unidades_pagadas" class="form-control" value="{{ form.unidades_pagadas if form else 0 }}">
+      <input type="number" step="1" min="0" id="unidades_pagadas" name="unidades_pagadas" class="form-control" value="{{ form.unidades_pagadas if form else 0 }}">
     </div>
     <div class="col-md-3">
       <label class="form-label">Cajas descuento</label>
@@ -145,7 +145,7 @@
   <div class="row col-lg-8 mb-3">
     <div class="col-md-4">
       <label class="form-label">Total pagado ($)</label>
-      <input type="number" min="0" name="costo_pagado" class="form-control" value="{{ form.costo_pagado if form else '' }}">
+      <input type="number" min="0" id="costo_pagado" name="costo_pagado" class="form-control" value="{{ form.costo_pagado if form else '' }}">
     </div>
     <div class="col-md-6">
       <label class="form-label">Notas (opcional)</label>
@@ -159,16 +159,31 @@
 <script>
   const PRODUCTOS = [
     {% for p in productos %}
-    {id: {{ p.id }}, nombre: {{ p.nombre | tojson }}},
+    {id: {{ p.id }}, nombre: {{ p.nombre | tojson }}, precioCaja: {{ p.precio_caja_actual() or 0 }}, precioUnidad: {{ p.precio_actual() or 0 }}},
     {% endfor %}
   ];
 
   const buscarInputSimple = document.getElementById("producto-buscar-simple");
   const idInputSimple = document.getElementById("producto_id_simple");
+  const cajasPagadasInput = document.getElementById("cajas_pagadas");
+  const unidadesPagadasInput = document.getElementById("unidades_pagadas");
+  const costoPagadoInput = document.getElementById("costo_pagado");
+
+  function recalcularCostoSimple() {
+    const prod = PRODUCTOS.find((p) => String(p.id) === idInputSimple.value);
+    if (!prod) return;
+    const cajas = parseFloat(cajasPagadasInput.value) || 0;
+    const unidades = parseFloat(unidadesPagadasInput.value) || 0;
+    costoPagadoInput.value = Math.round(cajas * prod.precioCaja + unidades * prod.precioUnidad);
+  }
+
   buscarInputSimple.addEventListener("input", () => {
     const prod = PRODUCTOS.find((p) => p.nombre === buscarInputSimple.value);
     idInputSimple.value = prod ? prod.id : "";
+    recalcularCostoSimple();
   });
+  cajasPagadasInput.addEventListener("input", recalcularCostoSimple);
+  unidadesPagadasInput.addEventListener("input", recalcularCostoSimple);
 </script>
 {% endif %}
 {% endblock %}

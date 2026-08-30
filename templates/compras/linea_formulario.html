@@ -88,11 +88,11 @@
   <div class="row col-lg-8 mb-3">
     <div class="col-md-3">
       <label class="form-label">Cajas pagadas</label>
-      <input type="number" step="1" min="0" name="cajas_pagadas" class="form-control" value="{{ cajas_pagadas_actual }}">
+      <input type="number" step="1" min="0" id="cajas_pagadas" name="cajas_pagadas" class="form-control" value="{{ cajas_pagadas_actual }}">
     </div>
     <div class="col-md-3">
       <label class="form-label">Unid. sueltas pagadas</label>
-      <input type="number" step="1" min="0" name="unidades_pagadas" class="form-control" value="{{ unidades_pagadas_actual }}">
+      <input type="number" step="1" min="0" id="unidades_pagadas" name="unidades_pagadas" class="form-control" value="{{ unidades_pagadas_actual }}">
     </div>
     <div class="col-md-3">
       <label class="form-label">Cajas descuento</label>
@@ -106,7 +106,7 @@
   <div class="row col-lg-8 mb-3">
     <div class="col-md-4">
       <label class="form-label">Total pagado ($)</label>
-      <input type="number" min="0" name="costo_pagado" class="form-control" value="{{ costo_pagado_actual }}">
+      <input type="number" min="0" id="costo_pagado" name="costo_pagado" class="form-control" value="{{ costo_pagado_actual }}">
     </div>
     <div class="col-md-6">
       <label class="form-label">Notas (opcional)</label>
@@ -116,5 +116,19 @@
   <button type="submit" class="btn btn-primary">Guardar cambios</button>
   <a href="{{ url_for('compras.detalle', compra_id=compra.id) }}" class="btn btn-link">Cancelar</a>
 </form>
+
+<script>
+  const precioCajaSimple = {{ producto.precio_caja_actual() or 0 }};
+  const precioUnidadSimple = {{ producto.precio_actual() or 0 }};
+
+  function recalcularCostoSimple() {
+    const cajas = parseFloat(document.getElementById("cajas_pagadas").value) || 0;
+    const unidades = parseFloat(document.getElementById("unidades_pagadas").value) || 0;
+    document.getElementById("costo_pagado").value = Math.round(cajas * precioCajaSimple + unidades * precioUnidadSimple);
+  }
+
+  document.getElementById("cajas_pagadas").addEventListener("input", recalcularCostoSimple);
+  document.getElementById("unidades_pagadas").addEventListener("input", recalcularCostoSimple);
+</script>
 {% endif %}
 {% endblock %}

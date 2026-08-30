@@ -151,11 +151,11 @@
       <input type="text" class="form-control producto-buscar-simple" list="lista-productos" placeholder="Escribe para buscar..." autocomplete="off">
       <input type="hidden" name="producto_id_simple[]" class="producto-id-oculto-simple">
     </td>
-    <td><input type="number" step="1" min="0" name="cajas_pagadas[]" class="form-control" value="0"></td>
-    <td><input type="number" step="1" min="0" name="unidades_pagadas[]" class="form-control" value="0"></td>
+    <td><input type="number" step="1" min="0" name="cajas_pagadas[]" class="form-control cajas-pagadas-input" value="0"></td>
+    <td><input type="number" step="1" min="0" name="unidades_pagadas[]" class="form-control unidades-pagadas-input" value="0"></td>
     <td><input type="number" step="1" min="0" name="cajas_descuento[]" class="form-control" value="0"></td>
     <td><input type="number" step="1" min="0" name="unidades_descuento[]" class="form-control" value="0"></td>
-    <td><input type="number" min="0" name="costo_pagado[]" class="form-control"></td>
+    <td><input type="number" min="0" name="costo_pagado[]" class="form-control costo-pagado-input"></td>
     <td><input type="text" name="notas_linea_simple[]" class="form-control" placeholder="opcional"></td>
     <td><button type="button" class="btn btn-sm btn-outline-danger btn-quitar-linea">&times;</button></td>
   </tr>
@@ -241,6 +241,16 @@
   const cuerpoSimple = document.getElementById("cuerpo-lineas-simple");
   const plantillaSimple = document.getElementById("plantilla-linea-simple");
 
+  function recalcularCostoSimple(fila) {
+    const idInput = fila.querySelector(".producto-id-oculto-simple");
+    const costoInput = fila.querySelector(".costo-pagado-input");
+    const prod = PRODUCTOS.find((p) => String(p.id) === idInput.value);
+    if (!prod) return;
+    const cajas = parseFloat(fila.querySelector(".cajas-pagadas-input").value) || 0;
+    const unidades = parseFloat(fila.querySelector(".unidades-pagadas-input").value) || 0;
+    costoInput.value = Math.round(cajas * prod.precioCaja + unidades * prod.precioUnidad);
+  }
+
   function agregarLineaSimple() {
     const nodo = plantillaSimple.content.cloneNode(true);
     nodo.querySelector(".btn-quitar-linea").addEventListener("click", (e) => {
@@ -252,7 +262,10 @@
     buscarInput.addEventListener("input", () => {
       const prod = buscarProductoPorNombre(buscarInput.value);
       idInput.value = prod ? prod.id : "";
+      recalcularCostoSimple(fila);
     });
+    fila.querySelector(".cajas-pagadas-input").addEventListener("input", () => recalcularCostoSimple(fila));
+    fila.querySelector(".unidades-pagadas-input").addEventListener("input", () => recalcularCostoSimple(fila));
     cuerpoSimple.appendChild(nodo);
   }
 
