@@ -697,3 +697,26 @@ def test_editar_linea_de_compra_no_postobon_reemplaza_el_par_pagada_descuento(db
     assert "3,000,000" in body
     assert "600,000" in body
     assert "2,400,000" in body
+
+
+def test_detalle_de_compra_no_postobon_muestra_tasa_sobre_lo_pagado_no_sobre_el_bruto(db, client):
+    # 86 cajas pagadas ($2,580,000) + 14 de descuento -- tasa_descuento_aplicada guardada
+    # (14.0%) es sobre el bruto total (necesaria para reconstruir Subtotal/Descuento), pero
+    # lo que se muestra en la columna "Tasa descuento" es sobre lo pagado: 14/86 = 16.28%.
+    compra, hit = _crear_compra_canasto_con_un_producto(db)
+
+    r = client.get(f"/compras/{compra.id}")
+    body = r.get_data(as_text=True)
+    assert r.status_code == 200
+    assert "16.28%" in body
+    assert "14.0%" not in body
+
+
+def test_detalle_de_compra_postobon_sigue_mostrando_la_tasa_tal_cual_se_guardo(db, client):
+    compra, coca, agua = _crear_compra_con_dos_productos(db)
+
+    r = client.get(f"/compras/{compra.id}")
+    body = r.get_data(as_text=True)
+    assert r.status_code == 200
+    assert "5.0%" in body  # tasa_descuento_aplicada de la línea de coca, sin recalcular
+    assert "10.0%" in body  # ídem para agua

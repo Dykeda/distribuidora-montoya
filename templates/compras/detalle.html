@@ -46,7 +46,7 @@
       <td class="text-end">${{ "{:,}".format(f.descuento) }}</td>
       <td class="text-end">${{ "{:,}".format(f.detalle.costo_linea) }}</td>
       <td class="text-end">
-        {{ f.detalle.tasa_descuento_aplicada }}%
+        {{ f.tasa_mostrar }}%
         {% if es_faltante %}
           <span class="text-danger d-block small">faltó, esperado {{ f.detalle.producto.tasa_descuento_referencia }}%</span>
         {% endif %}

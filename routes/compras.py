@@ -40,13 +40,23 @@ def listar():
 @bp.route("/<int:compra_id>")
 def detalle(compra_id):
     compra = Compra.query.get_or_404(compra_id)
+    es_postobon = _es_postobon_compra(compra)
     filas = []
     for d in compra.detalles:
         cajas, unidades_sueltas = cajas_y_unidades(d.producto, d.cantidad_comprada_unidades)
         bruto = _bruto_linea(d)
+        descuento = bruto - d.costo_linea
+        # En modo simple (no-Postobón) la tasa que se guarda es sobre el valor bruto total
+        # recibido (necesaria para reconstruir Subtotal/Descuento), pero lo que se muestra
+        # es sobre lo que realmente se pagó -- "de las cajas que compré, cuánto más me
+        # dieron de descuento" -- que es como lo piensa el usuario para estos proveedores.
+        if es_postobon or d.costo_linea == 0:
+            tasa_mostrar = d.tasa_descuento_aplicada
+        else:
+            tasa_mostrar = round(descuento / d.costo_linea * 100, 2)
         filas.append({
             "detalle": d, "cajas": cajas, "unidades_sueltas": unidades_sueltas,
-            "bruto": bruto, "descuento": bruto - d.costo_linea,
+            "bruto": bruto, "descuento": descuento, "tasa_mostrar": tasa_mostrar,
         })
 
     costo_total = sum(d.costo_linea for d in compra.detalles)
