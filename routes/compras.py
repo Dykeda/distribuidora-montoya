@@ -175,6 +175,136 @@ def linea_editar(compra_id, detalle_id):
     )
 
 
+def _parsear_lineas_postobon(request, errores):
+    producto_ids = request.form.getlist("producto_id[]")
+    cajas_lista = request.form.getlist("cajas[]")
+    unidades_lista = request.form.getlist("unidades[]")
+    costos = request.form.getlist("costo_linea[]")
+    tasas = request.form.getlist("tasa_descuento[]")
+    es_descuentos = request.form.getlist("es_descuento[]")
+    ivas = request.form.getlist("porcentaje_iva[]")
+    costo_incluye_iva_lista = request.form.getlist("costo_incluye_iva[]")
+    notas_lineas = request.form.getlist("notas_linea[]")
+
+    lineas_validas = []
+    for i, pid in enumerate(producto_ids):
+        if not pid:
+            continue
+        try:
+            producto = db.session.get(Producto, int(pid))
+            cajas = float(cajas_lista[i] or 0)
+            unidades = float(unidades_lista[i] or 0)
+            costo = int(costos[i])
+            tasa = float(tasas[i] or 0)
+            iva = float(ivas[i] or 0) if i < len(ivas) else 0.0
+        except (ValueError, IndexError, TypeError):
+            errores.append(f"Línea {i + 1}: datos inválidos.")
+            continue
+        es_descuento = i < len(es_descuentos) and es_descuentos[i] == "1"
+        if i < len(costo_incluye_iva_lista) and costo_incluye_iva_lista[i] == "1" and iva > 0:
+            costo = round(costo / (1 + iva / 100.0))
+
+        if producto is None:
+            errores.append(f"Línea {i + 1}: producto no encontrado.")
+            continue
+
+        cantidad_unidades = round(cajas * producto.unidades_por_caja + unidades)
+        if cantidad_unidades <= 0:
+            errores.append(f"Línea {i + 1}: la cantidad debe ser mayor a cero.")
+            continue
+
+        notas_linea = notas_lineas[i].strip() if i < len(notas_lineas) and notas_lineas[i].strip() else None
+        lineas_validas.append(
+            CompraDetalle(
+                producto_id=producto.id,
+                cantidad_comprada_unidades=cantidad_unidades,
+                costo_linea=costo,
+                tasa_descuento_aplicada=tasa,
+                es_descuento=es_descuento,
+                porcentaje_iva=iva,
+                notas=notas_linea,
+            )
+        )
+    return lineas_validas
+
+
+def _parsear_lineas_simple(request, errores):
+    """Modo simple (proveedores que no son Postobón, ej. Canasto): por producto, solo
+    cajas/unidades pagadas + cajas/unidades de descuento (regalo) + lo que realmente se
+    pagó -- sin pedir tasa % ni IVA. Arma automáticamente hasta dos CompraDetalle por
+    línea: una "pagada" (con una tasa_descuento_aplicada calculada para que el Subtotal/
+    Descuento reconstruido en el detalle de la compra cuadre) y una "de descuento" a costo
+    $0 (el producto que llegó sin cobro), marcada es_descuento=True solo como registro de
+    cantidad -- a propósito NO se contabiliza en la pantalla Descuentos/ganancia neta, que
+    es específica del sistema de crédito de Postobón."""
+    producto_ids = request.form.getlist("producto_id_simple[]")
+    cajas_pagadas_lista = request.form.getlist("cajas_pagadas[]")
+    unidades_pagadas_lista = request.form.getlist("unidades_pagadas[]")
+    cajas_descuento_lista = request.form.getlist("cajas_descuento[]")
+    unidades_descuento_lista = request.form.getlist("unidades_descuento[]")
+    costos_pagados = request.form.getlist("costo_pagado[]")
+    notas_lineas = request.form.getlist("notas_linea_simple[]")
+
+    lineas_validas = []
+    for i, pid in enumerate(producto_ids):
+        if not pid:
+            continue
+        try:
+            producto = db.session.get(Producto, int(pid))
+            cajas_pagadas = float(cajas_pagadas_lista[i] or 0)
+            unidades_pagadas = float(unidades_pagadas_lista[i] or 0)
+            cajas_descuento = float(cajas_descuento_lista[i] or 0) if i < len(cajas_descuento_lista) else 0.0
+            unidades_descuento = float(unidades_descuento_lista[i] or 0) if i < len(unidades_descuento_lista) else 0.0
+            costo_pagado = int(costos_pagados[i] or 0)
+        except (ValueError, IndexError, TypeError):
+            errores.append(f"Línea {i + 1}: datos inválidos.")
+            continue
+
+        if producto is None:
+            errores.append(f"Línea {i + 1}: producto no encontrado.")
+            continue
+
+        cantidad_pagada = round(cajas_pagadas * producto.unidades_por_caja + unidades_pagadas)
+        cantidad_descuento = round(cajas_descuento * producto.unidades_por_caja + unidades_descuento)
+        cantidad_total = cantidad_pagada + cantidad_descuento
+        if cantidad_total <= 0:
+            errores.append(f"Línea {i + 1}: la cantidad debe ser mayor a cero.")
+            continue
+
+        notas_linea = notas_lineas[i].strip() if i < len(notas_lineas) and notas_lineas[i].strip() else None
+
+        if cantidad_pagada > 0:
+            # tasa para que bruto = costo_pagado/(1-tasa/100) reconstruya el valor de
+            # TODAS las unidades (pagadas + descuento) al mismo precio por unidad --
+            # así el Subtotal/Descuento que se ve en el detalle de la compra cuadra con
+            # "cuánto valían todas" vs "cuánto se pagó realmente".
+            tasa = round(cantidad_descuento / cantidad_total * 100, 2)
+            lineas_validas.append(
+                CompraDetalle(
+                    producto_id=producto.id,
+                    cantidad_comprada_unidades=cantidad_pagada,
+                    costo_linea=costo_pagado,
+                    tasa_descuento_aplicada=tasa,
+                    es_descuento=False,
+                    porcentaje_iva=0.0,
+                    notas=notas_linea,
+                )
+            )
+        if cantidad_descuento > 0:
+            lineas_validas.append(
+                CompraDetalle(
+                    producto_id=producto.id,
+                    cantidad_comprada_unidades=cantidad_descuento,
+                    costo_linea=0,
+                    tasa_descuento_aplicada=0.0,
+                    es_descuento=True,
+                    porcentaje_iva=0.0,
+                    notas=notas_linea,
+                )
+            )
+    return lineas_validas
+
+
 @bp.route("/nueva", methods=["GET", "POST"])
 def nueva():
     productos = Producto.query.filter_by(activo=True).order_by(Producto.nombre).all()
@@ -192,56 +322,11 @@ def nueva():
         if proveedor is None:
             proveedor = proveedor_postobon()
 
-        producto_ids = request.form.getlist("producto_id[]")
-        cajas_lista = request.form.getlist("cajas[]")
-        unidades_lista = request.form.getlist("unidades[]")
-        costos = request.form.getlist("costo_linea[]")
-        tasas = request.form.getlist("tasa_descuento[]")
-        es_descuentos = request.form.getlist("es_descuento[]")
-        ivas = request.form.getlist("porcentaje_iva[]")
-        costo_incluye_iva_lista = request.form.getlist("costo_incluye_iva[]")
-        notas_lineas = request.form.getlist("notas_linea[]")
-
-        lineas_validas = []
         errores = []
-        for i, pid in enumerate(producto_ids):
-            if not pid:
-                continue
-            try:
-                producto = db.session.get(Producto, int(pid))
-                cajas = float(cajas_lista[i] or 0)
-                unidades = float(unidades_lista[i] or 0)
-                costo = int(costos[i])
-                tasa = float(tasas[i] or 0)
-                iva = float(ivas[i] or 0) if i < len(ivas) else 0.0
-            except (ValueError, IndexError, TypeError):
-                errores.append(f"Línea {i + 1}: datos inválidos.")
-                continue
-            es_descuento = i < len(es_descuentos) and es_descuentos[i] == "1"
-            if i < len(costo_incluye_iva_lista) and costo_incluye_iva_lista[i] == "1" and iva > 0:
-                costo = round(costo / (1 + iva / 100.0))
-
-            if producto is None:
-                errores.append(f"Línea {i + 1}: producto no encontrado.")
-                continue
-
-            cantidad_unidades = round(cajas * producto.unidades_por_caja + unidades)
-            if cantidad_unidades <= 0:
-                errores.append(f"Línea {i + 1}: la cantidad debe ser mayor a cero.")
-                continue
-
-            notas_linea = notas_lineas[i].strip() if i < len(notas_lineas) and notas_lineas[i].strip() else None
-            lineas_validas.append(
-                CompraDetalle(
-                    producto_id=producto.id,
-                    cantidad_comprada_unidades=cantidad_unidades,
-                    costo_linea=costo,
-                    tasa_descuento_aplicada=tasa,
-                    es_descuento=es_descuento,
-                    porcentaje_iva=iva,
-                    notas=notas_linea,
-                )
-            )
+        if proveedor.es_postobon:
+            lineas_validas = _parsear_lineas_postobon(request, errores)
+        else:
+            lineas_validas = _parsear_lineas_simple(request, errores)
 
         if not lineas_validas:
             errores.append("Debes agregar al menos una línea de producto válida.")

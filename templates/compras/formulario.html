@@ -45,6 +45,7 @@
     </div>
   </div>
 
+  <div id="bloque-postobon">
   <div class="table-responsive">
   <table class="table" id="tabla-lineas">
     <thead>
@@ -65,6 +66,30 @@
   </table>
   </div>
   <button type="button" id="btn-agregar-linea" class="btn btn-outline-secondary btn-sm mb-3">+ Agregar producto</button>
+  </div>
+
+  <div id="bloque-simple" class="d-none">
+  <p class="text-muted small">Por producto: cuántas cajas/unidades pagaste y cuántas llegaron de descuento (regalo) -- sin tasas ni IVA, el sistema arma solo el desglose Subtotal/Descuento/Total.</p>
+  <div class="table-responsive">
+  <table class="table" id="tabla-lineas-simple">
+    <thead>
+      <tr>
+        <th>Producto</th>
+        <th style="width:100px">Cajas pagadas</th>
+        <th style="width:110px">Unid. sueltas pagadas</th>
+        <th style="width:100px">Cajas descuento</th>
+        <th style="width:110px">Unid. sueltas descuento</th>
+        <th style="width:140px">Total pagado ($)</th>
+        <th style="width:140px">Notas</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="cuerpo-lineas-simple"></tbody>
+  </table>
+  </div>
+  <button type="button" id="btn-agregar-linea-simple" class="btn btn-outline-secondary btn-sm mb-3">+ Agregar producto</button>
+  </div>
+
   <br>
   <button type="submit" class="btn btn-primary">Guardar compra</button>
   <a href="{{ url_for('compras.listar') }}" class="btn btn-link">Cancelar</a>
@@ -102,7 +127,7 @@
     <td><input type="number" step="1" min="0" name="cajas[]" class="form-control cajas-input" value="0"></td>
     <td><input type="number" step="1" min="0" name="unidades[]" class="form-control unidades-input" value="0"></td>
     <td>
-      <input type="number" min="0" name="costo_linea[]" class="form-control costo-input" required>
+      <input type="number" min="0" name="costo_linea[]" class="form-control costo-input">
       <div class="form-text small costo-neto-preview"></div>
     </td>
     <td><input type="number" step="0.1" min="0" name="tasa_descuento[]" class="form-control" value="0"></td>
@@ -120,12 +145,34 @@
   </tr>
 </template>
 
+<template id="plantilla-linea-simple">
+  <tr>
+    <td>
+      <input type="text" class="form-control producto-buscar-simple" list="lista-productos" placeholder="Escribe para buscar..." autocomplete="off">
+      <input type="hidden" name="producto_id_simple[]" class="producto-id-oculto-simple">
+    </td>
+    <td><input type="number" step="1" min="0" name="cajas_pagadas[]" class="form-control" value="0"></td>
+    <td><input type="number" step="1" min="0" name="unidades_pagadas[]" class="form-control" value="0"></td>
+    <td><input type="number" step="1" min="0" name="cajas_descuento[]" class="form-control" value="0"></td>
+    <td><input type="number" step="1" min="0" name="unidades_descuento[]" class="form-control" value="0"></td>
+    <td><input type="number" min="0" name="costo_pagado[]" class="form-control"></td>
+    <td><input type="text" name="notas_linea_simple[]" class="form-control" placeholder="opcional"></td>
+    <td><button type="button" class="btn btn-sm btn-outline-danger btn-quitar-linea">&times;</button></td>
+  </tr>
+</template>
+
 <script>
   const PRODUCTOS = [
     {% for p in productos %}
     {id: {{ p.id }}, nombre: {{ p.nombre | tojson }}, tasa: {{ p.tasa_descuento_referencia }}, precioCaja: {{ p.precio_caja_actual() or 0 }}, precioUnidad: {{ p.precio_actual() or 0 }}},
     {% endfor %}
   ];
+
+  const PROVEEDORES = {
+    {% for p in proveedores %}
+    "{{ p.id }}": {{ "true" if p.es_postobon else "false" }},
+    {% endfor %}
+  };
 
   const cuerpo = document.getElementById("cuerpo-lineas");
   const plantilla = document.getElementById("plantilla-linea");
@@ -189,6 +236,28 @@
   document.getElementById("btn-agregar-linea").addEventListener("click", agregarLinea);
   agregarLinea(); // arranca con una línea vacía
 
+  // Modo simple (proveedores que no son Postobón, ej. Canasto): solo cajas/unidades
+  // pagadas + cajas/unidades de descuento + total pagado, sin tasas ni IVA.
+  const cuerpoSimple = document.getElementById("cuerpo-lineas-simple");
+  const plantillaSimple = document.getElementById("plantilla-linea-simple");
+
+  function agregarLineaSimple() {
+    const nodo = plantillaSimple.content.cloneNode(true);
+    nodo.querySelector(".btn-quitar-linea").addEventListener("click", (e) => {
+      e.target.closest("tr").remove();
+    });
+    const fila = nodo.querySelector("tr");
+    const buscarInput = fila.querySelector(".producto-buscar-simple");
+    const idInput = fila.querySelector(".producto-id-oculto-simple");
+    buscarInput.addEventListener("input", () => {
+      const prod = buscarProductoPorNombre(buscarInput.value);
+      idInput.value = prod ? prod.id : "";
+    });
+    cuerpoSimple.appendChild(nodo);
+  }
+
+  document.getElementById("btn-agregar-linea-simple").addEventListener("click", agregarLineaSimple);
+
   // "+ Nuevo proveedor" crea el proveedor por AJAX (sin salir de esta página) y lo agrega
   // al desplegable ya seleccionado -- mismo patrón que "+ Nuevo cliente" en el cuadre de
   // caja de una ruta, para no perder las líneas de producto ya escritas.
@@ -196,6 +265,24 @@
   const modalNuevoProveedor = document.getElementById("modal-nuevo-proveedor");
   const inputNuevoProveedorNombre = document.getElementById("input-nuevo-proveedor-nombre");
   const errorNuevoProveedor = document.getElementById("error-nuevo-proveedor");
+
+  const bloquePostobon = document.getElementById("bloque-postobon");
+  const bloqueSimple = document.getElementById("bloque-simple");
+
+  function actualizarModoProveedor() {
+    const esPostobon = PROVEEDORES[selectProveedor.value] !== false;
+    bloquePostobon.classList.toggle("d-none", !esPostobon);
+    bloqueSimple.classList.toggle("d-none", esPostobon);
+    if (esPostobon && cuerpo.children.length === 0) {
+      agregarLinea();
+    }
+    if (!esPostobon && cuerpoSimple.children.length === 0) {
+      agregarLineaSimple();
+    }
+  }
+
+  selectProveedor.addEventListener("change", actualizarModoProveedor);
+  actualizarModoProveedor();
 
   document.getElementById("btn-guardar-nuevo-proveedor").addEventListener("click", async () => {
     const nombre = inputNuevoProveedorNombre.value.trim();
@@ -228,6 +315,8 @@
     opt.textContent = data.nombre;
     selectProveedor.appendChild(opt);
     selectProveedor.value = data.id;
+    PROVEEDORES[String(data.id)] = false; // nuevo_ajax siempre crea proveedores no-Postobón
+    actualizarModoProveedor();
     inputNuevoProveedorNombre.value = "";
     bootstrap.Modal.getInstance(modalNuevoProveedor).hide();
   });

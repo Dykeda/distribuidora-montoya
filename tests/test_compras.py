@@ -105,8 +105,10 @@ def test_nueva_compra_con_proveedor_elegido_lo_guarda(db, client):
         data={
             "fecha": "2026-08-16", "numero_factura": "", "notas": "",
             "proveedor_id": str(externo.id),
-            "producto_id[]": [str(coca.id)], "cajas[]": ["1"], "unidades[]": ["0"],
-            "costo_linea[]": ["18000"], "tasa_descuento[]": ["0"],
+            "producto_id_simple[]": [str(coca.id)],
+            "cajas_pagadas[]": ["1"], "unidades_pagadas[]": ["0"],
+            "cajas_descuento[]": ["0"], "unidades_descuento[]": ["0"],
+            "costo_pagado[]": ["18000"],
         },
         follow_redirects=True,
     )
@@ -537,3 +539,69 @@ def test_total_a_pagar_es_costo_mas_iva_sin_restar_el_descuento(db, client):
     assert "161,111" in body  # subtotal (bruto)
     assert "11,111" in body  # descuento
     assert "169,000" in body  # total a pagar = costo neto total + IVA (no resta el descuento otra vez)
+
+
+def test_nueva_compra_modo_simple_arma_dos_lineas_con_tasa_reconstruida(db, client):
+    coca = crear_producto(db)
+    canasto = Proveedor(nombre="Canasto", es_postobon=False)
+    db.session.add(canasto)
+    db.session.commit()
+
+    r = client.post(
+        "/compras/nueva",
+        data={
+            "fecha": "2026-08-16", "numero_factura": "", "notas": "",
+            "proveedor_id": str(canasto.id),
+            "producto_id_simple[]": [str(coca.id)],
+            "cajas_pagadas[]": ["86"], "unidades_pagadas[]": ["0"],
+            "cajas_descuento[]": ["14"], "unidades_descuento[]": ["0"],
+            "costo_pagado[]": ["2580000"],
+        },
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+
+    compra = Compra.query.one()
+    assert compra.proveedor_id == canasto.id
+    detalles = sorted(compra.detalles, key=lambda d: d.es_descuento)
+
+    pagada = detalles[0]
+    assert pagada.es_descuento is False
+    assert pagada.cantidad_comprada_unidades == 86 * 6
+    assert pagada.costo_linea == 2580000
+    assert pagada.tasa_descuento_aplicada == 14.0
+    assert pagada.porcentaje_iva == 0.0
+
+    descuento = detalles[1]
+    assert descuento.es_descuento is True
+    assert descuento.cantidad_comprada_unidades == 14 * 6
+    assert descuento.costo_linea == 0
+
+
+def test_detalle_de_compra_modo_simple_muestra_subtotal_descuento_y_total_correctos(db, client):
+    coca = crear_producto(db)
+    canasto = Proveedor(nombre="Canasto", es_postobon=False)
+    db.session.add(canasto)
+    db.session.commit()
+
+    client.post(
+        "/compras/nueva",
+        data={
+            "fecha": "2026-08-16", "numero_factura": "", "notas": "",
+            "proveedor_id": str(canasto.id),
+            "producto_id_simple[]": [str(coca.id)],
+            "cajas_pagadas[]": ["86"], "unidades_pagadas[]": ["0"],
+            "cajas_descuento[]": ["14"], "unidades_descuento[]": ["0"],
+            "costo_pagado[]": ["2580000"],
+        },
+        follow_redirects=True,
+    )
+    compra = Compra.query.one()
+
+    r = client.get(f"/compras/{compra.id}")
+    body = r.get_data(as_text=True)
+    assert r.status_code == 200
+    # 86 cajas pagadas ($2,580,000) + 14 cajas de descuento (gratis) -> bruto = 2,580,000/0.86
+    assert "3,000,000" in body  # subtotal (bruto)
+    assert "420,000" in body  # descuento
+    assert "2,580,000" in body  # total a pagar (sin IVA)
