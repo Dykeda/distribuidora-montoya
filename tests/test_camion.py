@@ -198,9 +198,13 @@ def test_retorno_con_conteo_de_caja_muestra_sobrante(db, client):
     r = client.get(f"/camion/{salida.id}")
     body = r.get_data(as_text=True)
     assert "Cuadre de caja" in body
-    # esperado = 78000 + 5000 (nuevos creditos) = 83000; venta total = 78000 -> sobraron 5000
+    # esperado = contado(75000+3500) + nuevos creditos(5000) = 83500
+    # venta total = venta implicita neta(78000-5000=73000) + nuevos creditos(5000) = 78000
+    # diferencia = 83500 - 78000 = 5500 -> sobraron 5500
     assert "Sobraron" in body
-    assert "5,000" in body
+    assert "83,500" in body
+    assert "78,000" in body
+    assert "5,500" in body
 
 
 def test_retorno_con_conteo_de_caja_muestra_faltante(db, client):
@@ -216,7 +220,7 @@ def test_retorno_con_conteo_de_caja_muestra_faltante(db, client):
         data={
             "fecha": HOY, "notas": "",
             f"regreso_cajas_{coca.id}": "0", f"regreso_unidades_{coca.id}": "0",
-            "efectivo_contado": "70000", "monedas_contado": "0",
+            "efectivo_contado": "65000", "monedas_contado": "0",
             "gasto_categoria_id[]": [""], "gasto_monto[]": ["8000"],
         },
         follow_redirects=True,
@@ -226,9 +230,10 @@ def test_retorno_con_conteo_de_caja_muestra_faltante(db, client):
     r = client.get(f"/camion/{salida.id}")
     body = r.get_data(as_text=True)
     assert "Cuadre de caja" in body
-    # esperado = 78000 - 8000 (gasto) = 70000; venta total = 78000 -> faltan 8000
+    # esperado = contado(65000) + gasto(8000) = 73000; venta total = 78000 (sin creditos)
+    # diferencia = 73000 - 78000 = -5000 -> faltan 5000
     assert "Faltan" in body
-    assert "8,000" in body
+    assert "5,000" in body
 
 
 def test_editar_retorno_ya_registrado_actualiza_cantidades_y_cuadre(db, client):
@@ -484,11 +489,15 @@ def test_cuadre_de_caja_incluye_gasto_creditos_pagados_y_nuevos_creditos(db, cli
     r = client.get(f"/camion/{salida.id}")
     body = r.get_data(as_text=True)
     # venta implicita neta = 78000 - 13000 (nuevos creditos, ya restados vía Cartera) = 65000
-    # venta total = 65000 + 10000 (creditos pagados) = 75000
-    # esperado = contado(70000+0) + gasto(5000) = 75000
-    # diferencia = 75000 - 75000 = 0 -> cuadra exacto
-    assert "75,000" in body
+    # venta total = 65000 + 13000 (nuevos creditos, detallados) + 10000 (creditos pagados) = 88000
+    # esperado = contado(70000+0) + gasto(5000) + 13000 (nuevos creditos, detallados) = 88000
+    # diferencia = 88000 - 88000 = 0 -> cuadra exacto
+    assert "88,000" in body
     assert "Cuadra exacto" in body
+
+    # los nuevos créditos deben verse detallados como fila propia tanto en la tabla de
+    # "Efectivo esperado" como en la de "Venta total" -- no solo en una nota al pie
+    assert body.count("Nuevos créditos") >= 2
 
 
 def test_detalle_de_ruta_muestra_total_de_cartera_de_la_ruta(db, client):
@@ -552,11 +561,13 @@ def test_cuadre_de_caja_incluye_montos_manuales_de_creditos(db, client):
 
     r = client.get(f"/camion/{salida.id}")
     body = r.get_data(as_text=True)
-    # venta implicita = 78000 - 6000 (nuevos creditos manual) = 72000
-    # venta total = 72000 + 8000 (creditos pagados manual) = 80000
-    # esperado = contado(60000+0) = 60000
-    # diferencia = 60000 - 80000 = -20000 -> faltan 20000
+    # venta implicita neta = 78000 - 6000 (nuevos creditos manual) = 72000
+    # venta total = 72000 + 6000 (nuevos creditos, detallados) + 8000 (creditos pagados) = 86000
+    # esperado = contado(60000+0) + 6000 (nuevos creditos, detallados) = 66000
+    # diferencia = 66000 - 86000 = -20000 -> faltan 20000
     assert "Faltan" in body
+    assert "66,000" in body
+    assert "86,000" in body
     assert "20,000" in body
 
 
@@ -592,8 +603,11 @@ def test_editar_retorno_permite_ajustar_gasto_en_ruta(db, client):
 
     r = client.get(f"/camion/{salida.id}")
     body = r.get_data(as_text=True)
-    # esperado = 78000 - 8000 (gasto) = 70000; venta total sigue en 78000 -> faltan 8000
-    assert "Faltan" in body
+    # esperado = contado(78000) + gasto(8000) = 86000; venta total sigue en 78000 (sin creditos)
+    # diferencia = 86000 - 78000 = 8000 -> sobraron 8000 (el gasto en ruta quedó reflejado
+    # al editar el retorno, que era lo que probaba este test)
+    assert "Sobraron" in body
+    assert "86,000" in body
     assert "8,000" in body
 
 
@@ -624,9 +638,10 @@ def test_cuadre_muestra_venta_total_sumando_creditos_y_restando_gasto(db, client
 
     r = client.get(f"/camion/{salida.id}")
     body = r.get_data(as_text=True)
-    # venta implicita neta = 78000 - 13000 (nuevos creditos) = 65000; + 10000 (creditos pagados) = 75000
+    # venta implicita neta = 78000 - 13000 (nuevos creditos) = 65000
+    # venta total = 65000 + 13000 (nuevos creditos, detallados) + 10000 (creditos pagados) = 88000
     assert "Venta total" in body
-    assert "75,000" in body
+    assert "88,000" in body
 
 
 def test_gasto_en_ruta_crea_salida_de_dinero(db, client):
@@ -798,6 +813,42 @@ def test_varios_gastos_en_ruta_con_categorias_distintas(db, client):
     body = r.get_data(as_text=True)
     assert "Gastos en ruta" in body
     assert "Arriendo" in body and "Pago Nómina" in body
+
+
+def test_detalle_de_ruta_muestra_gastos_detallados_por_categoria_y_tipo(db, client):
+    from models import CategoriaGasto
+
+    coca = crear_producto(db, unidades_por_caja=6, precio=3000)
+    salida = SalidaCamion(fecha=date(2026, 8, 1))
+    db.session.add(salida)
+    db.session.flush()
+    db.session.add(SalidaCamionDetalle(salida_id=salida.id, producto_id=coca.id, cantidad_unidades=26))
+    db.session.commit()
+
+    categoria_hogar = CategoriaGasto.query.filter_by(nombre="Arriendo", tipo="hogar").first()
+    categoria_negocio = CategoriaGasto.query.filter_by(nombre="Pago Nómina", tipo="negocio").first()
+
+    client.post(
+        f"/camion/retorno/nueva/{salida.id}",
+        data={
+            "fecha": HOY, "notas": "",
+            f"regreso_cajas_{coca.id}": "0", f"regreso_unidades_{coca.id}": "0",
+            "efectivo_contado": "70000", "monedas_contado": "0",
+            "gasto_categoria_id[]": ["", str(categoria_hogar.id), str(categoria_negocio.id)],
+            "gasto_monto[]": ["5000", "20000", "15000"],
+        },
+        follow_redirects=True,
+    )
+
+    r = client.get(f"/camion/{salida.id}")
+    body = r.get_data(as_text=True)
+    # cada concepto de gasto debe verse en su propia fila, con el tipo (Negocio/Hogar) y
+    # el monto, además del total de los tres sumado
+    assert "Gasto en ruta" in body and "Negocio" in body
+    assert "Arriendo" in body and "Hogar" in body
+    assert "Pago Nómina" in body
+    assert "Total gastos en ruta" in body
+    assert "40,000" in body  # 5000 + 20000 + 15000
 
 
 def test_editar_retorno_reemplaza_las_lineas_de_gasto_en_ruta(db, client):

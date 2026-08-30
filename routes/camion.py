@@ -136,20 +136,22 @@ def detalle(salida_id):
 
     cuadre = None
     if salida.retorno and salida.retorno.efectivo_contado is not None and salida.retorno.monedas_contado is not None:
-        # venta_implicita ya viene neta de lo que quedó fiado hoy -- efectivo_por_salida()
-        # resta las facturas de cartera ligadas a esta salida, y "nuevos créditos" del
-        # cuadre ahora SON esas facturas (ver services/cartera.py), así que no se debe
-        # volver a restar/sumar aparte para no contar dos veces. La parte MANUAL de
-        # nuevos créditos (sin factura real en Cartera) no la resta efectivo_por_salida,
-        # así que se resta aparte aquí.
+        # venta_implicita viene neta de lo que quedó fiado hoy -- efectivo_por_salida()
+        # resta las facturas de cartera ligadas a esta salida, y la parte MANUAL de
+        # nuevos créditos (sin factura real en Cartera) se resta aparte aquí, porque
+        # efectivo_por_salida() no la conoce.
         venta_implicita = (efectivo_por_salida(salida_id) or 0) - (salida.retorno.nuevos_creditos_manual or 0)
         gastos_ruta = gastos_en_ruta(salida.retorno.id)
         gasto_en_ruta = sum(g.monto for g in gastos_ruta)
         creditos_pagados = salida.retorno.creditos_pagados or 0
         nuevos_creditos = salida.retorno.nuevos_creditos or 0
         efectivo_real = salida.retorno.efectivo_contado + salida.retorno.monedas_contado
-        efectivo_esperado = efectivo_real + gasto_en_ruta
-        venta_total = venta_implicita + creditos_pagados
+        # nuevos_creditos se SUMA a ambos lados (esperado y venta total) a pedido del
+        # dueño, para ver el detalle de cuánto de la venta quedó fiado hoy -- como se
+        # suma por igual en los dos lados, no cambia la diferencia (falta/sobra) final,
+        # solo hace más grande y más detallado cada total.
+        efectivo_esperado = efectivo_real + gasto_en_ruta + nuevos_creditos
+        venta_total = venta_implicita + nuevos_creditos + creditos_pagados
         cuadre = {
             "venta_implicita": venta_implicita,
             "gasto_en_ruta": gasto_en_ruta,
