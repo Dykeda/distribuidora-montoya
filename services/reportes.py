@@ -10,19 +10,19 @@ from services import gastos as gastos_service
 
 
 def compra_total_periodo(fecha_inicio, fecha_fin):
-    dinero = (
-        db.session.query(func.coalesce(func.sum(CompraDetalle.costo_linea), 0))
-        .join(Compra, CompraDetalle.compra_id == Compra.id)
+    detalles = (
+        CompraDetalle.query.join(Compra, CompraDetalle.compra_id == Compra.id)
         .filter(Compra.fecha >= fecha_inicio, Compra.fecha <= fecha_fin)
-        .scalar()
+        .all()
     )
-    unidades = (
-        db.session.query(func.coalesce(func.sum(CompraDetalle.cantidad_comprada_unidades), 0))
-        .join(Compra, CompraDetalle.compra_id == Compra.id)
-        .filter(Compra.fecha >= fecha_inicio, Compra.fecha <= fecha_fin)
-        .scalar()
-    )
-    return {"dinero": round(dinero), "unidades": int(unidades)}
+    dinero = sum(d.costo_linea for d in detalles)
+    # dinero_con_iva es lo realmente pagado por las facturas (igual que el "Total a
+    # pagar" de Historial de Compras) -- dinero (sin IVA) se sigue usando aparte para el
+    # % de descuento contabilizado del mes, que compara contra el costo neto, no el
+    # costo con impuesto.
+    dinero_con_iva = dinero + sum(d.valor_iva for d in detalles)
+    unidades = sum(d.cantidad_comprada_unidades for d in detalles)
+    return {"dinero": round(dinero), "dinero_con_iva": round(dinero_con_iva), "unidades": int(unidades)}
 
 
 def resumen_periodo(fecha_inicio, fecha_fin):
@@ -54,7 +54,7 @@ def resumen_periodo(fecha_inicio, fecha_fin):
         pct_descuento_promedio = 0.0
 
     return {
-        "compra_total_dinero": compra["dinero"],
+        "compra_total_dinero": compra["dinero_con_iva"],
         "compra_total_unidades": compra["unidades"],
         "venta_total_dinero": venta["total"],
         "venta_por_producto": venta["por_producto"],

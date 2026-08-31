@@ -97,6 +97,31 @@ def test_pct_descuento_promedio_sin_compras_es_cero(db):
     assert resumen["pct_descuento_promedio"] == 0.0
 
 
+def test_compra_total_dinero_incluye_iva_igual_que_historial_de_compras(db):
+    coca = crear_producto(db, "Coca-Cola 1.5L", 3000)
+    agua = crear_producto(db, "Agua Cristal", 2000)
+
+    compra = Compra(fecha=date(2026, 8, 1), numero_factura="AS001")
+    db.session.add(compra)
+    db.session.flush()
+    db.session.add(CompraDetalle(
+        compra_id=compra.id, producto_id=coca.id, cantidad_comprada_unidades=60,
+        costo_linea=100000, tasa_descuento_aplicada=0.0, porcentaje_iva=19.0,
+    ))
+    db.session.add(CompraDetalle(
+        compra_id=compra.id, producto_id=agua.id, cantidad_comprada_unidades=12,
+        costo_linea=24000, tasa_descuento_aplicada=0.0, porcentaje_iva=0.0,
+    ))
+    db.session.commit()
+
+    resumen = resumen_periodo(date(2026, 8, 1), date(2026, 8, 31))
+
+    # 100000 + 19% IVA = 119000 ; + 24000 (sin IVA) = 143000
+    assert resumen["compra_total_dinero"] == 143000
+    # el % de descuento promedio sigue comparando contra el neto (sin IVA), no cambia
+    assert resumen["pct_descuento_promedio"] == 0.0
+
+
 def test_ganancia_neta_resta_solo_gastos_de_negocio(db):
     coca = crear_producto(db, "Coca-Cola 1.5L", 3000)
     compra = Compra(fecha=date(2026, 8, 1), numero_factura="AS001")
