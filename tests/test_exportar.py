@@ -118,6 +118,26 @@ def test_construir_workbook_incluye_todas_las_hojas_y_resumen_calculado(db):
     assert cartera.cell(row=2, column=3).value == "Deuda anterior"
 
 
+def test_compra_total_historico_incluye_iva(db):
+    coca = crear_producto(db)
+    compra = Compra(fecha=date(2026, 8, 1), numero_factura="AS001")
+    db.session.add(compra)
+    db.session.flush()
+    db.session.add(CompraDetalle(
+        compra_id=compra.id, producto_id=coca.id, cantidad_comprada_unidades=60,
+        costo_linea=100000, tasa_descuento_aplicada=0.0, porcentaje_iva=19.0,
+    ))
+    db.session.commit()
+
+    wb = construir_workbook()
+    resumen = {fila[0]: fila[1] for fila in wb["Resumen"].iter_rows(min_row=2, values_only=True)}
+
+    # 100000 + 19% IVA = 119000 -- igual que el "Total a pagar" de Historial de Compras
+    assert resumen["Compra total (histórico)"] == 119000
+    # el % de descuento promedio sigue comparando contra el neto (sin IVA)
+    assert resumen["% de descuento promedio (histórico)"] == 0.0
+
+
 def test_construir_workbook_sin_datos_no_falla(db):
     wb = construir_workbook()
     assert wb["Productos"].max_row == 1  # solo encabezado

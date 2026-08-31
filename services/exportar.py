@@ -73,7 +73,7 @@ def construir_workbook():
         ["Concepto", "Valor (a hoy)"],
         [
             ["Fecha de este resumen", hoy],
-            ["Compra total (histórico)", compra_historica["dinero"]],
+            ["Compra total (histórico)", compra_historica["dinero_con_iva"]],
             ["Venta total (histórico)", venta_historica["total"]],
             ["Descuento contabilizado (histórico)", descuento_contabilizado_historico],
             ["Cartera pendiente por cobrar", cartera],
