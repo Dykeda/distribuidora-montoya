@@ -25,7 +25,8 @@ def listar():
         costo_total = sum(d.costo_linea for d in c.detalles)
         iva_total = sum(d.valor_iva for d in c.detalles)
         filas.append({"compra": c, "total_a_pagar": costo_total + iva_total})
-    return render_template("compras/lista.html", filas=filas)
+    total_general = sum(f["total_a_pagar"] for f in filas)
+    return render_template("compras/lista.html", filas=filas, total_general=total_general)
 
 
 @bp.route("/<int:compra_id>")

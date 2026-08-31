@@ -30,6 +30,15 @@
     <tr><td colspan="5" class="text-center text-muted">No hay compras registradas todavía.</td></tr>
     {% endfor %}
   </tbody>
+  {% if filas %}
+  <tfoot>
+    <tr class="fw-bold">
+      <td colspan="3">Total comprado</td>
+      <td class="text-end">${{ "{:,}".format(total_general) }}</td>
+      <td></td>
+    </tr>
+  </tfoot>
+  {% endif %}
 </table>
 </div>
 {% endblock %}

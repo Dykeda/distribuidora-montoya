@@ -134,6 +134,39 @@ def test_lista_de_compras_muestra_el_proveedor(db, client):
     assert "Postobón" in r.get_data(as_text=True)
 
 
+def test_lista_de_compras_muestra_el_total_de_todas_las_facturas(db, client):
+    coca = crear_producto(db)
+    agua = crear_producto(db, "Agua Cristal", 2000)
+
+    compra1 = Compra(fecha=date(2026, 8, 16), numero_factura="F-001")
+    db.session.add(compra1)
+    db.session.flush()
+    db.session.add(CompraDetalle(
+        compra_id=compra1.id, producto_id=coca.id, cantidad_comprada_unidades=6,
+        costo_linea=18000, porcentaje_iva=19.0,
+    ))
+
+    compra2 = Compra(fecha=date(2026, 8, 20), numero_factura="F-002")
+    db.session.add(compra2)
+    db.session.flush()
+    db.session.add(CompraDetalle(
+        compra_id=compra2.id, producto_id=agua.id, cantidad_comprada_unidades=12, costo_linea=24000,
+    ))
+    db.session.commit()
+
+    r = client.get("/compras/")
+    body = r.get_data(as_text=True)
+    assert r.status_code == 200
+    # compra1: 18000 + 19% IVA = 21420 ; compra2: 24000 (sin IVA) ; total = 45420
+    assert "Total comprado" in body
+    assert "45,420" in body
+
+
+def test_lista_de_compras_no_muestra_total_cuando_esta_vacia(client):
+    r = client.get("/compras/")
+    assert "Total comprado" not in r.get_data(as_text=True)
+
+
 def test_nueva_compra_calcula_neto_cuando_costo_incluye_iva(db, client):
     coca = crear_producto(db)
 
