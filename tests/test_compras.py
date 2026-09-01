@@ -112,8 +112,32 @@ def test_nueva_compra_con_numero_de_factura_repetido_no_se_guarda(db, client):
         follow_redirects=True,
     )
     assert r.status_code == 200
-    assert "AS07198792" in r.get_data(as_text=True)  # mensaje de error menciona la factura
+    body = r.get_data(as_text=True)
+    assert "AS07198792" in body  # mensaje de error menciona la factura
+    assert 'name="confirmar_factura_duplicada"' in body  # ofrece la opcion de agregarla igual
     assert Compra.query.filter_by(numero_factura="AS07198792").count() == 1
+
+
+def test_nueva_compra_con_factura_repetida_se_guarda_si_se_confirma(db, client):
+    coca = crear_producto(db)
+    existente = Compra(fecha=date(2026, 8, 1), numero_factura="AS07198792")
+    db.session.add(existente)
+    db.session.flush()
+    db.session.add(CompraDetalle(compra_id=existente.id, producto_id=coca.id, cantidad_comprada_unidades=6, costo_linea=18000))
+    db.session.commit()
+
+    r = client.post(
+        "/compras/nueva",
+        data={
+            "fecha": "2026-08-16", "numero_factura": "AS07198792", "notas": "",
+            "confirmar_factura_duplicada": "1",
+            "producto_id[]": [str(coca.id)], "cajas[]": ["1"], "unidades[]": ["0"],
+            "costo_linea[]": ["18000"], "tasa_descuento[]": ["0"],
+        },
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+    assert Compra.query.filter_by(numero_factura="AS07198792").count() == 2
 
 
 def test_nueva_compra_sin_numero_de_factura_no_choca_con_otras_sin_factura(db, client):
