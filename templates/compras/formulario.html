@@ -47,12 +47,6 @@
     <div class="col-md-4">
       <label class="form-label">N° Factura (opcional)</label>
       <input type="text" name="numero_factura" class="form-control" value="{{ form.numero_factura if form else (pdf_datos.numero_factura if pdf_datos else '') }}">
-      {% if factura_duplicada %}
-      <div class="form-check mt-2">
-        <input type="checkbox" name="confirmar_factura_duplicada" value="1" class="form-check-input" id="confirmar-factura-duplicada">
-        <label class="form-check-label small text-danger" for="confirmar-factura-duplicada">Sé que la factura "{{ factura_duplicada }}" ya existe -- agregarla de todos modos</label>
-      </div>
-      {% endif %}
     </div>
     <div class="col-md-4">
       <label class="form-label">Notas (opcional)</label>

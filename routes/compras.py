@@ -410,15 +410,7 @@ def nueva():
         if proveedor is None:
             proveedor = proveedor_postobon()
 
-        numero_factura = (request.form.get("numero_factura") or "").strip() or None
-        confirmar_duplicada = request.form.get("confirmar_factura_duplicada") == "1"
-
         errores = []
-        factura_duplicada = None
-        if numero_factura and not confirmar_duplicada and Compra.query.filter_by(numero_factura=numero_factura).first():
-            factura_duplicada = numero_factura
-            errores.append(f'Ya existe una compra registrada con la factura "{numero_factura}" -- marca "Agregarla de todos modos" abajo si de verdad quieres guardarla otra vez.')
-
         if proveedor.es_postobon:
             lineas_validas = _parsear_lineas_postobon(request, errores)
         else:
@@ -430,14 +422,11 @@ def nueva():
         if errores:
             for e in errores:
                 flash(e, "error")
-            return render_template(
-                "compras/formulario.html", productos=productos, proveedores=proveedores,
-                form=request.form, factura_duplicada=factura_duplicada,
-            )
+            return render_template("compras/formulario.html", productos=productos, proveedores=proveedores, form=request.form)
 
         compra = Compra(
             fecha=fecha,
-            numero_factura=numero_factura,
+            numero_factura=request.form.get("numero_factura") or None,
             notas=request.form.get("notas") or None,
             proveedor_id=proveedor.id,
         )
