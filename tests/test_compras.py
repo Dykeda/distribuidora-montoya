@@ -94,6 +94,46 @@ def test_nueva_compra_sin_proveedor_elegido_usa_postobon_por_defecto(db, client)
     assert compra.proveedor.es_postobon is True
 
 
+def test_nueva_compra_con_numero_de_factura_repetido_no_se_guarda(db, client):
+    coca = crear_producto(db)
+    existente = Compra(fecha=date(2026, 8, 1), numero_factura="AS07198792")
+    db.session.add(existente)
+    db.session.flush()
+    db.session.add(CompraDetalle(compra_id=existente.id, producto_id=coca.id, cantidad_comprada_unidades=6, costo_linea=18000))
+    db.session.commit()
+
+    r = client.post(
+        "/compras/nueva",
+        data={
+            "fecha": "2026-08-16", "numero_factura": "AS07198792", "notas": "",
+            "producto_id[]": [str(coca.id)], "cajas[]": ["1"], "unidades[]": ["0"],
+            "costo_linea[]": ["18000"], "tasa_descuento[]": ["0"],
+        },
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+    assert "AS07198792" in r.get_data(as_text=True)  # mensaje de error menciona la factura
+    assert Compra.query.filter_by(numero_factura="AS07198792").count() == 1
+
+
+def test_nueva_compra_sin_numero_de_factura_no_choca_con_otras_sin_factura(db, client):
+    coca = crear_producto(db)
+    db.session.add(Compra(fecha=date(2026, 8, 1), numero_factura=None))
+    db.session.commit()
+
+    r = client.post(
+        "/compras/nueva",
+        data={
+            "fecha": "2026-08-16", "numero_factura": "", "notas": "",
+            "producto_id[]": [str(coca.id)], "cajas[]": ["1"], "unidades[]": ["0"],
+            "costo_linea[]": ["18000"], "tasa_descuento[]": ["0"],
+        },
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+    assert Compra.query.filter_by(numero_factura=None).count() == 2
+
+
 def test_nueva_compra_con_proveedor_elegido_lo_guarda(db, client):
     coca = crear_producto(db)
     externo = Proveedor(nombre="Distribuidora XYZ", es_postobon=False)
