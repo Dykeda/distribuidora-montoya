@@ -5,7 +5,10 @@ from io import BytesIO
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file
 
 from extensions import db
-from models import Compra, AjustePostobon, Producto, PagoFaltantePostobon, PagoFaltantePostobonDetalle
+from models import (
+    Compra, AjustePostobon, Producto, PagoFaltantePostobon, PagoFaltantePostobonDetalle,
+    CodigoPostobon,
+)
 
 from services.postobon import (
     listar_faltantes_agrupados,
@@ -15,6 +18,7 @@ from services.postobon import (
     listar_pagos_faltante,
     total_pendiente_acumulado,
 )
+from services.codigos_postobon import listar_codigos
 from services.fechas import MESES_ES
 
 bp = Blueprint("postobon", __name__, url_prefix="/postobon")
@@ -144,6 +148,50 @@ def pago_eliminar(pago_id):
     db.session.commit()
     flash("Pago eliminado.", "success")
     return redirect(url_for("postobon.index"))
+
+
+@bp.route("/codigos")
+def codigos_listar():
+    return render_template("postobon/codigos.html", codigos=listar_codigos())
+
+
+@bp.route("/codigos/nuevo", methods=["GET", "POST"])
+def codigo_nuevo():
+    productos = Producto.query.filter_by(activo=True).order_by(Producto.nombre).all()
+
+    if request.method == "POST":
+        codigo = request.form.get("codigo", "").strip()
+        producto_id_str = request.form.get("producto_id")
+        producto = db.session.get(Producto, int(producto_id_str)) if producto_id_str else None
+
+        errores = []
+        if not codigo:
+            errores.append("El código es obligatorio.")
+        elif CodigoPostobon.query.filter_by(codigo=codigo).first():
+            errores.append(f'El código "{codigo}" ya está asignado a otro producto.')
+        if producto is None:
+            errores.append("Selecciona un producto válido.")
+
+        if errores:
+            for e in errores:
+                flash(e, "error")
+            return render_template("postobon/codigo_formulario.html", productos=productos, form=request.form)
+
+        db.session.add(CodigoPostobon(codigo=codigo, producto_id=producto.id, notas=request.form.get("notas") or None))
+        db.session.commit()
+        flash(f'Código "{codigo}" asignado a {producto.nombre}.', "success")
+        return redirect(url_for("postobon.codigos_listar"))
+
+    return render_template("postobon/codigo_formulario.html", productos=productos, form=None)
+
+
+@bp.route("/codigos/<int:codigo_id>/eliminar", methods=["POST"])
+def codigo_eliminar(codigo_id):
+    codigo = CodigoPostobon.query.get_or_404(codigo_id)
+    db.session.delete(codigo)
+    db.session.commit()
+    flash("Código eliminado.", "success")
+    return redirect(url_for("postobon.codigos_listar"))
 
 
 @bp.route("/exportar-excel")

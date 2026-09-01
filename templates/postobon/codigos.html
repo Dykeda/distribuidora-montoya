@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Códigos Postobón{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Códigos Postobón</h1>
+  <a href="{{ url_for('postobon.codigo_nuevo') }}" class="btn btn-primary">+ Agregar código</a>
+</div>
+<p class="text-muted">Código de referencia que Postobón usa en sus facturas para cada producto -- una vez asignado, no hace falta volver a preguntar a qué producto corresponde al procesar una factura nueva. Varios códigos pueden apuntar al mismo producto (sabores distintos del mismo tamaño/empaque).</p>
+
+<div class="table-responsive">
+<table class="table table-striped align-middle">
+  <thead>
+    <tr>
+      <th>Código</th>
+      <th>Producto</th>
+      <th>Notas</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for c in codigos %}
+    <tr>
+      <td>{{ c.codigo }}</td>
+      <td>{{ c.producto.nombre }}</td>
+      <td>{{ c.notas or "-" }}</td>
+      <td class="text-end">
+        <form method="post" action="{{ url_for('postobon.codigo_eliminar', codigo_id=c.id) }}" class="d-inline"
+              onsubmit="return confirm('¿Eliminar el código {{ c.codigo }}?');">
+          <button type="submit" class="btn btn-sm btn-outline-danger">Eliminar</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="4" class="text-center text-muted">No hay códigos registrados todavía.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

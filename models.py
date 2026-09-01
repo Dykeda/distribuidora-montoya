@@ -377,6 +377,24 @@ class Gasto(db.Model):
     categoria = db.relationship("CategoriaGasto", back_populates="gastos")
 
 
+class CodigoPostobon(db.Model):
+    """Código de referencia que Postobón usa en sus facturas para cada producto (ej.
+    23929) -- puede haber varios códigos apuntando al mismo producto del catálogo,
+    porque varios sabores/variantes del mismo tamaño y empaque se llevan como un solo
+    producto genérico (ej. Naranja, Uva y Manzana Postobón 400ml comparten "Pet 400
+    Gopack 400"). Sirve para no tener que volver a preguntar a qué producto corresponde
+    un código ya confirmado antes al procesar una factura nueva."""
+
+    __tablename__ = "codigo_postobon"
+
+    id = db.Column(db.Integer, primary_key=True)
+    codigo = db.Column(db.String(20), nullable=False, unique=True)
+    producto_id = db.Column(db.Integer, db.ForeignKey("producto.id"), nullable=False)
+    notas = db.Column(db.String(255), nullable=True)
+
+    producto = db.relationship("Producto")
+
+
 class AjustePostobon(db.Model):
     """Ajuste manual al saldo pendiente que Postobón debe por descuentos faltantes --
     para sumar una deuda que ya existía antes de que esta pantalla empezara a calcularla
