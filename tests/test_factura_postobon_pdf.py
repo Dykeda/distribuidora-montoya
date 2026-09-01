@@ -199,3 +199,18 @@ def test_cargar_pdf_archivo_invalido_muestra_error(client, db):
     )
     assert r.status_code == 200
     assert "No se pudo leer ese PDF" in r.get_data(as_text=True)
+
+
+def test_formulario_de_compra_apunta_a_guardar_incluso_despues_de_leer_pdf(client, db):
+    # Bug real: cargar-pdf() re-renderiza compras/formulario.html desde la URL
+    # /compras/cargar-pdf (no hace redirect) -- si el <form> de "Guardar compra" no
+    # tiene action explícito, el navegador reenvía a esa misma URL de cargar-pdf en vez
+    # de guardar la compra.
+    archivo = (io.BytesIO(b"esto no es un PDF real"), "factura.pdf")
+    r = client.post(
+        "/compras/cargar-pdf", data={"archivo_pdf": archivo},
+        content_type="multipart/form-data",
+    )
+    body = r.get_data(as_text=True)
+    assert 'id="form-compra"' in body
+    assert 'action="/compras/nueva"' in body

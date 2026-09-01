@@ -38,7 +38,7 @@
 </div>
 {% endif %}
 
-<form method="post" id="form-compra">
+<form method="post" action="{{ url_for('compras.nueva') }}" id="form-compra">
   <div class="row col-lg-8 mb-3">
     <div class="col-md-4">
       <label class="form-label">Fecha</label>
