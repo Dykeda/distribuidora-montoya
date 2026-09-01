@@ -1,5 +1,7 @@
 from datetime import date
 
+import pytest
+
 from models import (
     Producto,
     ProductoPrecio,
@@ -18,8 +20,16 @@ from services.ventas import (
     rutas_en_transito,
     historial_diario,
     detalle_dia,
+    agrupar_por_semana,
 )
 from services.inventario import calcular_stock
+
+
+@pytest.fixture
+def client(app):
+    c = app.test_client()
+    c.post("/login", data={"password": app.config["APP_PASSWORD"]})
+    return c
 
 
 def crear_producto(db, nombre="Coca-Cola 1.5L", precio=3000):
@@ -190,6 +200,53 @@ def test_historial_diario_no_resta_cartera(db):
     assert filas[0]["camion"] == 72000
     assert filas[0]["bodega"] == 15000
     assert filas[0]["total"] == 87000
+
+
+def _crear_venta_camion_de_un_dia(db, p, fecha, cantidad_vendida):
+    salida = SalidaCamion(fecha=fecha)
+    db.session.add(salida)
+    db.session.flush()
+    db.session.add(SalidaCamionDetalle(salida_id=salida.id, producto_id=p.id, cantidad_unidades=cantidad_vendida))
+    db.session.commit()
+    retorno = RetornoCamion(salida_id=salida.id, fecha=fecha)
+    db.session.add(retorno)
+    db.session.commit()
+
+
+def test_agrupar_por_semana_junta_dias_de_la_misma_semana_calendario(db):
+    p = crear_producto(db)
+    # lunes 3 y miércoles 5 de agosto 2026 caen en la misma semana (lun 3 a dom 9);
+    # lunes 17 de agosto cae en otra semana (lun 17 a dom 23).
+    _crear_venta_camion_de_un_dia(db, p, date(2026, 8, 3), 30)
+    _crear_venta_camion_de_un_dia(db, p, date(2026, 8, 5), 10)
+    _crear_venta_camion_de_un_dia(db, p, date(2026, 8, 17), 20)
+
+    filas = historial_diario(date(2026, 8, 1), date(2026, 8, 31))
+    semanas = agrupar_por_semana(filas)
+
+    assert len(semanas) == 2
+    # más reciente primero, igual que filas de historial_diario
+    assert semanas[0]["inicio"] == date(2026, 8, 17)
+    assert semanas[0]["fin"] == date(2026, 8, 23)
+    assert len(semanas[0]["dias"]) == 1
+    assert semanas[0]["total"] == 20 * 3000
+
+    assert semanas[1]["inicio"] == date(2026, 8, 3)
+    assert semanas[1]["fin"] == date(2026, 8, 9)
+    assert len(semanas[1]["dias"]) == 2
+    assert semanas[1]["total"] == (30 + 10) * 3000
+
+
+def test_pagina_venta_diaria_muestra_total_de_la_semana(db, client):
+    p = crear_producto(db)
+    _crear_venta_camion_de_un_dia(db, p, date(2026, 8, 3), 30)
+    _crear_venta_camion_de_un_dia(db, p, date(2026, 8, 5), 10)
+
+    r = client.get("/venta-diaria/?mes=8&anio=2026")
+    body = r.get_data(as_text=True)
+    assert r.status_code == 200
+    assert "Total semana (2026-08-03 a 2026-08-09)" in body
+    assert "120,000" in body  # (30 + 10) unidades * 3000
 
 
 def test_detalle_dia_incluye_rutas_y_ventas_bodega(db):

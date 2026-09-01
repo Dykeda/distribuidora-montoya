@@ -54,13 +54,22 @@
     </tr>
   </thead>
   <tbody>
-    {% for f in filas %}
+    {% for semana in semanas %}
+    {% for f in semana.dias %}
     <tr>
       <td>{{ f.fecha.strftime("%Y-%m-%d") }}</td>
       <td class="text-end">${{ "{:,}".format(f.camion) }}</td>
       <td class="text-end">${{ "{:,}".format(f.bodega) }}</td>
       <td class="text-end fw-bold">${{ "{:,}".format(f.total) }}</td>
       <td class="text-end"><a href="{{ url_for('venta_diaria.detalle', fecha_str=f.fecha.strftime('%Y-%m-%d')) }}" class="btn btn-sm btn-outline-primary">Ver detalle</a></td>
+    </tr>
+    {% endfor %}
+    <tr class="table-secondary fw-bold">
+      <td>Total semana ({{ semana.inicio.strftime("%Y-%m-%d") }} a {{ semana.fin.strftime("%Y-%m-%d") }})</td>
+      <td class="text-end">${{ "{:,}".format(semana.camion) }}</td>
+      <td class="text-end">${{ "{:,}".format(semana.bodega) }}</td>
+      <td class="text-end">${{ "{:,}".format(semana.total) }}</td>
+      <td></td>
     </tr>
     {% else %}
     <tr><td colspan="5" class="text-center text-muted">No hay venta registrada este mes.</td></tr>

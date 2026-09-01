@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from extensions import db
 from models import SalidaCamion, RetornoCamion, VentaBodega, Producto
 from services.inventario import cajas_aproximadas
@@ -132,6 +134,30 @@ def historial_diario(fecha_inicio, fecha_fin):
     ]
     filas.sort(key=lambda f: f["fecha"], reverse=True)
     return filas
+
+
+def agrupar_por_semana(filas):
+    """Agrupa las filas de historial_diario (ya ordenadas por fecha, más reciente
+    primero) en semanas calendario (lunes a domingo), cada una con su propio subtotal --
+    para ver de un vistazo cuánto se vendió en la semana sin sumar los días a mano. Solo
+    agrupa los días que ya vienen en filas (con venta real), no rellena días vacíos."""
+    grupos = []
+    semana_actual = None
+    grupo_actual = None
+    for f in filas:
+        lunes = f["fecha"] - timedelta(days=f["fecha"].weekday())
+        if lunes != semana_actual:
+            grupo_actual = {
+                "inicio": lunes, "fin": lunes + timedelta(days=6),
+                "dias": [], "camion": 0, "bodega": 0, "total": 0,
+            }
+            grupos.append(grupo_actual)
+            semana_actual = lunes
+        grupo_actual["dias"].append(f)
+        grupo_actual["camion"] += f["camion"]
+        grupo_actual["bodega"] += f["bodega"]
+        grupo_actual["total"] += f["total"]
+    return grupos
 
 
 def detalle_dia(fecha):

@@ -3,7 +3,7 @@ from datetime import date, datetime
 
 from flask import Blueprint, render_template, request, abort
 
-from services.ventas import historial_diario, detalle_dia
+from services.ventas import historial_diario, detalle_dia, agrupar_por_semana
 from services.fechas import MESES_ES
 
 bp = Blueprint("venta_diaria", __name__, url_prefix="/venta-diaria")
@@ -22,10 +22,11 @@ def listar():
     total_mes = sum(f["total"] for f in filas)
     camion_mes = sum(f["camion"] for f in filas)
     bodega_mes = sum(f["bodega"] for f in filas)
+    semanas = agrupar_por_semana(filas)
 
     return render_template(
         "venta_diaria/lista.html",
-        filas=filas,
+        semanas=semanas,
         total_mes=total_mes,
         camion_mes=camion_mes,
         bodega_mes=bodega_mes,
