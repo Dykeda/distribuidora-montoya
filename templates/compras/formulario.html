@@ -13,15 +13,40 @@
   {% endfor %}
 </datalist>
 
+<div class="card mb-4">
+  <div class="card-body">
+    <h2 class="h6">Cargar factura de Postobón en PDF</h2>
+    <p class="text-muted small mb-2">Lee la factura electrónica y precarga las líneas de abajo -- revisa siempre antes de guardar, sobre todo las líneas que no traigan producto asignado.</p>
+    <form method="post" action="{{ url_for('compras.cargar_pdf') }}" enctype="multipart/form-data" class="d-flex gap-2 align-items-center">
+      <input type="file" name="archivo_pdf" accept="application/pdf" class="form-control" style="max-width: 400px" required>
+      <button type="submit" class="btn btn-outline-primary text-nowrap">Leer PDF</button>
+    </form>
+  </div>
+</div>
+
+{% if pdf_datos %}
+<div class="alert {{ 'alert-success' if pdf_datos.verificacion.cuadra else 'alert-warning' }} mb-3">
+  {% if pdf_datos.verificacion.cuadra %}
+  ✅ Los totales leídos del PDF cuadran con el resumen impreso en la factura.
+  {% else %}
+  ⚠️ Revisa las líneas: lo leído no cuadra exactamente con el resumen de la factura --
+  neto leído ${{ "{:,}".format(pdf_datos.verificacion.neto_leido) }} vs. esperado
+  {{ "${:,}".format(pdf_datos.verificacion.neto_esperado) if pdf_datos.verificacion.neto_esperado is not none else "?" }},
+  IVA leído ${{ "{:,}".format(pdf_datos.verificacion.iva_leido) }} vs. esperado
+  {{ "${:,}".format(pdf_datos.verificacion.iva_esperado) if pdf_datos.verificacion.iva_esperado is not none else "?" }}.
+  {% endif %}
+</div>
+{% endif %}
+
 <form method="post" id="form-compra">
   <div class="row col-lg-8 mb-3">
     <div class="col-md-4">
       <label class="form-label">Fecha</label>
-      <input type="date" name="fecha" class="form-control" value="{{ form.fecha if form else '' }}" required>
+      <input type="date" name="fecha" class="form-control" value="{{ form.fecha if form else (pdf_datos.fecha if pdf_datos else '') }}" required>
     </div>
     <div class="col-md-4">
       <label class="form-label">N° Factura (opcional)</label>
-      <input type="text" name="numero_factura" class="form-control" value="{{ form.numero_factura if form else '' }}">
+      <input type="text" name="numero_factura" class="form-control" value="{{ form.numero_factura if form else (pdf_datos.numero_factura if pdf_datos else '') }}">
     </div>
     <div class="col-md-4">
       <label class="form-label">Notas (opcional)</label>
@@ -164,7 +189,7 @@
 <script>
   const PRODUCTOS = [
     {% for p in productos %}
-    {id: {{ p.id }}, nombre: {{ p.nombre | tojson }}, tasa: {{ p.tasa_descuento_referencia }}, precioCaja: {{ p.precio_caja_actual() or 0 }}, precioUnidad: {{ p.precio_actual() or 0 }}},
+    {id: {{ p.id }}, nombre: {{ p.nombre | tojson }}, tasa: {{ p.tasa_descuento_referencia }}, precioCaja: {{ p.precio_caja_actual() or 0 }}, precioUnidad: {{ p.precio_actual() or 0 }}, unidadesPorCaja: {{ p.unidades_por_caja }}},
     {% endfor %}
   ];
 
@@ -204,7 +229,7 @@
     }
   }
 
-  function agregarLinea() {
+  function agregarLinea(inicial) {
     const nodo = plantilla.content.cloneNode(true);
     nodo.querySelector(".btn-quitar-linea").addEventListener("click", (e) => {
       e.target.closest("tr").remove();
@@ -230,11 +255,39 @@
     });
     fila.querySelector(".costo-input").addEventListener("input", () => actualizarPreviewNeto(fila));
     fila.querySelector(".iva-input").addEventListener("input", () => actualizarPreviewNeto(fila));
+
+    if (inicial) {
+      // Precarga desde una factura PDF leída: si el código ya tiene producto asignado,
+      // se busca por nombre (igual que si el usuario lo hubiera escrito); si no, se deja
+      // el buscador vacío con la descripción de la factura en Notas para identificarlo.
+      const prod = inicial.producto_id ? PRODUCTOS.find((p) => p.id === inicial.producto_id) : null;
+      if (prod) {
+        buscarInput.value = prod.nombre;
+        idInput.value = prod.id;
+        const cajas = prod.unidadesPorCaja > 0 ? Math.floor(inicial.cantidad / prod.unidadesPorCaja) : 0;
+        const unidades = prod.unidadesPorCaja > 0 ? inicial.cantidad % prod.unidadesPorCaja : inicial.cantidad;
+        fila.querySelector(".cajas-input").value = cajas;
+        fila.querySelector(".unidades-input").value = unidades;
+      } else {
+        fila.querySelector(".unidades-input").value = inicial.cantidad;
+        fila.querySelector('input[name="notas_linea[]"]').value = `Código ${inicial.codigo}: ${inicial.descripcion}`;
+      }
+      fila.querySelector(".costo-input").value = inicial.costo_linea;
+      fila.querySelector('input[name="tasa_descuento[]"]').value = inicial.tasa_descuento_aplicada;
+      fila.querySelector(".iva-input").value = inicial.porcentaje_iva;
+    }
+
     cuerpo.appendChild(nodo);
   }
 
-  document.getElementById("btn-agregar-linea").addEventListener("click", agregarLinea);
-  agregarLinea(); // arranca con una línea vacía
+  document.getElementById("btn-agregar-linea").addEventListener("click", () => agregarLinea());
+
+  const PDF_LINEAS = {{ (pdf_datos.lineas if pdf_datos else []) | tojson }};
+  if (PDF_LINEAS.length > 0) {
+    PDF_LINEAS.forEach((l) => agregarLinea(l));
+  } else {
+    agregarLinea(); // arranca con una línea vacía
+  }
 
   // Modo simple (proveedores que no son Postobón, ej. Canasto): solo cajas/unidades
   // pagadas + cajas/unidades de descuento + total pagado, sin tasas ni IVA.

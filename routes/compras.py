@@ -5,6 +5,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 from extensions import db
 from models import Producto, Compra, CompraDetalle, Proveedor
 from services.compras import bruto_linea as _bruto_linea
+from services.factura_postobon_pdf import parsear_pdf_postobon
 from services.inventario import cajas_y_unidades
 from services.proveedores import listar_proveedores, proveedor_postobon
 
@@ -436,3 +437,55 @@ def nueva():
         return redirect(url_for("compras.listar"))
 
     return render_template("compras/formulario.html", productos=productos, proveedores=proveedores, form=None)
+
+
+@bp.route("/cargar-pdf", methods=["POST"])
+def cargar_pdf():
+    productos = Producto.query.filter_by(activo=True).order_by(Producto.nombre).all()
+    proveedores = listar_proveedores()
+
+    archivo = request.files.get("archivo_pdf")
+    if not archivo or not archivo.filename:
+        flash("Selecciona un archivo PDF de la factura.", "error")
+        return render_template("compras/formulario.html", productos=productos, proveedores=proveedores, form=None)
+
+    try:
+        datos = parsear_pdf_postobon(archivo.stream)
+    except Exception:
+        flash("No se pudo leer ese PDF. Verifica que sea una factura electrónica de Postobón.", "error")
+        return render_template("compras/formulario.html", productos=productos, proveedores=proveedores, form=None)
+
+    if not datos["lineas"]:
+        flash("No se encontró ninguna línea de producto en ese PDF.", "error")
+        return render_template("compras/formulario.html", productos=productos, proveedores=proveedores, form=None)
+
+    datos["fecha"] = datos["fecha"].isoformat() if datos["fecha"] else ""
+
+    sin_resolver = sum(1 for l in datos["lineas"] if l["producto_id"] is None)
+    if sin_resolver:
+        flash(f"{sin_resolver} línea(s) tienen un código de Postobón nuevo -- selecciónales el producto manualmente.", "info")
+
+    # Verificación: lo reconstruido a partir de las líneas leídas vs. lo que la propia
+    # factura imprime en su resumen -- para avisar si el PDF trajo algo que no se pudo
+    # leer bien, igual que se ha venido comprobando a mano en cada factura.
+    neto_leido = sum(l["costo_linea"] for l in datos["lineas"])
+    iva_leido = round(sum(l["costo_linea"] * l["porcentaje_iva"] / 100 for l in datos["lineas"]))
+    totales = datos["totales_factura"]
+    neto_esperado = (
+        round(totales["subtotal"] - totales["descuento"])
+        if totales["subtotal"] is not None and totales["descuento"] is not None else None
+    )
+    iva_esperado = round(totales["iva"]) if totales["iva"] is not None else None
+    datos["verificacion"] = {
+        "neto_leido": neto_leido, "neto_esperado": neto_esperado,
+        "iva_leido": iva_leido, "iva_esperado": iva_esperado,
+        "cuadra": (
+            neto_esperado is not None and abs(neto_leido - neto_esperado) <= 5
+            and iva_esperado is not None and abs(iva_leido - iva_esperado) <= 5
+        ),
+    }
+
+    return render_template(
+        "compras/formulario.html", productos=productos, proveedores=proveedores, form=None,
+        pdf_datos=datos,
+    )
