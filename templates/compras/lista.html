@@ -6,6 +6,21 @@
   <a href="{{ url_for('compras.nueva') }}" class="btn btn-primary">+ Registrar compra</a>
 </div>
 
+<form method="get" class="row col-lg-6 mb-3">
+  <div class="col-6">
+    <label class="form-label">Mes</label>
+    <select name="mes" class="form-select" onchange="this.form.submit()">
+      {% for nombre in meses %}
+      <option value="{{ loop.index }}" {% if loop.index == mes %}selected{% endif %}>{{ nombre }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-6">
+    <label class="form-label">Año</label>
+    <input type="number" name="anio" class="form-control" value="{{ anio }}" onchange="this.form.submit()">
+  </div>
+</form>
+
 <div class="table-responsive">
 <table class="table table-striped align-middle">
   <thead>
@@ -27,13 +42,13 @@
       <td class="text-end"><a href="{{ url_for('compras.detalle', compra_id=f.compra.id) }}" class="btn btn-sm btn-outline-primary">Ver detalle</a></td>
     </tr>
     {% else %}
-    <tr><td colspan="5" class="text-center text-muted">No hay compras registradas todavía.</td></tr>
+    <tr><td colspan="5" class="text-center text-muted">No hay compras registradas este mes.</td></tr>
     {% endfor %}
   </tbody>
   {% if filas %}
   <tfoot>
     <tr class="fw-bold">
-      <td colspan="3">Total comprado</td>
+      <td colspan="3">Total del mes</td>
       <td class="text-end">${{ "{:,}".format(total_general) }}</td>
       <td></td>
     </tr>

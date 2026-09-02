@@ -1,3 +1,4 @@
+import calendar
 from datetime import date, datetime
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash
@@ -6,6 +7,7 @@ from extensions import db
 from models import Producto, Compra, CompraDetalle, Proveedor
 from services.compras import bruto_linea as _bruto_linea
 from services.factura_postobon_pdf import parsear_pdf_postobon
+from services.fechas import MESES_ES
 from services.inventario import cajas_y_unidades
 from services.proveedores import listar_proveedores, proveedor_postobon
 
@@ -18,16 +20,33 @@ def _es_postobon_compra(compra):
     return compra.proveedor.es_postobon if compra.proveedor else True
 
 
+def _rango_mes(anio, mes):
+    ultimo_dia = calendar.monthrange(anio, mes)[1]
+    return date(anio, mes, 1), date(anio, mes, ultimo_dia)
+
+
 @bp.route("/")
 def listar():
-    compras = Compra.query.order_by(Compra.fecha.desc(), Compra.id.desc()).all()
+    hoy = date.today()
+    anio = int(request.args.get("anio", hoy.year))
+    mes = int(request.args.get("mes", hoy.month))
+    fecha_inicio, fecha_fin = _rango_mes(anio, mes)
+
+    compras = (
+        Compra.query.filter(Compra.fecha >= fecha_inicio, Compra.fecha <= fecha_fin)
+        .order_by(Compra.fecha.desc(), Compra.id.desc())
+        .all()
+    )
     filas = []
     for c in compras:
         costo_total = sum(d.costo_linea for d in c.detalles)
         iva_total = sum(d.valor_iva for d in c.detalles)
         filas.append({"compra": c, "total_a_pagar": costo_total + iva_total})
-    total_general = sum(f["total_a_pagar"] for f in filas)
-    return render_template("compras/lista.html", filas=filas, total_general=total_general)
+    total_mes = sum(f["total_a_pagar"] for f in filas)
+    return render_template(
+        "compras/lista.html", filas=filas, total_general=total_mes,
+        anio=anio, mes=mes, meses=MESES_ES,
+    )
 
 
 @bp.route("/<int:compra_id>")

@@ -130,11 +130,29 @@ def test_lista_de_compras_muestra_el_proveedor(db, client):
     ))
     db.session.commit()
 
-    r = client.get("/compras/")
-    assert "Postobón" in r.get_data(as_text=True)
+    r = client.get("/compras/?anio=2026&mes=8")
+    body = r.get_data(as_text=True)
+    assert "2026-08-16" in body
+    assert "Postobón" in body
 
 
-def test_lista_de_compras_muestra_el_total_de_todas_las_facturas(db, client):
+def test_lista_de_compras_filtra_por_mes(db, client):
+    coca = crear_producto(db)
+    agosto = Compra(fecha=date(2026, 8, 16), numero_factura="F-001")
+    septiembre = Compra(fecha=date(2026, 9, 5), numero_factura="F-002")
+    db.session.add_all([agosto, septiembre])
+    db.session.flush()
+    db.session.add(CompraDetalle(compra_id=agosto.id, producto_id=coca.id, cantidad_comprada_unidades=6, costo_linea=18000))
+    db.session.add(CompraDetalle(compra_id=septiembre.id, producto_id=coca.id, cantidad_comprada_unidades=6, costo_linea=24000))
+    db.session.commit()
+
+    r = client.get("/compras/?anio=2026&mes=8")
+    body = r.get_data(as_text=True)
+    assert "F-001" in body
+    assert "F-002" not in body
+
+
+def test_lista_de_compras_muestra_el_total_del_mes(db, client):
     coca = crear_producto(db)
     agua = crear_producto(db, "Agua Cristal", 2000)
 
@@ -154,17 +172,17 @@ def test_lista_de_compras_muestra_el_total_de_todas_las_facturas(db, client):
     ))
     db.session.commit()
 
-    r = client.get("/compras/")
+    r = client.get("/compras/?anio=2026&mes=8")
     body = r.get_data(as_text=True)
     assert r.status_code == 200
     # compra1: 18000 + 19% IVA = 21420 ; compra2: 24000 (sin IVA) ; total = 45420
-    assert "Total comprado" in body
+    assert "Total del mes" in body
     assert "45,420" in body
 
 
-def test_lista_de_compras_no_muestra_total_cuando_esta_vacia(client):
-    r = client.get("/compras/")
-    assert "Total comprado" not in r.get_data(as_text=True)
+def test_lista_de_compras_no_muestra_total_cuando_el_mes_esta_vacio(client):
+    r = client.get("/compras/?anio=2026&mes=8")
+    assert "Total del mes" not in r.get_data(as_text=True)
 
 
 def test_nueva_compra_calcula_neto_cuando_costo_incluye_iva(db, client):
