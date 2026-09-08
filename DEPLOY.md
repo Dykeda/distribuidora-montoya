@@ -170,6 +170,7 @@ scp montoya@TU-IP-PUBLICA:~/respaldos/distribuidora_2026-08-12.db .
    cd ~/distribuidora-montoya
    git pull
    venv/bin/pip install -r requirements.txt   # solo si cambiaron las dependencias
+   venv/bin/flask --app app init-db           # solo si el cambio agrega una tabla nueva; es idempotente, no borra datos
    sudo systemctl restart distribuidora-montoya
    ```
 
