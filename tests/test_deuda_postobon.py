@@ -3,12 +3,16 @@ from datetime import date
 import pytest
 
 from extensions import db as _db
-from models import Producto, ProductoPrecio, Compra, CompraDetalle, Proveedor, CategoriaGasto, Gasto
+from models import (
+    Producto, ProductoPrecio, Compra, CompraDetalle, Proveedor, CategoriaGasto, Gasto,
+    AjusteDeudaPostobon,
+)
 from services.deuda_postobon import (
     compras_a_credito,
     pagos_transferencia,
     deuda_postobon_a_la_fecha,
     movimientos_deuda,
+    listar_ajustes_deuda,
 )
 
 
@@ -149,3 +153,82 @@ def test_nueva_compra_sin_marcar_queda_a_credito(db, client):
     )
     assert r.status_code == 200
     assert Compra.query.one().pago_contado is False
+
+
+def test_ajuste_negativo_deja_la_deuda_en_el_valor_real(db):
+    """La suma automática de facturas a crédito queda alta; un ajuste negativo la baja
+    al saldo real que se debe de verdad."""
+    coca = crear_producto(db)
+    crear_compra_postobon(db, coca, date(2026, 9, 1), costo=500000, iva=0.0)
+    assert deuda_postobon_a_la_fecha(date(2026, 9, 30)) == 500000
+
+    db.session.add(AjusteDeudaPostobon(fecha=date(2026, 9, 8), monto=-380000, notas="Saldo real"))
+    db.session.commit()
+
+    assert deuda_postobon_a_la_fecha(date(2026, 9, 30)) == 120000
+
+
+def test_ajuste_positivo_suma_a_la_deuda(db):
+    db.session.add(AjusteDeudaPostobon(fecha=date(2026, 9, 1), monto=250000, notas="Deuda vieja"))
+    db.session.commit()
+
+    assert deuda_postobon_a_la_fecha(date(2026, 9, 30)) == 250000
+
+
+def test_ajuste_solo_cuenta_hasta_su_fecha(db):
+    db.session.add(AjusteDeudaPostobon(fecha=date(2026, 9, 20), monto=-100000))
+    db.session.commit()
+
+    assert deuda_postobon_a_la_fecha(date(2026, 9, 10)) == 0
+    assert deuda_postobon_a_la_fecha(date(2026, 9, 30)) == -100000
+
+
+def test_ajuste_aparece_en_movimientos_con_saldo_corrido(db):
+    coca = crear_producto(db)
+    crear_compra_postobon(db, coca, date(2026, 9, 1), costo=100000, iva=0.0, numero_factura="AS001")
+    db.session.add(AjusteDeudaPostobon(fecha=date(2026, 9, 15), monto=-30000, notas="Ajuste"))
+    db.session.commit()
+
+    movimientos = movimientos_deuda(date(2026, 9, 1), date(2026, 9, 30))
+    assert len(movimientos) == 2
+    assert movimientos[0]["tipo"] == "ajuste"
+    assert movimientos[0]["monto"] == -30000
+    assert movimientos[0]["saldo"] == 70000
+    assert movimientos[1]["tipo"] == "cargo"
+    assert movimientos[1]["saldo"] == 100000
+
+
+def test_form_crea_ajuste_de_deuda(db, client):
+    r = client.post(
+        "/deuda-postobon/ajustes/nuevo",
+        data={"fecha": "2026-09-08", "monto": "-380000", "notas": "Saldo real"},
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+    ajuste = AjusteDeudaPostobon.query.one()
+    assert ajuste.monto == -380000
+    assert ajuste.notas == "Saldo real"
+
+
+def test_form_rechaza_ajuste_en_cero(db, client):
+    r = client.post(
+        "/deuda-postobon/ajustes/nuevo",
+        data={"fecha": "2026-09-08", "monto": "0", "notas": ""},
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+    assert AjusteDeudaPostobon.query.count() == 0
+    assert "no puede ser cero" in r.get_data(as_text=True)
+
+
+def test_eliminar_ajuste_de_deuda(db, client):
+    db.session.add(AjusteDeudaPostobon(fecha=date(2026, 9, 8), monto=-380000))
+    db.session.commit()
+    ajuste_id = AjusteDeudaPostobon.query.one().id
+
+    r = client.post(
+        f"/deuda-postobon/ajustes/{ajuste_id}/eliminar", follow_redirects=True,
+    )
+    assert r.status_code == 200
+    assert AjusteDeudaPostobon.query.count() == 0
+    assert listar_ajustes_deuda() == []

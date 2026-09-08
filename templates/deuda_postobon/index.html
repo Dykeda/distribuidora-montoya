@@ -2,7 +2,7 @@
 {% block title %}Deuda Postobón{% endblock %}
 {% block content %}
 <h1 class="h3 mb-3">Deuda pendiente con Postobón</h1>
-<p class="text-muted">Cada factura de Postobón registrada a crédito (sin marcar "Pago de contado") suma a esta deuda; cada "Salida de dinero" con la categoría "Pago Postobón Transferencia" la resta.</p>
+<p class="text-muted">Cada factura de Postobón registrada a crédito (sin marcar "Pago de contado") suma a esta deuda; cada "Salida de dinero" con la categoría "Pago Postobón Transferencia" la resta. Con "Ajustar deuda" puedes fijar el saldo real a mano.</p>
 
 <form method="get" class="row col-lg-6 mb-3">
   <div class="col-6">
@@ -19,7 +19,7 @@
   </div>
 </form>
 
-<div class="row mb-4">
+<div class="row mb-3">
   <div class="col-auto">
     <div class="card card-metric border-primary" style="max-width: 320px;">
       <div class="card-body">
@@ -37,6 +37,43 @@
     </div>
   </div>
 </div>
+
+<a href="{{ url_for('deuda_postobon.ajuste_nuevo') }}" class="btn btn-outline-primary mb-4">
+  <i class="bi bi-pencil-square"></i> Ajustar deuda (ingresar el saldo real)
+</a>
+
+{% if ajustes %}
+<h2 class="h6 mb-2">Ajustes manuales</h2>
+<div class="table-responsive mb-4">
+<table class="table table-sm align-middle">
+  <thead>
+    <tr>
+      <th>Fecha</th>
+      <th>Notas</th>
+      <th class="text-end">Monto</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for a in ajustes %}
+    <tr>
+      <td>{{ a.fecha.strftime("%Y-%m-%d") }}</td>
+      <td>{{ a.notas or "Ajuste manual" }}</td>
+      <td class="text-end {{ 'text-success' if a.monto < 0 else '' }}">
+        {{ '-' if a.monto < 0 else '+' }}${{ "{:,}".format(a.monto | abs) }}
+      </td>
+      <td class="text-end">
+        <form method="post" action="{{ url_for('deuda_postobon.ajuste_eliminar', ajuste_id=a.id) }}"
+              onsubmit="return confirm('¿Eliminar este ajuste?');" class="d-inline">
+          <button type="submit" class="btn btn-sm btn-outline-danger">Eliminar</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
 
 <h2 class="h6 mb-2">Movimientos del período</h2>
 {% if movimientos %}
@@ -57,6 +94,8 @@
       <td>
         {% if m.tipo == "cargo" %}
         <a href="{{ url_for('compras.detalle', compra_id=m.compra_id) }}">{{ m.descripcion }}</a>
+        {% elif m.tipo == "ajuste" %}
+        <span class="badge text-bg-light border">Ajuste manual</span> {{ m.descripcion }}
         {% else %}
         {{ m.descripcion }}
         {% endif %}

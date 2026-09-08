@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Ajustar deuda con Postobón{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">Ajustar la deuda con Postobón</h1>
+
+<p class="text-muted">
+  La app calcula la deuda sumando todas las facturas de Postobón registradas a crédito y
+  restando los pagos por transferencia. Si ese número no coincide con lo que de verdad se
+  debe hoy, registra aquí un ajuste para dejarlo en el valor real.
+</p>
+
+<div class="alert alert-secondary col-lg-6">
+  <div class="small text-muted">Deuda calculada ahora mismo</div>
+  <div class="fs-4 fw-bold">${{ "{:,}".format(deuda_actual) }}</div>
+  <hr class="my-2">
+  <div class="small mb-0">
+    Escribe un monto <strong>positivo</strong> para aumentar la deuda, o
+    <strong>negativo</strong> para reducirla.<br>
+    Ejemplo: si arriba dice <strong>$500,000</strong> pero en realidad debes
+    <strong>$120,000</strong>, escribe <strong>-380000</strong> y la deuda quedará en
+    $120,000.
+  </div>
+</div>
+
+<form method="post" class="col-lg-6">
+  <div class="mb-3">
+    <label class="form-label">Fecha</label>
+    <input type="date" name="fecha" class="form-control"
+           value="{{ form.fecha if form else '' }}" required>
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Monto del ajuste (COP, puede ser negativo)</label>
+    <input type="number" step="1" name="monto" class="form-control" required
+           value="{{ form.monto if form else '' }}">
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Notas (opcional)</label>
+    <input type="text" name="notas" class="form-control"
+           placeholder="Ej. Dejar la deuda en el saldo real acordado con Postobón"
+           value="{{ form.notas if form else '' }}">
+  </div>
+  <button type="submit" class="btn btn-primary">Guardar ajuste</button>
+  <a href="{{ url_for('deuda_postobon.index') }}" class="btn btn-link">Cancelar</a>
+</form>
+{% endblock %}

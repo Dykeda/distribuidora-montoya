@@ -413,6 +413,22 @@ class AjustePostobon(db.Model):
     notas = db.Column(db.String(255), nullable=True)
 
 
+class AjusteDeudaPostobon(db.Model):
+    """Ajuste manual a la deuda de dinero pendiente con Postobón (cuentas por pagar) --
+    distinto de AjustePostobon, que ajusta el pendiente de descuentos faltantes. Sirve
+    para fijar el saldo real que ya existía antes de que esta pantalla empezara a
+    calcularlo sola (sumando todas las facturas a crédito registradas), o para corregirlo
+    cuando se desajuste. monto positivo aumenta la deuda; negativo la reduce. Ver
+    services/deuda_postobon.py."""
+
+    __tablename__ = "ajuste_deuda_postobon"
+
+    id = db.Column(db.Integer, primary_key=True)
+    fecha = db.Column(db.Date, nullable=False, default=date.today)
+    monto = db.Column(db.Integer, nullable=False)
+    notas = db.Column(db.String(255), nullable=True)
+
+
 class PagoFaltantePostobon(db.Model):
     """Cuando Postobón salda parte del saldo pendiente de descuentos faltantes
     entregando producto en vez de dinero (un camión de mercancía como abono). A
