@@ -7,6 +7,7 @@ from services import ventas as ventas_service
 from services import cartera as cartera_service
 from services import caja as caja_service
 from services import gastos as gastos_service
+from services import deuda_postobon as deuda_postobon_service
 
 
 def compra_total_periodo(fecha_inicio, fecha_fin):
@@ -31,6 +32,7 @@ def resumen_periodo(fecha_inicio, fecha_fin):
     venta = ventas_service.ventas_en_periodo(fecha_inicio, fecha_fin)
     descuento_contabilizado = descuentos_service.total_descuento_periodo(fecha_inicio, fecha_fin)
     cartera_pendiente = cartera_service.total_pendiente(fecha_fin)
+    deuda_postobon = deuda_postobon_service.deuda_postobon_a_la_fecha(fecha_fin)
     entradas_periodo = caja_service.entradas_en_periodo(fecha_inicio, fecha_fin)
     gastos_periodo = gastos_service.total_gastos_periodo(fecha_inicio, fecha_fin)
     saldo_caja_periodo = entradas_periodo - gastos_periodo
@@ -60,6 +62,7 @@ def resumen_periodo(fecha_inicio, fecha_fin):
         "venta_por_producto": venta["por_producto"],
         "descuento_contabilizado": descuento_contabilizado,
         "cartera_pendiente": cartera_pendiente,
+        "deuda_postobon": deuda_postobon,
         "pct_descuento_promedio": pct_descuento_promedio,
         "entradas_periodo": entradas_periodo,
         "gastos_periodo": gastos_periodo,

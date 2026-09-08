@@ -104,6 +104,10 @@ class Compra(db.Model):
     # SQLAlchemy no permite. routes/compras.py::nueva() sí lo asigna siempre de forma
     # explícita, resolviendo a Postobón si el usuario no eligió otro.
     proveedor_id = db.Column(db.Integer, db.ForeignKey("proveedor.id"), nullable=True)
+    # Facturas de Postobón que se pagaron de contado (no a crédito) no se suman a la
+    # deuda pendiente con Postobón -- ver services/deuda_postobon.py. No tiene efecto
+    # para proveedores que no son Postobón (esa deuda no se lleva para ellos).
+    pago_contado = db.Column(db.Boolean, nullable=False, default=False)
 
     proveedor = db.relationship("Proveedor", back_populates="compras")
     detalles = db.relationship(

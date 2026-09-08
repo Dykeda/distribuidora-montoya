@@ -12,6 +12,7 @@
   Factura: {{ compra.numero_factura or "-" }}
   &mdash; Proveedor: {{ compra.proveedor.nombre if compra.proveedor else "Postobón" }}
   {% if compra.proveedor and not compra.proveedor.es_postobon %}<span class="badge bg-secondary">No es Postobón</span>{% endif %}
+  {% if compra.pago_contado %}<span class="badge bg-success">Pago de contado</span>{% endif %}
   {% if compra.notas %}&mdash; {{ compra.notas }}{% endif %}
 </p>
 

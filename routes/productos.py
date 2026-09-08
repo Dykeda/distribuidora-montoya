@@ -1,6 +1,6 @@
 from datetime import date
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 
 from extensions import db
 from models import Producto, ProductoPrecio
@@ -26,6 +26,38 @@ def inventario():
     if q:
         filas = [f for f in filas if q.lower() in f["producto"].nombre.lower()]
     return render_template("productos/inventario.html", filas=filas, q=q)
+
+
+@bp.route("/nuevo-ajax", methods=["POST"])
+def nuevo_ajax():
+    """Crea un producto sin navegar a otra página -- mismo patrón que
+    proveedores.nuevo_ajax, para usarlo desde una línea de compra cuando la factura trae
+    un producto que todavía no existe en el catálogo. Se crea con lo mínimo (nombre y
+    unidades por caja); precio, categoría y % de descuento de referencia se completan
+    después en Productos."""
+    data = request.get_json(silent=True) or {}
+    nombre = (data.get("nombre") or "").strip()
+    try:
+        unidades_por_caja = int(data.get("unidades_por_caja") or 1)
+    except (TypeError, ValueError):
+        unidades_por_caja = 0
+
+    if not nombre:
+        return jsonify({"error": "El nombre del producto es obligatorio."}), 400
+    if unidades_por_caja < 1:
+        return jsonify({"error": "Unidades por caja debe ser al menos 1."}), 400
+    if Producto.query.filter_by(nombre=nombre).first():
+        return jsonify({"error": f'Ya existe un producto llamado "{nombre}".'}), 400
+
+    producto = Producto(nombre=nombre, unidades_por_caja=unidades_por_caja)
+    db.session.add(producto)
+    db.session.commit()
+    return jsonify({
+        "id": producto.id, "nombre": producto.nombre,
+        "tasa": producto.tasa_descuento_referencia,
+        "precioCaja": 0, "precioUnidad": 0,
+        "unidadesPorCaja": producto.unidades_por_caja,
+    }), 201
 
 
 @bp.route("/nuevo", methods=["GET", "POST"])

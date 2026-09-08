@@ -771,3 +771,111 @@ def test_detalle_de_compra_postobon_sigue_mostrando_la_tasa_tal_cual_se_guardo(d
     assert r.status_code == 200
     assert "5.0%" in body  # tasa_descuento_aplicada de la línea de coca, sin recalcular
     assert "10.0%" in body  # ídem para agua
+
+
+# --- líneas de factura sin producto asignado (código nuevo de Postobón) ----------------
+
+def test_nueva_compra_con_linea_de_factura_sin_producto_no_se_guarda(db, client):
+    """Una línea que vino de una factura PDF (de_factura[]=1) y se quedó sin producto
+    asignado no debe guardarse en silencio -- eso dejaría la compra con menos líneas que
+    la factura real sin que nadie se entere."""
+    coca = crear_producto(db)
+
+    r = client.post(
+        "/compras/nueva",
+        data={
+            "fecha": "2026-09-08", "numero_factura": "", "notas": "",
+            "producto_id[]": [str(coca.id), ""],
+            "cajas[]": ["1", "0"],
+            "unidades[]": ["0", "10"],
+            "costo_linea[]": ["18000", "50000"],
+            "tasa_descuento[]": ["0", "12"],
+            "porcentaje_iva[]": ["19", "19"],
+            "notas_linea[]": ["", "Código 99999: PRODUCTO NUEVO DE PRUEBA"],
+            "de_factura[]": ["0", "1"],
+        },
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+    body = r.get_data(as_text=True)
+    assert "Código 99999: PRODUCTO NUEVO DE PRUEBA" in body
+    assert "Nuevo producto" in body
+    assert Compra.query.count() == 0
+
+
+def test_nueva_compra_con_fila_en_blanco_manual_se_ignora_sin_error(db, client):
+    """Una fila que el usuario agregó de más con '+ Agregar producto' y nunca llenó
+    (de_factura[]=0) se sigue ignorando sin bloquear el guardado -- solo las líneas que
+    vinieron de una factura real deben exigir producto asignado."""
+    coca = crear_producto(db)
+
+    r = client.post(
+        "/compras/nueva",
+        data={
+            "fecha": "2026-09-08", "numero_factura": "", "notas": "",
+            "producto_id[]": [str(coca.id), ""],
+            "cajas[]": ["1", "0"], "unidades[]": ["0", "0"],
+            "costo_linea[]": ["18000", ""],
+            "tasa_descuento[]": ["0", "0"],
+            "porcentaje_iva[]": ["19", "19"],
+            "notas_linea[]": ["", ""],
+            "de_factura[]": ["0", "0"],
+        },
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+    assert Compra.query.count() == 1
+    assert len(Compra.query.one().detalles) == 1
+
+
+def test_nueva_compra_con_error_repuebla_las_lineas_en_el_formulario(db, client):
+    """Cuando falla el guardado, el formulario se vuelve a mostrar con las líneas ya
+    cargadas -- sin esto, una factura de muchas líneas se perdería entera por un solo
+    código sin resolver."""
+    coca = crear_producto(db)
+
+    r = client.post(
+        "/compras/nueva",
+        data={
+            "fecha": "2026-09-08", "numero_factura": "", "notas": "",
+            "producto_id[]": [str(coca.id), ""],
+            "cajas[]": ["2", "0"], "unidades[]": ["3", "10"],
+            "costo_linea[]": ["45000", "50000"],
+            "tasa_descuento[]": ["0", "12"],
+            "porcentaje_iva[]": ["19", "19"],
+            "notas_linea[]": ["", "Código 99999: PRODUCTO NUEVO DE PRUEBA"],
+            "de_factura[]": ["1", "1"],
+        },
+    )
+    assert r.status_code == 200
+    body = r.get_data(as_text=True)
+    assert "Coca-Cola 1.5L" in body  # la línea válida no se perdió
+    assert "Código 99999: PRODUCTO NUEVO DE PRUEBA" in body  # tampoco la que falló
+    assert '"costo_linea": "45000"' in body
+
+
+# --- "+ Nuevo producto" desde una línea de compra ---------------------------------------
+
+def test_productos_nuevo_ajax_crea_producto(db, client):
+    r = client.post(
+        "/productos/nuevo-ajax",
+        json={"nombre": "Producto De Prueba AJAX", "unidades_por_caja": 12},
+    )
+    assert r.status_code == 201
+    data = r.get_json()
+    assert data["nombre"] == "Producto De Prueba AJAX"
+    assert data["unidadesPorCaja"] == 12
+    assert Producto.query.filter_by(nombre="Producto De Prueba AJAX").first() is not None
+
+
+def test_productos_nuevo_ajax_rechaza_nombre_duplicado(db, client):
+    crear_producto(db, nombre="Ya Existe")
+
+    r = client.post("/productos/nuevo-ajax", json={"nombre": "Ya Existe", "unidades_por_caja": 12})
+    assert r.status_code == 400
+    assert "Ya existe" in r.get_json()["error"]
+
+
+def test_productos_nuevo_ajax_rechaza_sin_nombre(db, client):
+    r = client.post("/productos/nuevo-ajax", json={"nombre": "", "unidades_por_caja": 12})
+    assert r.status_code == 400

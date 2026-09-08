@@ -5,19 +5,13 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 
 from extensions import db
 from models import Producto, Compra, CompraDetalle, Proveedor
-from services.compras import bruto_linea as _bruto_linea
+from services.compras import bruto_linea as _bruto_linea, total_a_pagar as _total_a_pagar, es_postobon as _es_postobon_compra
 from services.factura_postobon_pdf import parsear_pdf_postobon
 from services.fechas import MESES_ES
 from services.inventario import cajas_y_unidades
 from services.proveedores import listar_proveedores, proveedor_postobon
 
 bp = Blueprint("compras", __name__, url_prefix="/compras")
-
-
-def _es_postobon_compra(compra):
-    """Nulo (compras viejas o sin proveedor elegido) se trata como Postobón -- mismo
-    criterio que usa nueva() al elegir el parser y services/postobon.py al filtrar."""
-    return compra.proveedor.es_postobon if compra.proveedor else True
 
 
 def _rango_mes(anio, mes):
@@ -39,9 +33,7 @@ def listar():
     )
     filas = []
     for c in compras:
-        costo_total = sum(d.costo_linea for d in c.detalles)
-        iva_total = sum(d.valor_iva for d in c.detalles)
-        filas.append({"compra": c, "total_a_pagar": costo_total + iva_total})
+        filas.append({"compra": c, "total_a_pagar": _total_a_pagar(c)})
     total_mes = sum(f["total_a_pagar"] for f in filas)
     return render_template(
         "compras/lista.html", filas=filas, total_general=total_mes,
@@ -73,7 +65,7 @@ def detalle(compra_id):
 
     costo_total = sum(d.costo_linea for d in compra.detalles)
     iva_total = sum(d.valor_iva for d in compra.detalles)
-    total_a_pagar = costo_total + iva_total
+    total_a_pagar = _total_a_pagar(compra)
     subtotal_bruto = sum(f["bruto"] for f in filas)
     descuento_total = subtotal_bruto - costo_total
 
@@ -295,10 +287,19 @@ def _parsear_lineas_postobon(request, errores):
     ivas = request.form.getlist("porcentaje_iva[]")
     costo_incluye_iva_lista = request.form.getlist("costo_incluye_iva[]")
     notas_lineas = request.form.getlist("notas_linea[]")
+    de_factura_lista = request.form.getlist("de_factura[]")
 
     lineas_validas = []
     for i, pid in enumerate(producto_ids):
         if not pid:
+            # Una fila en blanco que el usuario nunca llenó (ej. sobró del botón "+
+            # Agregar producto") se ignora sin más -- pero una línea que sí vino de una
+            # factura PDF y se quedó sin producto asignado NO se descarta en silencio,
+            # porque eso dejaría la compra guardada con menos líneas que la factura real
+            # y el total no cuadraría sin que nadie se entere.
+            if i < len(de_factura_lista) and de_factura_lista[i] == "1":
+                detalle = notas_lineas[i].strip() if i < len(notas_lineas) and notas_lineas[i].strip() else f"línea {i + 1}"
+                errores.append(f'Falta asignar el producto de la factura para: {detalle}. Búscalo o créalo con el botón "+ Nuevo producto" de esa línea antes de guardar.')
             continue
         try:
             producto = db.session.get(Producto, int(pid))
@@ -412,6 +413,44 @@ def _parsear_lineas_simple(request, errores):
     return lineas_validas
 
 
+def _lineas_repoblar_desde_form(request):
+    """Cuando nueva() rechaza el guardado por un error de validación (ej. una línea de
+    factura sin producto asignado), el formulario se vuelve a renderizar -- sin esto, la
+    tabla de líneas se reiniciaría a una sola fila en blanco y el usuario perdería todo lo
+    que ya había cargado desde el PDF (que puede ser una factura de 60 líneas). Devuelve
+    los mismos datos que se enviaron, tal cual, para que el JS reconstruya cada fila
+    exactamente como estaba antes de intentar guardar."""
+    producto_ids = request.form.getlist("producto_id[]")
+    cajas_lista = request.form.getlist("cajas[]")
+    unidades_lista = request.form.getlist("unidades[]")
+    costos = request.form.getlist("costo_linea[]")
+    tasas = request.form.getlist("tasa_descuento[]")
+    ivas = request.form.getlist("porcentaje_iva[]")
+    notas_lineas = request.form.getlist("notas_linea[]")
+    es_descuentos = request.form.getlist("es_descuento[]")
+    incluye_iva_lista = request.form.getlist("costo_incluye_iva[]")
+    de_factura_lista = request.form.getlist("de_factura[]")
+
+    def _valor(lista, i, default=""):
+        return lista[i] if i < len(lista) else default
+
+    lineas = []
+    for i, pid in enumerate(producto_ids):
+        lineas.append({
+            "producto_id": int(pid) if pid else None,
+            "cajas": _valor(cajas_lista, i, "0"),
+            "unidades": _valor(unidades_lista, i, "0"),
+            "costo_linea": _valor(costos, i, ""),
+            "tasa_descuento_aplicada": _valor(tasas, i, "0"),
+            "porcentaje_iva": _valor(ivas, i, "19"),
+            "notas": _valor(notas_lineas, i, ""),
+            "es_descuento": _valor(es_descuentos, i) == "1",
+            "costo_incluye_iva": _valor(incluye_iva_lista, i) == "1",
+            "de_factura": _valor(de_factura_lista, i) == "1",
+        })
+    return lineas
+
+
 @bp.route("/nueva", methods=["GET", "POST"])
 def nueva():
     productos = Producto.query.filter_by(activo=True).order_by(Producto.nombre).all()
@@ -441,13 +480,18 @@ def nueva():
         if errores:
             for e in errores:
                 flash(e, "error")
-            return render_template("compras/formulario.html", productos=productos, proveedores=proveedores, form=request.form)
+            lineas_repoblar = _lineas_repoblar_desde_form(request) if proveedor.es_postobon else None
+            return render_template(
+                "compras/formulario.html", productos=productos, proveedores=proveedores,
+                form=request.form, lineas_repoblar=lineas_repoblar,
+            )
 
         compra = Compra(
             fecha=fecha,
             numero_factura=request.form.get("numero_factura") or None,
             notas=request.form.get("notas") or None,
             proveedor_id=proveedor.id,
+            pago_contado=bool(request.form.get("pago_contado")),
         )
         compra.detalles = lineas_validas
         db.session.add(compra)

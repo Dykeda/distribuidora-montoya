@@ -70,6 +70,17 @@
       </div>
       <div class="form-text">Si el descuento de esta compra no es de Postobón, elige o crea el proveedor real -- así no se compara contra la tasa de descuento esperada de Postobón.</div>
     </div>
+    <div class="col-md-6 d-flex align-items-center">
+      <div class="form-check">
+        <input type="checkbox" class="form-check-input" id="pago-contado" name="pago_contado" value="1" {% if form and form.pago_contado %}checked{% endif %}>
+        <label class="form-check-label" for="pago-contado">Pago de contado</label>
+      </div>
+    </div>
+  </div>
+  <div class="row col-lg-8 mb-3" id="aviso-pago-contado">
+    <div class="col-12">
+      <div class="form-text">Marca esto si esta factura se paga de contado -- no se suma a la <a href="{{ url_for('deuda_postobon.index') }}" target="_blank">deuda pendiente con Postobón</a>. Déjala sin marcar si se paga después (a crédito).</div>
+    </div>
   </div>
 
   <div id="bloque-postobon">
@@ -145,11 +156,40 @@
   </div>
 </div>
 
+<div class="modal fade" id="modal-nuevo-producto" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Nuevo producto</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <div id="error-nuevo-producto" class="alert alert-danger d-none"></div>
+        <div class="mb-3">
+          <label class="form-label">Nombre</label>
+          <input type="text" id="input-nuevo-producto-nombre" class="form-control">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Unidades por caja</label>
+          <input type="number" id="input-nuevo-producto-unidades-caja" class="form-control" min="1" value="1">
+        </div>
+        <p class="text-muted small mb-0">Se crea con esto y queda elegido en esta línea, sin perder lo demás que ya hayas cargado -- precio, categoría y % de descuento de referencia los completas después en Productos.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-link" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" id="btn-guardar-nuevo-producto" class="btn btn-primary">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <template id="plantilla-linea">
   <tr>
     <td>
       <input type="text" class="form-control producto-buscar" list="lista-productos" placeholder="Escribe para buscar..." autocomplete="off">
       <input type="hidden" name="producto_id[]" class="producto-id-oculto">
+      <input type="hidden" name="de_factura[]" value="0" class="de-factura-oculto">
+      <button type="button" class="btn btn-link btn-sm p-0 btn-nuevo-producto">+ Nuevo producto</button>
     </td>
     <td><input type="number" step="1" min="0" name="cajas[]" class="form-control cajas-input" value="0"></td>
     <td><input type="number" step="1" min="0" name="unidades[]" class="form-control unidades-input" value="0"></td>
@@ -231,7 +271,13 @@
     }
   }
 
-  function agregarLinea(inicial) {
+  const modalNuevoProducto = document.getElementById("modal-nuevo-producto");
+  const inputNuevoProductoNombre = document.getElementById("input-nuevo-producto-nombre");
+  const inputNuevoProductoUnidadesCaja = document.getElementById("input-nuevo-producto-unidades-caja");
+  const errorNuevoProducto = document.getElementById("error-nuevo-producto");
+  let filaParaNuevoProducto = null;
+
+  function crearFilaBase() {
     const nodo = plantilla.content.cloneNode(true);
     nodo.querySelector(".btn-quitar-linea").addEventListener("click", (e) => {
       e.target.closest("tr").remove();
@@ -242,6 +288,13 @@
     buscarInput.addEventListener("input", () => {
       const prod = buscarProductoPorNombre(buscarInput.value);
       idInput.value = prod ? prod.id : "";
+      if (fila.dataset.deFactura === "1") {
+        // Línea precargada desde una factura PDF: el costo/tasa/IVA reales ya
+        // vienen de la factura -- si el usuario solo está resolviendo a mano
+        // qué producto es un código nuevo, no los pisamos con el estimado del
+        // catálogo (que puede no coincidir con lo que de verdad se pagó).
+        return;
+      }
       const tasaInput = fila.querySelector('input[name="tasa_descuento[]"]');
       tasaInput.value = prod ? (prod.tasa || 0) : 0;
       recalcularCosto(fila);
@@ -257,11 +310,25 @@
     });
     fila.querySelector(".costo-input").addEventListener("input", () => actualizarPreviewNeto(fila));
     fila.querySelector(".iva-input").addEventListener("input", () => actualizarPreviewNeto(fila));
+    fila.querySelector(".btn-nuevo-producto").addEventListener("click", () => {
+      filaParaNuevoProducto = fila;
+      inputNuevoProductoNombre.value = buscarInput.value || "";
+      inputNuevoProductoUnidadesCaja.value = 1;
+      errorNuevoProducto.classList.add("d-none");
+      new bootstrap.Modal(modalNuevoProducto).show();
+    });
+    return { nodo, fila, buscarInput, idInput };
+  }
+
+  function agregarLinea(inicial) {
+    const { nodo, fila, buscarInput, idInput } = crearFilaBase();
 
     if (inicial) {
       // Precarga desde una factura PDF leída: si el código ya tiene producto asignado,
       // se busca por nombre (igual que si el usuario lo hubiera escrito); si no, se deja
       // el buscador vacío con la descripción de la factura en Notas para identificarlo.
+      fila.dataset.deFactura = "1";
+      fila.querySelector(".de-factura-oculto").value = "1";
       const prod = inicial.producto_id ? PRODUCTOS.find((p) => p.id === inicial.producto_id) : null;
       if (prod) {
         buscarInput.value = prod.nombre;
@@ -282,10 +349,45 @@
     cuerpo.appendChild(nodo);
   }
 
+  function agregarLineaDesdeForm(datos) {
+    // Reconstruye una fila exactamente como el usuario la había dejado antes de un
+    // intento de guardar que falló (ej. una línea de factura sin producto asignado) --
+    // sin recalcular nada, tal cual se había enviado.
+    const { nodo, fila, buscarInput, idInput } = crearFilaBase();
+    if (datos.de_factura) {
+      fila.dataset.deFactura = "1";
+      fila.querySelector(".de-factura-oculto").value = "1";
+    }
+    const prod = datos.producto_id ? PRODUCTOS.find((p) => p.id === datos.producto_id) : null;
+    if (prod) buscarInput.value = prod.nombre;
+    idInput.value = datos.producto_id || "";
+    fila.querySelector(".cajas-input").value = datos.cajas;
+    fila.querySelector(".unidades-input").value = datos.unidades;
+    fila.querySelector(".costo-input").value = datos.costo_linea;
+    fila.querySelector('input[name="tasa_descuento[]"]').value = datos.tasa_descuento_aplicada;
+    fila.querySelector(".iva-input").value = datos.porcentaje_iva;
+    fila.querySelector('input[name="notas_linea[]"]').value = datos.notas;
+    if (datos.es_descuento) {
+      fila.querySelector(".es-descuento-check").checked = true;
+      fila.querySelector(".es-descuento-oculto").value = "1";
+    }
+    if (datos.costo_incluye_iva) {
+      fila.querySelector(".incluye-iva-check").checked = true;
+      fila.querySelector(".incluye-iva-oculto").value = "1";
+    }
+    actualizarPreviewNeto(fila);
+    cuerpo.appendChild(nodo);
+  }
+
   document.getElementById("btn-agregar-linea").addEventListener("click", () => agregarLinea());
 
+  const LINEAS_REPOBLAR = {{ (lineas_repoblar | tojson) if (lineas_repoblar is defined and lineas_repoblar is not none) else 'null' }};
   const PDF_LINEAS = {{ (pdf_datos.lineas if pdf_datos else []) | tojson }};
-  if (PDF_LINEAS.length > 0) {
+  if (LINEAS_REPOBLAR) {
+    // Se está re-mostrando el formulario después de un error de guardado -- se
+    // reconstruyen las líneas tal cual se habían enviado, no las del PDF original.
+    LINEAS_REPOBLAR.forEach((l) => agregarLineaDesdeForm(l));
+  } else if (PDF_LINEAS.length > 0) {
     PDF_LINEAS.forEach((l) => agregarLinea(l));
   } else {
     agregarLinea(); // arranca con una línea vacía
@@ -393,6 +495,58 @@
   modalNuevoProveedor.addEventListener("hidden.bs.modal", () => {
     errorNuevoProveedor.classList.add("d-none");
     inputNuevoProveedorNombre.value = "";
+  });
+
+  // "+ Nuevo producto" en una línea: crea el producto por AJAX (sin salir de esta
+  // página) y lo deja elegido en esa misma línea -- para cuando la factura trae un
+  // producto que todavía no existe en el catálogo.
+  document.getElementById("btn-guardar-nuevo-producto").addEventListener("click", async () => {
+    const nombre = inputNuevoProductoNombre.value.trim();
+    const unidadesPorCaja = parseInt(inputNuevoProductoUnidadesCaja.value, 10) || 0;
+    errorNuevoProducto.classList.add("d-none");
+    if (!nombre) {
+      errorNuevoProducto.textContent = "El nombre del producto es obligatorio.";
+      errorNuevoProducto.classList.remove("d-none");
+      return;
+    }
+    if (unidadesPorCaja < 1) {
+      errorNuevoProducto.textContent = "Unidades por caja debe ser al menos 1.";
+      errorNuevoProducto.classList.remove("d-none");
+      return;
+    }
+    let resp, data;
+    try {
+      resp = await fetch("{{ url_for('productos.nuevo_ajax') }}", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nombre, unidades_por_caja: unidadesPorCaja }),
+      });
+      data = await resp.json();
+    } catch (e) {
+      errorNuevoProducto.textContent = "No se pudo conectar con el servidor. Intenta de nuevo.";
+      errorNuevoProducto.classList.remove("d-none");
+      return;
+    }
+    if (!resp.ok) {
+      errorNuevoProducto.textContent = data.error || "No se pudo crear el producto.";
+      errorNuevoProducto.classList.remove("d-none");
+      return;
+    }
+    PRODUCTOS.push(data);
+    const opt = document.createElement("option");
+    opt.value = data.nombre;
+    document.getElementById("lista-productos").appendChild(opt);
+    if (filaParaNuevoProducto) {
+      filaParaNuevoProducto.querySelector(".producto-buscar").value = data.nombre;
+      filaParaNuevoProducto.querySelector(".producto-id-oculto").value = data.id;
+    }
+    bootstrap.Modal.getInstance(modalNuevoProducto).hide();
+  });
+
+  modalNuevoProducto.addEventListener("shown.bs.modal", () => inputNuevoProductoNombre.focus());
+  modalNuevoProducto.addEventListener("hidden.bs.modal", () => {
+    errorNuevoProducto.classList.add("d-none");
+    filaParaNuevoProducto = null;
   });
 </script>
 {% endblock %}

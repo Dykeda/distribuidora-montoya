@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Deuda Postobón{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">Deuda pendiente con Postobón</h1>
+<p class="text-muted">Cada factura de Postobón registrada a crédito (sin marcar "Pago de contado") suma a esta deuda; cada "Salida de dinero" con la categoría "Pago Postobón Transferencia" la resta.</p>
+
+<form method="get" class="row col-lg-6 mb-3">
+  <div class="col-6">
+    <label class="form-label">Mes</label>
+    <select name="mes" class="form-select" onchange="this.form.submit()">
+      {% for nombre in meses %}
+      <option value="{{ loop.index }}" {% if loop.index == mes %}selected{% endif %}>{{ nombre }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-6">
+    <label class="form-label">Año</label>
+    <input type="number" name="anio" class="form-control" value="{{ anio }}" onchange="this.form.submit()">
+  </div>
+</form>
+
+<div class="row mb-4">
+  <div class="col-auto">
+    <div class="card card-metric border-primary" style="max-width: 320px;">
+      <div class="card-body">
+        <div class="text-muted small">Deuda pendiente hoy</div>
+        <div class="fs-3 fw-bold">${{ "{:,}".format(deuda_actual) }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-auto">
+    <div class="card card-metric" style="max-width: 320px;">
+      <div class="card-body">
+        <div class="text-muted small">Deuda a fin de este período</div>
+        <div class="fs-3 fw-bold">${{ "{:,}".format(deuda_fin_periodo) }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h2 class="h6 mb-2">Movimientos del período</h2>
+{% if movimientos %}
+<div class="table-responsive">
+<table class="table table-sm align-middle">
+  <thead>
+    <tr>
+      <th>Fecha</th>
+      <th>Movimiento</th>
+      <th class="text-end">Monto</th>
+      <th class="text-end">Saldo</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for m in movimientos %}
+    <tr>
+      <td>{{ m.fecha.strftime("%Y-%m-%d") }}</td>
+      <td>
+        {% if m.tipo == "cargo" %}
+        <a href="{{ url_for('compras.detalle', compra_id=m.compra_id) }}">{{ m.descripcion }}</a>
+        {% else %}
+        {{ m.descripcion }}
+        {% endif %}
+      </td>
+      <td class="text-end {{ 'text-success' if m.monto < 0 else '' }}">
+        {{ '-' if m.monto < 0 else '+' }}${{ "{:,}".format(m.monto | abs) }}
+      </td>
+      <td class="text-end fw-bold">${{ "{:,}".format(m.saldo) }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p class="text-muted small mb-0">No hay movimientos de deuda con Postobón en este mes.</p>
+{% endif %}
+{% endblock %}
