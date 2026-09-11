@@ -198,6 +198,32 @@ def test_ajuste_aparece_en_movimientos_con_saldo_corrido(db):
     assert movimientos[1]["saldo"] == 100000
 
 
+def test_ajuste_oculto_suma_a_la_deuda_pero_no_aparece_en_movimientos(db):
+    coca = crear_producto(db)
+    crear_compra_postobon(db, coca, date(2026, 9, 1), costo=100000, iva=0.0, numero_factura="AS001")
+    db.session.add(AjusteDeudaPostobon(
+        fecha=date(2026, 8, 31), monto=-30000, notas="Base limpia", oculto=True,
+    ))
+    db.session.commit()
+
+    assert deuda_postobon_a_la_fecha(date(2026, 9, 30)) == 70000
+
+    movimientos = movimientos_deuda(date(2026, 9, 1), date(2026, 9, 30))
+    assert len(movimientos) == 1
+    assert movimientos[0]["tipo"] == "cargo"
+    assert movimientos[0]["saldo"] == 70000
+
+
+def test_listar_ajustes_deuda_omite_los_ocultos(db):
+    db.session.add(AjusteDeudaPostobon(fecha=date(2026, 9, 1), monto=-30000, oculto=True))
+    db.session.add(AjusteDeudaPostobon(fecha=date(2026, 9, 2), monto=10000, oculto=False))
+    db.session.commit()
+
+    visibles = listar_ajustes_deuda()
+    assert len(visibles) == 1
+    assert visibles[0].monto == 10000
+
+
 def test_form_crea_ajuste_de_deuda(db, client):
     r = client.post(
         "/deuda-postobon/ajustes/nuevo",

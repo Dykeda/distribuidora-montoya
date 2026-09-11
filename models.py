@@ -427,6 +427,11 @@ class AjusteDeudaPostobon(db.Model):
     fecha = db.Column(db.Date, nullable=False, default=date.today)
     monto = db.Column(db.Integer, nullable=False)
     notas = db.Column(db.String(255), nullable=True)
+    # Un ajuste oculto sigue contando para el saldo (deuda_postobon_a_la_fecha lo suma
+    # igual), pero no aparece en las listas que ve el usuario -- para fijar una base
+    # limpia (ej. "la deuda real a tal fecha es X") sin mostrar el número de corrección
+    # que la produjo, que solo genera confusión sin una factura o pago detrás.
+    oculto = db.Column(db.Boolean, nullable=False, default=False)
 
 
 class PagoFaltantePostobon(db.Model):

@@ -44,9 +44,11 @@ def ajustes_deuda(fecha_inicio, fecha_fin):
 
 
 def listar_ajustes_deuda():
-    """Todos los ajustes manuales, del más reciente al más antiguo (para mostrar y
-    poder eliminar)."""
-    return ajustes_deuda(None, _hoy_lejano())
+    """Ajustes manuales visibles (no ocultos), del más reciente al más antiguo, para
+    mostrar en pantalla con botón de eliminar. Los ocultos siguen sumando al saldo (ver
+    ajustes_deuda) pero no aparecen aquí -- son correcciones de base que no tiene sentido
+    mostrarle al usuario."""
+    return [a for a in ajustes_deuda(None, _hoy_lejano()) if not a.oculto]
 
 
 def deuda_postobon_a_la_fecha(fecha_corte):
@@ -71,6 +73,8 @@ def movimientos_deuda(fecha_inicio, fecha_fin):
             "monto": total_a_pagar(c), "compra_id": c.id,
         })
     for a in ajustes_deuda(fecha_inicio, fecha_fin):
+        if a.oculto:
+            continue
         movimientos.append({
             "fecha": a.fecha, "tipo": "ajuste",
             "descripcion": a.notas or "Ajuste manual", "monto": a.monto, "ajuste_id": a.id,
