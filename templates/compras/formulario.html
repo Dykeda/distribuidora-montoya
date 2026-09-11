@@ -38,6 +38,17 @@
   {{ "${:,}".format(pdf_datos.verificacion.iva_esperado) if pdf_datos.verificacion.iva_esperado is not none else "?" }}.
   {% endif %}
 </div>
+{% if pdf_datos.sin_resolver %}
+<div class="alert alert-warning mb-3">
+  <strong>{{ pdf_datos.sin_resolver|length }} código(s) de Postobón nuevos -- todavía no tienen producto asignado en el catálogo.</strong>
+  Están resaltados en amarillo en la tabla de abajo; asígnales un producto existente o crea uno nuevo con "+ Nuevo producto" en esa misma línea:
+  <ul class="mb-0">
+    {% for l in pdf_datos.sin_resolver %}
+    <li>Código {{ l.codigo }}: {{ l.descripcion or "(la factura no trae descripción para este código)" }}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
 {% endif %}
 
 <form method="post" action="{{ url_for('compras.nueva') }}" id="form-compra">
@@ -288,6 +299,10 @@
     buscarInput.addEventListener("input", () => {
       const prod = buscarProductoPorNombre(buscarInput.value);
       idInput.value = prod ? prod.id : "";
+      if (prod && fila.dataset.sinResolver === "1") {
+        fila.classList.remove("table-warning");
+        fila.dataset.sinResolver = "0";
+      }
       if (fila.dataset.deFactura === "1") {
         // Línea precargada desde una factura PDF: el costo/tasa/IVA reales ya
         // vienen de la factura -- si el usuario solo está resolviendo a mano
@@ -340,6 +355,11 @@
       } else {
         fila.querySelector(".unidades-input").value = inicial.cantidad;
         fila.querySelector('input[name="notas_linea[]"]').value = `Código ${inicial.codigo}: ${inicial.descripcion}`;
+        // Código de la factura sin producto asignado todavía -- resaltar la fila para
+        // que no se pierda entre las demás en una factura larga (ver también el aviso
+        // con la lista completa arriba de la tabla).
+        fila.classList.add("table-warning");
+        fila.dataset.sinResolver = "1";
       }
       fila.querySelector(".costo-input").value = inicial.costo_linea;
       fila.querySelector('input[name="tasa_descuento[]"]').value = inicial.tasa_descuento_aplicada;
@@ -539,6 +559,10 @@
     if (filaParaNuevoProducto) {
       filaParaNuevoProducto.querySelector(".producto-buscar").value = data.nombre;
       filaParaNuevoProducto.querySelector(".producto-id-oculto").value = data.id;
+      if (filaParaNuevoProducto.dataset.sinResolver === "1") {
+        filaParaNuevoProducto.classList.remove("table-warning");
+        filaParaNuevoProducto.dataset.sinResolver = "0";
+      }
     }
     bootstrap.Modal.getInstance(modalNuevoProducto).hide();
   });

@@ -524,9 +524,20 @@ def cargar_pdf():
 
     datos["fecha"] = datos["fecha"].isoformat() if datos["fecha"] else ""
 
-    sin_resolver = sum(1 for l in datos["lineas"] if l["producto_id"] is None)
-    if sin_resolver:
-        flash(f"{sin_resolver} línea(s) tienen un código de Postobón nuevo -- selecciónales el producto manualmente.", "info")
+    codigos_sin_resolver = {}
+    for l in datos["lineas"]:
+        if l["producto_id"] is None:
+            codigos_sin_resolver.setdefault(l["codigo"], l["descripcion"])
+    datos["sin_resolver"] = [
+        {"codigo": codigo, "descripcion": descripcion}
+        for codigo, descripcion in codigos_sin_resolver.items()
+    ]
+    if datos["sin_resolver"]:
+        flash(
+            f"{len(datos['sin_resolver'])} código(s) de Postobón nuevos -- revisa la lista "
+            "resaltada arriba del formulario.",
+            "info",
+        )
 
     # Verificación: lo reconstruido a partir de las líneas leídas vs. lo que la propia
     # factura imprime en su resumen -- para avisar si el PDF trajo algo que no se pudo
