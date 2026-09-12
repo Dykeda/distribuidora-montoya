@@ -84,6 +84,7 @@
       <th>Categoría</th>
       <th>Notas</th>
       <th class="text-end">Monto</th>
+      <th></th>
     </tr>
   </thead>
   <tbody>
@@ -100,9 +101,20 @@
       <td>{{ g.categoria.nombre }}</td>
       <td>{{ g.notas or "-" }}</td>
       <td class="text-end">${{ "{:,}".format(g.monto) }}</td>
+      <td class="text-end text-nowrap">
+        {% if g.retorno_id %}
+        <span class="text-muted small" title="Se generó sola desde el cuadre de una ruta -- edítala desde ahí.">Gasto en ruta</span>
+        {% else %}
+        <a href="{{ url_for('gastos.editar', gasto_id=g.id) }}" class="btn btn-sm btn-outline-secondary">Editar</a>
+        <form method="post" action="{{ url_for('gastos.eliminar', gasto_id=g.id) }}"
+              onsubmit="return confirm('¿Eliminar esta salida de dinero?');" class="d-inline">
+          <button type="submit" class="btn btn-sm btn-outline-danger">Eliminar</button>
+        </form>
+        {% endif %}
+      </td>
     </tr>
     {% else %}
-    <tr><td colspan="5" class="text-center text-muted">No hay salidas registradas todavía.</td></tr>
+    <tr><td colspan="6" class="text-center text-muted">No hay salidas registradas todavía.</td></tr>
     {% endfor %}
   </tbody>
 </table>

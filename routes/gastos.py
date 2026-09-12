@@ -93,6 +93,82 @@ def nuevo():
     )
 
 
+@bp.route("/<int:gasto_id>/editar", methods=["GET", "POST"])
+def editar(gasto_id):
+    gasto = Gasto.query.get_or_404(gasto_id)
+    if gasto.retorno_id is not None:
+        flash(
+            'Esta salida se generó sola desde un retorno de camión -- edítala desde '
+            'el cuadre de esa ruta, no aquí.',
+            "error",
+        )
+        return redirect(url_for("gastos.listar"))
+
+    categorias_negocio = categorias_por_tipo("negocio")
+    categorias_hogar = categorias_por_tipo("hogar")
+
+    if request.method == "POST":
+        fecha_str = request.form.get("fecha")
+        try:
+            fecha = datetime.strptime(fecha_str, "%Y-%m-%d").date() if fecha_str else date.today()
+        except ValueError:
+            fecha = date.today()
+
+        errores = []
+        categoria_id = request.form.get("categoria_id")
+        categoria = db.session.get(CategoriaGasto, int(categoria_id)) if categoria_id else None
+        if not categoria:
+            errores.append("Debes elegir una categoría.")
+
+        try:
+            monto = int(request.form.get("monto") or 0)
+            if monto <= 0:
+                raise ValueError
+        except ValueError:
+            monto = 0
+            errores.append("El monto debe ser un número mayor a cero.")
+
+        if errores:
+            for e in errores:
+                flash(e, "error")
+            return render_template(
+                "gastos/formulario.html",
+                categorias_negocio=categorias_negocio,
+                categorias_hogar=categorias_hogar,
+                form=request.form,
+                gasto=gasto,
+            )
+
+        gasto.categoria_id = categoria.id
+        gasto.fecha = fecha
+        gasto.monto = monto
+        gasto.notas = request.form.get("notas") or None
+        db.session.commit()
+        flash(f'Salida actualizada en "{categoria.nombre}".', "success")
+        return redirect(url_for("gastos.listar"))
+
+    return render_template(
+        "gastos/formulario.html", categorias_negocio=categorias_negocio,
+        categorias_hogar=categorias_hogar, form=None, gasto=gasto,
+    )
+
+
+@bp.route("/<int:gasto_id>/eliminar", methods=["POST"])
+def eliminar(gasto_id):
+    gasto = Gasto.query.get_or_404(gasto_id)
+    if gasto.retorno_id is not None:
+        flash(
+            'Esta salida se generó sola desde un retorno de camión -- no se puede '
+            'eliminar aquí directamente.',
+            "error",
+        )
+        return redirect(url_for("gastos.listar"))
+    db.session.delete(gasto)
+    db.session.commit()
+    flash("Salida eliminada.", "success")
+    return redirect(url_for("gastos.listar"))
+
+
 @bp.route("/categoria/nueva", methods=["GET", "POST"])
 def categoria_nueva():
     if request.method == "POST":

@@ -147,3 +147,73 @@ def test_pagina_gastos_filtra_por_mes_y_muestra_totales_por_categoria(db, client
     assert r.status_code == 200
     assert "200,000" in body
     assert "100,000" not in body  # julio queda afuera del filtro
+
+
+def test_editar_gasto_actualiza_categoria_monto_y_fecha(db, client):
+    cat_nomina = CategoriaGasto.query.filter_by(nombre="Pago Nómina", tipo="negocio").first()
+    cat_transferencia = CategoriaGasto.query.filter_by(
+        nombre="Pago Postobón Transferencia", tipo="negocio"
+    ).first()
+    gasto = Gasto(categoria_id=cat_nomina.id, fecha=date(2026, 9, 1), monto=100000)
+    db.session.add(gasto)
+    db.session.commit()
+
+    r = client.post(
+        f"/gastos/{gasto.id}/editar",
+        data={
+            "categoria_id": str(cat_transferencia.id),
+            "fecha": "2026-09-05",
+            "monto": "250000",
+            "notas": "Corregido",
+        },
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+
+    actualizado = db.session.get(Gasto, gasto.id)
+    assert actualizado.categoria_id == cat_transferencia.id
+    assert actualizado.fecha == date(2026, 9, 5)
+    assert actualizado.monto == 250000
+    assert actualizado.notas == "Corregido"
+
+
+def test_editar_gasto_de_ruta_se_bloquea(db, client):
+    cat = CategoriaGasto.query.filter_by(nombre="Gasto en ruta", tipo="negocio").first()
+    gasto = Gasto(categoria_id=cat.id, fecha=date(2026, 9, 1), monto=50000, retorno_id=1)
+    db.session.add(gasto)
+    db.session.commit()
+
+    r = client.post(
+        f"/gastos/{gasto.id}/editar",
+        data={"categoria_id": str(cat.id), "fecha": "2026-09-05", "monto": "999999"},
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+    assert "edítala desde el cuadre de esa ruta" in r.get_data(as_text=True)
+
+    sin_cambios = db.session.get(Gasto, gasto.id)
+    assert sin_cambios.monto == 50000
+
+
+def test_eliminar_gasto(db, client):
+    cat = CategoriaGasto.query.filter_by(nombre="Pago Nómina", tipo="negocio").first()
+    gasto = Gasto(categoria_id=cat.id, fecha=date(2026, 9, 1), monto=100000)
+    db.session.add(gasto)
+    db.session.commit()
+    gasto_id = gasto.id
+
+    r = client.post(f"/gastos/{gasto_id}/eliminar", follow_redirects=True)
+    assert r.status_code == 200
+    assert db.session.get(Gasto, gasto_id) is None
+
+
+def test_eliminar_gasto_de_ruta_se_bloquea(db, client):
+    cat = CategoriaGasto.query.filter_by(nombre="Gasto en ruta", tipo="negocio").first()
+    gasto = Gasto(categoria_id=cat.id, fecha=date(2026, 9, 1), monto=50000, retorno_id=1)
+    db.session.add(gasto)
+    db.session.commit()
+    gasto_id = gasto.id
+
+    r = client.post(f"/gastos/{gasto_id}/eliminar", follow_redirects=True)
+    assert r.status_code == 200
+    assert db.session.get(Gasto, gasto_id) is not None
