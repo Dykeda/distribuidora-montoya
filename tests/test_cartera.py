@@ -372,12 +372,12 @@ def test_pantalla_cartera_oculta_pagadas_y_historico_solo_muestra_pagadas(db, cl
     principal = client.get("/cartera/").get_data(as_text=True)
     assert "Tienda El Ahorro" in principal
     assert "Minimarket Sol" not in principal
-    assert 'id="buscador-cartera"' in principal
+    assert 'id="buscador-tabla"' in principal
 
     historico = client.get("/cartera/historico").get_data(as_text=True)
     assert "Minimarket Sol" in historico
     assert "Tienda El Ahorro" not in historico
-    assert 'id="buscador-cartera"' in historico
+    assert 'id="buscador-tabla"' in historico
 
 
 def test_facturas_pagadas_filtra_por_fecha_de_pago(db):

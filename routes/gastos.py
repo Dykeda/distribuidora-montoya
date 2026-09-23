@@ -11,6 +11,14 @@ from services.fechas import MESES_ES
 bp = Blueprint("gastos", __name__, url_prefix="/gastos")
 
 
+def _fecha_de_query(nombre):
+    valor = request.args.get(nombre, "").strip()
+    try:
+        return datetime.strptime(valor, "%Y-%m-%d").date() if valor else None
+    except ValueError:
+        return None
+
+
 @bp.route("/")
 def listar():
     tipo = request.args.get("tipo") or None
@@ -20,13 +28,27 @@ def listar():
     categoria_id = request.args.get("categoria_id")
     categoria_id = int(categoria_id) if categoria_id else None
 
-    periodo = request.args.get("periodo") or "todo"
+    # Por defecto solo el mes actual; se puede elegir otro mes/año, un rango de fechas
+    # (útil para ubicar el día de una ruta) o todo el histórico.
+    periodo = request.args.get("periodo") or "mes"
+    if periodo not in ("mes", "rango", "todo"):
+        periodo = "mes"
     hoy = date.today()
-    anio = int(request.args.get("anio", hoy.year))
-    mes = int(request.args.get("mes", hoy.month))
+    try:
+        anio = int(request.args.get("anio", hoy.year))
+        mes = int(request.args.get("mes", hoy.month))
+        if not 1 <= mes <= 12 or not 1 <= anio <= 9999:
+            raise ValueError
+    except ValueError:
+        anio, mes = hoy.year, hoy.month
+
+    desde = _fecha_de_query("desde")
+    hasta = _fecha_de_query("hasta")
     if periodo == "mes":
         ultimo_dia = calendar.monthrange(anio, mes)[1]
         fecha_inicio, fecha_fin = date(anio, mes, 1), date(anio, mes, ultimo_dia)
+    elif periodo == "rango":
+        fecha_inicio, fecha_fin = desde, hasta
     else:
         fecha_inicio = fecha_fin = None
 
@@ -42,6 +64,7 @@ def listar():
         "gastos/lista.html", gastos=gastos, total=total, tipo_activo=tipo,
         categoria_id=categoria_id, categorias_filtro=categorias_filtro,
         periodo=periodo, anio=anio, mes=mes, meses=MESES_ES,
+        desde=desde.isoformat() if desde else "", hasta=hasta.isoformat() if hasta else "",
         totales_categoria=totales_categoria,
     )
 

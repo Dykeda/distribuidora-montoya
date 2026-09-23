@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
 
@@ -217,3 +217,42 @@ def test_eliminar_gasto_de_ruta_se_bloquea(db, client):
     r = client.post(f"/gastos/{gasto_id}/eliminar", follow_redirects=True)
     assert r.status_code == 200
     assert db.session.get(Gasto, gasto_id) is not None
+
+
+def test_pagina_gastos_por_defecto_muestra_solo_el_mes_actual(db, client):
+    cat = CategoriaGasto.query.filter_by(nombre="Pago Nómina", tipo="negocio").first()
+    hoy = date.today()
+    mes_pasado = hoy.replace(day=1) - timedelta(days=1)
+    db.session.add(Gasto(categoria_id=cat.id, fecha=hoy, monto=111000, notas="de este mes"))
+    db.session.add(Gasto(categoria_id=cat.id, fecha=mes_pasado, monto=222000, notas="del mes pasado"))
+    db.session.commit()
+
+    cuerpo = client.get("/gastos/").get_data(as_text=True)
+    assert "de este mes" in cuerpo
+    assert "del mes pasado" not in cuerpo
+    assert 'id="buscador-tabla"' in cuerpo
+
+    # Los meses anteriores siguen disponibles eligiéndolos, y el histórico completo también.
+    anterior = client.get(f"/gastos/?anio={mes_pasado.year}&mes={mes_pasado.month}").get_data(as_text=True)
+    assert "del mes pasado" in anterior and "de este mes" not in anterior
+    todo = client.get("/gastos/?periodo=todo").get_data(as_text=True)
+    assert "del mes pasado" in todo and "de este mes" in todo
+
+
+def test_pagina_gastos_filtra_por_rango_de_fechas_y_tolera_parametros_invalidos(db, client):
+    cat = CategoriaGasto.query.filter_by(nombre="Pago Nómina", tipo="negocio").first()
+    for dia, nota in ((5, "dia cinco"), (12, "dia doce"), (20, "dia veinte")):
+        db.session.add(Gasto(categoria_id=cat.id, fecha=date(2026, 8, dia), monto=1000, notas=nota))
+    db.session.commit()
+
+    cuerpo = client.get("/gastos/?periodo=rango&desde=2026-08-10&hasta=2026-08-15").get_data(as_text=True)
+    assert "dia doce" in cuerpo
+    assert "dia cinco" not in cuerpo and "dia veinte" not in cuerpo
+
+    # Un día exacto (desde = hasta) sirve para ubicar una ruta puntual.
+    exacto = client.get("/gastos/?periodo=rango&desde=2026-08-20&hasta=2026-08-20").get_data(as_text=True)
+    assert "dia veinte" in exacto and "dia doce" not in exacto
+
+    # Parámetros inválidos no rompen la pantalla.
+    assert client.get("/gastos/?mes=99&anio=abc").status_code == 200
+    assert client.get("/gastos/?periodo=raro&desde=basura").status_code == 200

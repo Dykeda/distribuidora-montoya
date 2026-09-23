@@ -9,17 +9,19 @@
   </div>
 </div>
 
+{% include "_buscador_tabla.html" %}
+
 <div class="card card-metric mb-4" style="max-width: 320px;">
   <div class="card-body">
-    <div class="text-muted small">Total {{ "de " + (tipo_activo|title) if tipo_activo else "de todas las salidas" }}</div>
+    <div class="text-muted small">Total {{ "de " + (tipo_activo|title) if tipo_activo else "de todas las salidas" }}{% if periodo == 'mes' %} · {{ meses[mes - 1] }} {{ anio }}{% elif periodo == 'rango' %} · rango de fechas{% else %} · todo el histórico{% endif %}</div>
     <div class="fs-3 fw-bold">${{ "{:,}".format(total) }}</div>
   </div>
 </div>
 
 <ul class="nav nav-pills mb-3">
-  <li class="nav-item"><a class="nav-link {{ 'active' if not tipo_activo }}" href="{{ url_for('gastos.listar', periodo=periodo, anio=anio, mes=mes) }}">Todas</a></li>
-  <li class="nav-item"><a class="nav-link {{ 'active' if tipo_activo == 'negocio' }}" href="{{ url_for('gastos.listar', tipo='negocio', periodo=periodo, anio=anio, mes=mes) }}">Negocio</a></li>
-  <li class="nav-item"><a class="nav-link {{ 'active' if tipo_activo == 'hogar' }}" href="{{ url_for('gastos.listar', tipo='hogar', periodo=periodo, anio=anio, mes=mes) }}">Hogar</a></li>
+  <li class="nav-item"><a class="nav-link {{ 'active' if not tipo_activo }}" href="{{ url_for('gastos.listar', periodo=periodo, anio=anio, mes=mes, desde=desde, hasta=hasta) }}">Todas</a></li>
+  <li class="nav-item"><a class="nav-link {{ 'active' if tipo_activo == 'negocio' }}" href="{{ url_for('gastos.listar', tipo='negocio', periodo=periodo, anio=anio, mes=mes, desde=desde, hasta=hasta) }}">Negocio</a></li>
+  <li class="nav-item"><a class="nav-link {{ 'active' if tipo_activo == 'hogar' }}" href="{{ url_for('gastos.listar', tipo='hogar', periodo=periodo, anio=anio, mes=mes, desde=desde, hasta=hasta) }}">Hogar</a></li>
 </ul>
 
 <form method="get" class="row g-3 mb-4 align-items-end">
@@ -27,10 +29,21 @@
   <div class="col-auto">
     <label class="form-label">Período</label>
     <select name="periodo" class="form-select" onchange="this.form.submit()">
+      <option value="mes" {% if periodo == 'mes' %}selected{% endif %}>Un mes (por defecto, el actual)</option>
+      <option value="rango" {% if periodo == 'rango' %}selected{% endif %}>Rango de fechas</option>
       <option value="todo" {% if periodo == 'todo' %}selected{% endif %}>Todo el histórico</option>
-      <option value="mes" {% if periodo == 'mes' %}selected{% endif %}>Un mes específico</option>
     </select>
   </div>
+  {% if periodo == 'rango' %}
+  <div class="col-auto">
+    <label class="form-label">Desde</label>
+    <input type="date" name="desde" class="form-control" value="{{ desde }}" onchange="this.form.submit()">
+  </div>
+  <div class="col-auto">
+    <label class="form-label">Hasta</label>
+    <input type="date" name="hasta" class="form-control" value="{{ hasta }}" onchange="this.form.submit()">
+  </div>
+  {% endif %}
   {% if periodo == 'mes' %}
   <div class="col-auto">
     <label class="form-label">Mes</label>
@@ -64,7 +77,7 @@
     {% for fila in totales_categoria %}
     <tr>
       <td>
-        <a href="{{ url_for('gastos.listar', tipo=tipo_activo, categoria_id=fila.categoria.id, periodo=periodo, anio=anio, mes=mes) }}">{{ fila.categoria.nombre }}</a>
+        <a href="{{ url_for('gastos.listar', tipo=tipo_activo, categoria_id=fila.categoria.id, periodo=periodo, anio=anio, mes=mes, desde=desde, hasta=hasta) }}">{{ fila.categoria.nombre }}</a>
         <span class="badge bg-secondary">{{ fila.categoria.tipo|title }}</span>
       </td>
       <td class="text-end">${{ "{:,}".format(fila.total) }}</td>
@@ -76,7 +89,7 @@
 {% endif %}
 
 <div class="table-responsive">
-<table class="table table-striped align-middle">
+<table class="table table-striped align-middle" id="tabla-buscable">
   <thead>
     <tr>
       <th>Fecha</th>
@@ -89,7 +102,7 @@
   </thead>
   <tbody>
     {% for g in gastos %}
-    <tr>
+    <tr data-fila>
       <td>{{ g.fecha.strftime("%Y-%m-%d") }}</td>
       <td>
         {% if g.categoria.tipo == 'negocio' %}
@@ -114,7 +127,7 @@
       </td>
     </tr>
     {% else %}
-    <tr><td colspan="6" class="text-center text-muted">No hay salidas registradas todavía.</td></tr>
+    <tr><td colspan="6" class="text-center text-muted">No hay salidas registradas en este período.</td></tr>
     {% endfor %}
   </tbody>
 </table>
