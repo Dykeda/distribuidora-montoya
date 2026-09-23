@@ -337,3 +337,41 @@ def test_total_pendiente_a_fecha_de_corte_ignora_abonos_posteriores(db):
     # a fecha de corte 8/20, ese abono (8/25) todavia no habia pasado
     assert total_pendiente(fecha_corte=date(2026, 8, 20)) == 50000
     assert total_pendiente(fecha_corte=date(2026, 8, 31)) == 30000
+
+
+def _crear_una_pendiente_y_una_pagada(db):
+    salida = crear_salida(db)
+    ahorro = crear_cliente(db, "Tienda El Ahorro")
+    sol = crear_cliente(db, "Minimarket Sol")
+    db.session.add(
+        FacturaCartera(salida_id=salida.id, cliente_id=ahorro.id, fecha=date(2026, 8, 2), monto=50000)
+    )
+    db.session.add(
+        FacturaCartera(
+            salida_id=salida.id, cliente_id=sol.id, fecha=date(2026, 7, 1),
+            monto=30000, estado="pagada", fecha_pago=date(2026, 7, 10),
+        )
+    )
+    db.session.commit()
+
+
+def test_facturas_con_antiguedad_solo_pendientes_omite_las_pagadas(db):
+    _crear_una_pendiente_y_una_pagada(db)
+
+    filas = facturas_con_antiguedad(fecha_referencia=date(2026, 8, 20), solo_pendientes=True)
+
+    assert [f["factura"].cliente.nombre for f in filas] == ["Tienda El Ahorro"]
+    # Las pagadas siguen en el sistema, solo no se listan.
+    assert len(listar_facturas()) == 2
+
+
+def test_pantalla_cartera_oculta_pagadas_y_historico_las_muestra(db, client):
+    _crear_una_pendiente_y_una_pagada(db)
+
+    principal = client.get("/cartera/").get_data(as_text=True)
+    assert "Tienda El Ahorro" in principal
+    assert "Minimarket Sol" not in principal
+
+    historico = client.get("/cartera/historico").get_data(as_text=True)
+    assert "Tienda El Ahorro" in historico
+    assert "Minimarket Sol" in historico

@@ -170,12 +170,16 @@ def _rango_de(dias):
     return RANGOS_ANTIGUEDAD[-1]["etiqueta"]
 
 
-def facturas_con_antiguedad(fecha_referencia=None):
-    """Todas las facturas, con los días que lleva pendiente cada una sin cobrar (None para
-    las ya pagadas). Útil para ver de un vistazo cuáles llevan más tiempo sin cobrarse."""
+def facturas_con_antiguedad(fecha_referencia=None, solo_pendientes=False):
+    """Las facturas, con los días que lleva pendiente cada una sin cobrar (None para las
+    ya pagadas). Útil para ver de un vistazo cuáles llevan más tiempo sin cobrarse.
+    Con solo_pendientes=True se omiten las ya pagadas (siguen en el sistema, solo no se
+    listan) -- es lo que muestra la pantalla principal de Cartera."""
     fecha_referencia = fecha_referencia or date.today()
     resultado = []
     for f in listar_facturas():
+        if solo_pendientes and f.estado != "pendiente":
+            continue
         dias = (fecha_referencia - f.fecha).days if f.estado == "pendiente" else None
         resultado.append({"factura": f, "dias_pendiente": dias})
     return resultado

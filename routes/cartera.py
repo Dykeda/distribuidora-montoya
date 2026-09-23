@@ -20,9 +20,23 @@ bp = Blueprint("cartera", __name__, url_prefix="/cartera")
 def listar():
     return render_template(
         "cartera/lista.html",
-        facturas=facturas_con_antiguedad(),
+        facturas=facturas_con_antiguedad(solo_pendientes=True),
         total_pendiente=total_pendiente(),
         antiguedad=resumen_antiguedad(),
+        historico=False,
+    )
+
+
+@bp.route("/historico")
+def historico():
+    """Todas las facturas de cartera, pagadas y pendientes -- la pantalla principal solo
+    muestra las que aún se deben."""
+    return render_template(
+        "cartera/lista.html",
+        facturas=facturas_con_antiguedad(),
+        total_pendiente=total_pendiente(),
+        antiguedad=None,
+        historico=True,
     )
 
 
