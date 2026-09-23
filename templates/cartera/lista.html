@@ -2,16 +2,14 @@
 {% block title %}Cartera{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <h1 class="h3 mb-0">{{ 'Histórico de cartera' if historico else 'Cartera de clientes' }}</h1>
+  <h1 class="h3 mb-0">Cartera de clientes</h1>
   <div class="d-flex gap-2">
-    {% if historico %}
-    <a href="{{ url_for('cartera.listar') }}" class="btn btn-outline-secondary">Ver solo pendientes</a>
-    {% else %}
-    <a href="{{ url_for('cartera.historico') }}" class="btn btn-outline-secondary">Ver histórico (con pagadas)</a>
-    {% endif %}
+    <a href="{{ url_for('cartera.historico') }}" class="btn btn-outline-secondary">Ver pagadas (histórico)</a>
     <a href="{{ url_for('cartera.nueva') }}" class="btn btn-primary">+ Registrar factura</a>
   </div>
 </div>
+
+{% include "cartera/_buscador.html" %}
 
 <div class="card card-metric mb-4" style="max-width: 320px;">
   <div class="card-body">
@@ -20,7 +18,6 @@
   </div>
 </div>
 
-{% if antiguedad %}
 <h2 class="h5">Antigüedad de la cartera pendiente</h2>
 <p class="text-muted">Con un margen tan ajustado, la cartera vieja es lo que más pega al
   flujo de caja — revisa primero los rangos de más días.</p>
@@ -37,10 +34,9 @@
   </div>
   {% endfor %}
 </div>
-{% endif %}
 
 <div class="table-responsive">
-<table class="table table-striped align-middle">
+<table class="table table-striped align-middle" id="tabla-cartera">
   <thead>
     <tr>
       <th>Cliente</th>
@@ -57,7 +53,7 @@
   <tbody>
     {% for fila in facturas %}
     {% set f = fila.factura %}
-    <tr>
+    <tr data-fila>
       <td><a href="{{ url_for('clientes.detalle', cliente_id=f.cliente.id) }}">{{ f.cliente.nombre }}</a></td>
       <td>{{ f.fecha.strftime("%Y-%m-%d") }}</td>
       <td>
@@ -100,7 +96,7 @@
       </td>
     </tr>
     {% else %}
-    <tr><td colspan="9" class="text-center text-muted">{{ "No hay facturas registradas todavía." if historico else "No hay facturas pendientes por cobrar." }}</td></tr>
+    <tr><td colspan="9" class="text-center text-muted">No hay facturas pendientes por cobrar.</td></tr>
     {% endfor %}
   </tbody>
 </table>

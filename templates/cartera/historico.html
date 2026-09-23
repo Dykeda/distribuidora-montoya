@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Cartera pagada{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Histórico de cartera pagada</h1>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('cartera.listar') }}" class="btn btn-outline-secondary">Ver pendientes</a>
+    <a href="{{ url_for('cartera.nueva') }}" class="btn btn-primary">+ Registrar factura</a>
+  </div>
+</div>
+
+{% include "cartera/_buscador.html" %}
+
+<form method="get" class="row g-2 align-items-end mb-3">
+  <div class="col-auto">
+    <label class="form-label small mb-0" for="desde">Pagadas desde</label>
+    <input type="date" class="form-control" id="desde" name="desde" value="{{ desde }}">
+  </div>
+  <div class="col-auto">
+    <label class="form-label small mb-0" for="hasta">hasta</label>
+    <input type="date" class="form-control" id="hasta" name="hasta" value="{{ hasta }}">
+  </div>
+  <div class="col-auto">
+    <button type="submit" class="btn btn-outline-primary">Filtrar por fecha de pago</button>
+    {% if desde or hasta %}<a href="{{ url_for('cartera.historico') }}" class="btn btn-link">Quitar filtro</a>{% endif %}
+  </div>
+</form>
+
+<div class="card card-metric mb-4" style="max-width: 320px;">
+  <div class="card-body">
+    <div class="text-muted small">Total cobrado{{ ' en ese rango' if desde or hasta }}</div>
+    <div class="fs-3 fw-bold">${{ "{:,}".format(total_cobrado) }}</div>
+    <div class="text-muted small">{{ facturas|length }} factura{{ 's' if facturas|length != 1 }}</div>
+  </div>
+</div>
+
+<div class="table-responsive">
+<table class="table table-striped align-middle" id="tabla-cartera">
+  <thead>
+    <tr>
+      <th>Cliente</th>
+      <th>Fecha factura</th>
+      <th>Fecha de pago</th>
+      <th>Ruta (salida)</th>
+      <th class="text-end">Monto</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for f in facturas %}
+    <tr data-fila>
+      <td><a href="{{ url_for('clientes.detalle', cliente_id=f.cliente.id) }}">{{ f.cliente.nombre }}</a></td>
+      <td>{{ f.fecha.strftime("%Y-%m-%d") }}</td>
+      <td>{{ f.fecha_pago.strftime("%Y-%m-%d") if f.fecha_pago else "-" }}</td>
+      <td>
+        {% if f.salida %}
+        <a href="{{ url_for('camion.detalle', salida_id=f.salida_id) }}">{{ f.salida.fecha.strftime("%Y-%m-%d") }}</a>
+        {% else %}
+        <span class="text-muted">Deuda anterior</span>
+        {% endif %}
+      </td>
+      <td class="text-end">${{ "{:,}".format(f.monto) }}</td>
+      <td class="text-end text-nowrap">
+        <form method="post" action="{{ url_for('cartera.marcar_pendiente', factura_id=f.id) }}" class="d-inline">
+          <button type="submit" class="btn btn-sm btn-outline-secondary">Marcar pendiente</button>
+        </form>
+        <form method="post" action="{{ url_for('cartera.eliminar', factura_id=f.id) }}" class="d-inline"
+              onsubmit="return confirm('¿Eliminar la factura de {{ f.cliente.nombre }} por ${{ '{:,}'.format(f.monto) }}? Esto no se puede deshacer.');">
+          <button type="submit" class="btn btn-sm btn-outline-danger">Eliminar</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" class="text-center text-muted">No hay facturas pagadas{{ ' en ese rango de fechas' if desde or hasta }}.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

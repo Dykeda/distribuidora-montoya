@@ -8,6 +8,7 @@ from services.cartera import (
     listar_facturas,
     facturas_por_salida,
     facturas_con_antiguedad,
+    facturas_pagadas,
     resumen_antiguedad,
     listar_pendientes,
     sincronizar_creditos_nuevos_en_ruta,
@@ -365,13 +366,47 @@ def test_facturas_con_antiguedad_solo_pendientes_omite_las_pagadas(db):
     assert len(listar_facturas()) == 2
 
 
-def test_pantalla_cartera_oculta_pagadas_y_historico_las_muestra(db, client):
+def test_pantalla_cartera_oculta_pagadas_y_historico_solo_muestra_pagadas(db, client):
     _crear_una_pendiente_y_una_pagada(db)
 
     principal = client.get("/cartera/").get_data(as_text=True)
     assert "Tienda El Ahorro" in principal
     assert "Minimarket Sol" not in principal
+    assert 'id="buscador-cartera"' in principal
 
     historico = client.get("/cartera/historico").get_data(as_text=True)
-    assert "Tienda El Ahorro" in historico
     assert "Minimarket Sol" in historico
+    assert "Tienda El Ahorro" not in historico
+    assert 'id="buscador-cartera"' in historico
+
+
+def test_facturas_pagadas_filtra_por_fecha_de_pago(db):
+    _crear_una_pendiente_y_una_pagada(db)  # Minimarket Sol pagó el 2026-07-10
+    salida = SalidaCamion.query.first()
+    otro = crear_cliente(db, "Tienda Nueva")
+    db.session.add(
+        FacturaCartera(
+            salida_id=salida.id, cliente_id=otro.id, fecha=date(2026, 8, 1), monto=10000,
+            estado="pagada", fecha_pago=date(2026, 8, 15),
+        )
+    )
+    db.session.commit()
+
+    nombres = lambda fs: [f.cliente.nombre for f in fs]
+    assert nombres(facturas_pagadas()) == ["Tienda Nueva", "Minimarket Sol"]  # más reciente primero
+    assert nombres(facturas_pagadas(desde=date(2026, 8, 1))) == ["Tienda Nueva"]
+    assert nombres(facturas_pagadas(hasta=date(2026, 7, 31))) == ["Minimarket Sol"]
+    assert nombres(facturas_pagadas(date(2026, 7, 10), date(2026, 7, 10))) == ["Minimarket Sol"]
+
+
+def test_historico_acepta_rango_de_fechas_en_la_url(db, client):
+    _crear_una_pendiente_y_una_pagada(db)
+
+    r = client.get("/cartera/historico?desde=2026-08-01&hasta=2026-08-31").get_data(as_text=True)
+    assert "Minimarket Sol" not in r
+    assert "No hay facturas pagadas en ese rango de fechas" in r
+
+    r = client.get("/cartera/historico?desde=2026-07-01&hasta=2026-07-31").get_data(as_text=True)
+    assert "Minimarket Sol" in r
+    # Una fecha inválida se ignora en vez de romper la pantalla.
+    assert client.get("/cartera/historico?desde=basura").status_code == 200

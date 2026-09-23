@@ -38,6 +38,18 @@ def listar_facturas():
     ).all()
 
 
+def facturas_pagadas(desde=None, hasta=None):
+    """Facturas ya pagadas, las de pago más reciente primero. desde/hasta filtran por
+    FECHA DE PAGO (inclusive); con cualquiera de los dos puestos, las pagadas que no
+    tienen fecha de pago registrada quedan fuera."""
+    query = FacturaCartera.query.filter_by(estado="pagada")
+    if desde is not None:
+        query = query.filter(FacturaCartera.fecha_pago >= desde)
+    if hasta is not None:
+        query = query.filter(FacturaCartera.fecha_pago <= hasta)
+    return query.order_by(FacturaCartera.fecha_pago.desc(), FacturaCartera.fecha.desc()).all()
+
+
 def facturas_por_salida(salida_id):
     return (
         FacturaCartera.query.filter_by(salida_id=salida_id)

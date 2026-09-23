@@ -7,6 +7,7 @@ from models import SalidaCamion, FacturaCartera, Cliente
 from services.cartera import (
     total_pendiente,
     facturas_con_antiguedad,
+    facturas_pagadas,
     resumen_antiguedad,
     registrar_abono,
     eliminar_abono,
@@ -23,20 +24,30 @@ def listar():
         facturas=facturas_con_antiguedad(solo_pendientes=True),
         total_pendiente=total_pendiente(),
         antiguedad=resumen_antiguedad(),
-        historico=False,
     )
+
+
+def _fecha_de_query(nombre):
+    valor = request.args.get(nombre, "").strip()
+    try:
+        return datetime.strptime(valor, "%Y-%m-%d").date() if valor else None
+    except ValueError:
+        return None
 
 
 @bp.route("/historico")
 def historico():
-    """Todas las facturas de cartera, pagadas y pendientes -- la pantalla principal solo
-    muestra las que aún se deben."""
+    """Solo las facturas ya pagadas (la pantalla principal muestra las que aún se deben),
+    filtrables por rango de fecha de pago."""
+    desde = _fecha_de_query("desde")
+    hasta = _fecha_de_query("hasta")
+    facturas = facturas_pagadas(desde, hasta)
     return render_template(
-        "cartera/lista.html",
-        facturas=facturas_con_antiguedad(),
-        total_pendiente=total_pendiente(),
-        antiguedad=None,
-        historico=True,
+        "cartera/historico.html",
+        facturas=facturas,
+        total_cobrado=sum(f.monto for f in facturas),
+        desde=desde.isoformat() if desde else "",
+        hasta=hasta.isoformat() if hasta else "",
     )
 
 

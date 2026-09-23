@@ -1,0 +1,32 @@
+{# Barra de búsqueda rápida siempre visible (queda pegada arriba al desplazarse). Filtra en
+   vivo las filas <tr data-fila> de la tabla con id="tabla-cartera" por cualquier texto de
+   la fila: cliente, fecha, monto, ruta, etc. #}
+<div class="sticky-top py-2 mb-3" style="z-index: 1020; background-color: var(--montoya-fondo);">
+  <div class="input-group">
+    <span class="input-group-text"><i class="bi bi-search"></i></span>
+    <input type="search" id="buscador-cartera" class="form-control" placeholder="Buscar rápido: cliente, fecha, monto..." autocomplete="off" autofocus>
+    <span class="input-group-text text-muted small" id="buscador-cartera-conteo"></span>
+  </div>
+</div>
+<script>
+  (function () {
+    var input = document.getElementById("buscador-cartera");
+    var conteo = document.getElementById("buscador-cartera-conteo");
+    function normalizar(t) {
+      return t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[$,.\s]+/g, " ");
+    }
+    function filtrar() {
+      // Se buscan las filas al filtrar (no al cargar): este script va antes de la tabla.
+      var filas = document.querySelectorAll("#tabla-cartera tbody tr[data-fila]");
+      var q = normalizar(input.value).trim();
+      var visibles = 0;
+      filas.forEach(function (tr) {
+        var ok = !q || normalizar(tr.textContent).indexOf(q) !== -1;
+        tr.hidden = !ok;
+        if (ok) visibles++;
+      });
+      conteo.textContent = q ? visibles + " de " + filas.length : "";
+    }
+    input.addEventListener("input", filtrar);
+  })();
+</script>
